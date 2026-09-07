@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,12 @@ import { useRouter } from 'expo-router';
 import { BrandColors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import BottomNavBar from '@/components/BottomNavBar';
+import {
+  canAccessCustomers,
+  canAccessContracts,
+  canAccessFinance,
+  isManagementRole,
+} from '@/utils/rbac';
 
 const MODULES = [
   {
@@ -66,7 +73,92 @@ const MODULES = [
 
 export default function ExploreScreen() {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+
+  const handleModulePress = (moduleId: string) => {
+    if (!isAuthenticated) {
+      router.push('/(auth)/login');
+      return;
+    }
+
+    const role = user?.role;
+
+    switch (moduleId) {
+      case 'projects':
+        router.push('/projects' as any);
+        break;
+
+      case 'customers':
+        if (canAccessCustomers(role)) {
+          router.push('/customers' as any);
+        } else {
+          Alert.alert(
+            'Giới hạn quyền truy cập',
+            'Phân hệ Khách hàng & CRM chỉ dành cho Ban giám đốc và Bộ phận Kinh doanh.'
+          );
+        }
+        break;
+
+      case 'contracts':
+        if (canAccessContracts(role)) {
+          Alert.alert(
+            'Phân hệ Hợp đồng',
+            'Tính năng quản lý hợp đồng chi tiết đang được tối ưu cho phiên bản di động.'
+          );
+        } else {
+          Alert.alert(
+            'Giới hạn quyền truy cập',
+            'Phân hệ Hợp đồng chỉ dành cho Ban giám đốc và Bộ phận Kinh doanh.'
+          );
+        }
+        break;
+
+      case 'finance':
+        if (canAccessFinance(role)) {
+          Alert.alert(
+            'Phân hệ Tài chính',
+            'Báo cáo dòng tiền và thanh toán đang được kết nối dữ liệu.'
+          );
+        } else {
+          Alert.alert(
+            'Giới hạn quyền truy cập',
+            'Phân hệ Tài chính chỉ dành cho Ban giám đốc và Bộ phận Kế toán.'
+          );
+        }
+        break;
+
+      case 'teams':
+        if (isManagementRole(role)) {
+          Alert.alert(
+            'Phân hệ Đội ngũ & Nhân sự',
+            'Tính năng quản lý thành viên đang được phát triển giao diện.'
+          );
+        } else {
+          Alert.alert(
+            'Giới hạn quyền truy cập',
+            'Phân hệ Quản lý Đội ngũ chỉ dành cho Ban giám đốc.'
+          );
+        }
+        break;
+
+      case 'notifications':
+        Alert.alert('Thông báo', 'Bạn không có thông báo mới nào chưa đọc.');
+        break;
+
+      default:
+        break;
+    }
+  };
+
+  const isModuleLocked = (moduleId: string): boolean => {
+    if (!isAuthenticated) return false;
+    const role = user?.role;
+    if (moduleId === 'customers') return !canAccessCustomers(role);
+    if (moduleId === 'contracts') return !canAccessContracts(role);
+    if (moduleId === 'finance') return !canAccessFinance(role);
+    if (moduleId === 'teams') return !isManagementRole(role);
+    return false;
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -101,24 +193,40 @@ export default function ExploreScreen() {
 
         {/* Modules List */}
         <View style={styles.moduleList}>
-          {MODULES.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
-                  <Ionicons name={item.icon} size={24} color={item.color} />
-                </View>
-                <View style={styles.headerText}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    <View style={[styles.badge, { backgroundColor: item.color + '20' }]}>
-                      <Text style={[styles.badgeText, { color: item.color }]}>{item.badge}</Text>
-                    </View>
+          {MODULES.map((item) => {
+            const locked = isModuleLocked(item.id);
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.card, locked && styles.cardLocked]}
+                onPress={() => handleModulePress(item.id)}
+                activeOpacity={0.75}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
+                    <Ionicons name={item.icon} size={24} color={item.color} />
                   </View>
-                  <Text style={styles.cardDesc}>{item.desc}</Text>
+                  <View style={styles.headerText}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.cardTitle}>{item.title}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        {locked && (
+                          <View style={styles.lockBadge}>
+                            <Ionicons name="lock-closed" size={10} color="#94A3B8" />
+                            <Text style={styles.lockBadgeText}>Giới hạn</Text>
+                          </View>
+                        )}
+                        <View style={[styles.badge, { backgroundColor: item.color + '20' }]}>
+                          <Text style={[styles.badgeText, { color: item.color }]}>{item.badge}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <Text style={styles.cardDesc}>{item.desc}</Text>
+                  </View>
                 </View>
-              </View>
-            </View>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
 
@@ -230,5 +338,26 @@ const styles = StyleSheet.create({
     color: BrandColors.slate500,
     lineHeight: 18,
     marginTop: 2,
+  },
+  cardLocked: {
+    opacity: 0.75,
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+  },
+  lockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  lockBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#64748B',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,41 +8,108 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Image,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import BottomNavBar from '@/components/BottomNavBar';
+import { StatCard } from '@/components/dashboard/StatCard';
+import { ReviewQueueWidget } from '@/components/dashboard/ReviewQueueWidget';
+import { TodayTasksWidget } from '@/components/dashboard/TodayTasksWidget';
+import { FocusBanner } from '@/components/dashboard/FocusBanner';
+import { HotProjectsWidget } from '@/components/dashboard/HotProjectsWidget';
+import { MonthYearPickerModal } from '@/components/dashboard/MonthYearPickerModal';
+import {
+  dashboardService,
+  DashboardResponse,
+  TaskItem,
+} from '@/services/dashboardService';
+import { BrandColors } from '@/constants/colors';
+import {
+  canAccessCustomers,
+  isManagementRole,
+  isSalesRole,
+} from '@/utils/rbac';
 
-const logo = require('@/assets/images/logo.png');
-const PRIMARY_COLOR = '#F38820';
+const PRIMARY_COLOR = BrandColors.primary;
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
+  const [reviewTasks, setReviewTasks] = useState<TaskItem[]>([]);
+  const [todayTasks, setTodayTasks] = useState<TaskItem[]>([]);
 
-  // Redirect to login if not authenticated (mirroring ProtectedRoute in erp-UI)
+  // Month & Year state (mirroring MonthSelector in erp-UI)
+  const now = new Date();
+  const [selectedDate, setSelectedDate] = useState<{ month: number | null; year: number | null }>({
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+  });
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
+
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace('/(auth)/login');
     }
   }, [isAuthenticated, isLoading]);
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-        <Text style={styles.loadingText}>Khởi tạo hệ thống...</Text>
-      </View>
-    );
-  }
+  const loadData = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const [dashRes, tasksRes] = await Promise.all([
+        dashboardService.getDashboardData({
+          month: selectedDate.month ?? undefined,
+          year: selectedDate.year ?? undefined,
+        }),
+        dashboardService.getMyTasks(),
+      ]);
 
-  if (!isAuthenticated) {
-    return null;
-  }
+      if (dashRes.data) {
+        setDashboardData(dashRes.data);
+      }
+
+      if (tasksRes.data && Array.isArray(tasksRes.data)) {
+        setTodayTasks(tasksRes.data);
+      }
+
+      // Check review queue for Leads or Admins
+      const isLeadOrAdmin =
+        user?.role === 'ADMIN' ||
+        user?.role === 'BOD' ||
+        user?.role === 'TEAM_LEAD' ||
+        user?.role === 'PM';
+
+      if (isLeadOrAdmin) {
+        const reviewRes = await dashboardService.getAwaitingReviewTasks();
+        if (reviewRes.data && Array.isArray(reviewRes.data)) {
+          setReviewTasks(reviewRes.data);
+        }
+      }
+    } catch {
+      // Graceful fallback to avoid breaking screen
+    } finally {
+      setIsDataLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [isAuthenticated, user?.role, selectedDate]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated, loadData]);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadData();
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -58,6 +125,48 @@ export default function HomeScreen() {
   const handleNotificationPress = () => {
     Alert.alert('Thông báo', 'Bạn không có thông báo mới nào chưa đọc.');
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+        <Text style={styles.loadingText}>Khởi tạo hệ thống...</Text>
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // Determine role-based permissions & metrics
+  const isAdminOrBod = isManagementRole(user?.role);
+  const isSale = isSalesRole(user?.role);
+  const canViewCustomers = canAccessCustomers(user?.role);
+
+  const adminMetrics = dashboardData?.admin;
+  const saleMetrics = dashboardData?.sale;
+  const teamLeadProjects = dashboardData?.teamLead || [];
+  const memberMetrics = dashboardData?.member;
+
+  // Format currency helper
+  const formatMoney = (val?: number) => {
+    if (!val) return '0 ₫';
+    if (val >= 1_000_000_000) {
+      return `${(val / 1_000_000_000).toFixed(1)} Tỷ`;
+    }
+    if (val >= 1_000_000) {
+      return `${(val / 1_000_000).toFixed(0)} Tr`;
+    }
+    return `${val.toLocaleString('vi-VN')} ₫`;
+  };
+
+  const hotProjects =
+    teamLeadProjects.length > 0
+      ? teamLeadProjects
+      : isSale && Array.isArray(saleMetrics?.projects) && saleMetrics.projects.length > 0
+      ? saleMetrics.projects
+      : memberMetrics?.participatingProjects || [];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -102,65 +211,316 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[PRIMARY_COLOR]}
+            tintColor={PRIMARY_COLOR}
+          />
+        }
+      >
         {/* Quick Search Bar */}
         <View style={styles.searchBarWrapper}>
           <Feather name="search" size={18} color="#94A3B8" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm kiếm dự án, nhiệm vụ, khách hàng..."
+            placeholder="Tìm kiếm dự án, nhiệm vụ..."
             placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
               <Feather name="x" size={16} color="#94A3B8" />
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Dashboard Sections */}
+        {/* Focus Banner (mirroring AdminFocusCard / TodayFocusCard on Web) */}
+        <FocusBanner
+          userName={user?.fullName || user?.username}
+          pendingApprovalCount={reviewTasks.length}
+          activeProjectCount={
+            isAdminOrBod
+              ? adminMetrics?.activeProjects ?? teamLeadProjects.length ?? 0
+              : isSale
+              ? saleMetrics?.projects?.length ?? 0
+              : teamLeadProjects.length || memberMetrics?.participatingProjects?.length || 0
+          }
+          totalDebt={
+            isAdminOrBod
+              ? adminMetrics?.totalDebt ?? 0
+              : isSale
+              ? saleMetrics?.totalDebt ?? 0
+              : 0
+          }
+          averageProgress={68}
+          isAdminOrBod={isAdminOrBod || isSale}
+          onViewApprovals={() => router.push('/tasks' as any)}
+          onViewProjects={() => router.push('/projects' as any)}
+        />
+
+        {/* Section Header with Month/Year Switcher (mirroring MonthSelector on Web) */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Tổng quan hoạt động</Text>
+          <Text style={styles.sectionTitle}>
+            {isAdminOrBod
+              ? 'Chỉ số điều hành'
+              : isSale
+              ? 'Chỉ số kinh doanh'
+              : 'Tiến độ công việc'}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.timeSelectorBtn}
+            onPress={() => setIsPickerVisible(true)}
+            activeOpacity={0.75}
+          >
+            <Feather name="calendar" size={13} color={PRIMARY_COLOR} />
+            <Text style={styles.timeSelectorText}>
+              {selectedDate.month
+                ? `Tháng ${selectedDate.month}, ${selectedDate.year}`
+                : 'Tất cả'}
+            </Text>
+            <Feather name="chevron-down" size={13} color="#64748B" />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.statsGrid}>
-          <TouchableOpacity style={styles.statCard} activeOpacity={0.75}>
-            <View style={[styles.statIcon, { backgroundColor: '#FFF4EA' }]}>
-              <Feather name="folder" size={20} color={PRIMARY_COLOR} />
+        {isDataLoading && !isRefreshing ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="small" color={PRIMARY_COLOR} />
+            <Text style={styles.loadingDesc}>Đang đồng bộ dữ liệu Getvini...</Text>
+          </View>
+        ) : (
+          <View style={styles.statsGrid}>
+            {isAdminOrBod ? (
+              <>
+                <StatCard
+                  title="Doanh thu ký"
+                  value={formatMoney(adminMetrics?.totalRevenue)}
+                  subtitle="Hợp đồng kỳ này"
+                  icon="dollar-sign"
+                  color={PRIMARY_COLOR}
+                  bgColor="#FFF7ED"
+                />
+                <StatCard
+                  title="Dự án đang chạy"
+                  value={adminMetrics?.activeProjects ?? teamLeadProjects.length ?? 0}
+                  subtitle="Tiến độ hoạt động"
+                  icon="folder"
+                  color="#3B82F6"
+                  bgColor="#EFF6FF"
+                />
+                <StatCard
+                  title="Khách hàng mới"
+                  value={adminMetrics?.newCustomers ?? 0}
+                  subtitle="Kỳ báo cáo"
+                  icon="users"
+                  color="#10B981"
+                  bgColor="#ECFDF5"
+                />
+                <StatCard
+                  title="Công nợ cần thu"
+                  value={formatMoney(adminMetrics?.totalDebt)}
+                  subtitle="Chờ thanh toán"
+                  icon="alert-circle"
+                  color="#F59E0B"
+                  bgColor="#FFFBEB"
+                />
+              </>
+            ) : isSale ? (
+              <>
+                <StatCard
+                  title="Khách hàng của tôi"
+                  value={saleMetrics?.totalCustomers ?? 0}
+                  subtitle="Khách hàng phụ trách"
+                  icon="users"
+                  color={PRIMARY_COLOR}
+                  bgColor="#FFF7ED"
+                />
+                <StatCard
+                  title="Cơ hội kinh doanh"
+                  value={saleMetrics?.totalOpportunities ?? 0}
+                  subtitle="Đang chăm sóc"
+                  icon="target"
+                  color="#3B82F6"
+                  bgColor="#EFF6FF"
+                />
+                <StatCard
+                  title="Dự án liên quan"
+                  value={saleMetrics?.projects?.length ?? 0}
+                  subtitle="Theo dõi thực hiện"
+                  icon="folder"
+                  color="#10B981"
+                  bgColor="#ECFDF5"
+                />
+                <StatCard
+                  title="Công nợ theo dõi"
+                  value={formatMoney(saleMetrics?.totalDebt)}
+                  subtitle="Cần nhắc thu"
+                  icon="dollar-sign"
+                  color="#F59E0B"
+                  bgColor="#FFFBEB"
+                />
+              </>
+            ) : (
+              <>
+                <StatCard
+                  title="Dự án tham gia"
+                  value={
+                    teamLeadProjects.length > 0
+                      ? teamLeadProjects.length
+                      : memberMetrics?.participatingProjects?.length ?? 0
+                  }
+                  subtitle="Đang thực hiện"
+                  icon="folder"
+                  color={PRIMARY_COLOR}
+                  bgColor="#FFF7ED"
+                />
+                <StatCard
+                  title="Nhiệm vụ của tôi"
+                  value={todayTasks.length || memberMetrics?.totalTasks || 0}
+                  subtitle="Tổng công việc"
+                  icon="check-square"
+                  color="#3B82F6"
+                  bgColor="#EFF6FF"
+                />
+                <StatCard
+                  title="Chờ xét duyệt"
+                  value={reviewTasks.length || 0}
+                  subtitle="Cần phản hồi"
+                  icon="clock"
+                  color="#F59E0B"
+                  bgColor="#FFFBEB"
+                />
+                <StatCard
+                  title="Đã hoàn thành"
+                  value={memberMetrics?.completedTasks ?? 0}
+                  subtitle="Nghiệm thu đạt"
+                  icon="award"
+                  color="#10B981"
+                  bgColor="#ECFDF5"
+                />
+              </>
+            )}
+          </View>
+        )}
+
+        {/* Review Queue Widget (if tasks await review) */}
+        {reviewTasks.length > 0 && (
+          <ReviewQueueWidget
+            tasks={reviewTasks}
+            onViewAll={() => router.push('/tasks' as any)}
+            onTaskPress={(task) => {
+              router.push(`/tasks/${task.id}` as any);
+            }}
+          />
+        )}
+
+        {/* Hot Projects Widget (mirroring HotProjectList on Web) */}
+        {hotProjects.length > 0 && (
+          <HotProjectsWidget
+            projects={hotProjects}
+            onViewAll={() => router.push('/projects' as any)}
+            onProjectPress={() => router.push('/projects' as any)}
+          />
+        )}
+
+        {/* Today's Tasks Widget */}
+        <TodayTasksWidget
+          tasks={todayTasks}
+          onViewAll={() => router.push('/tasks' as any)}
+          onTaskPress={(task) => {
+            router.push(`/tasks/${task.id}` as any);
+          }}
+        />
+
+        {/* Operational Modules Grid */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Phân hệ tác nghiệp</Text>
+        </View>
+
+        <View style={styles.modulesGrid}>
+          <TouchableOpacity
+            style={styles.moduleCard}
+            activeOpacity={0.75}
+            onPress={() => router.push('/tasks' as any)}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#FFF4EA' }]}>
+              <Feather name="check-square" size={22} color={PRIMARY_COLOR} />
             </View>
-            <Text style={styles.statVal}>Dự án</Text>
-            <Text style={styles.statDesc}>Quản lý tiến độ</Text>
+            <Text style={styles.moduleName}>Nhiệm vụ & Việc</Text>
+            <Text style={styles.moduleDesc}>Cần làm & Chờ duyệt</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.statCard} activeOpacity={0.75}>
-            <View style={[styles.statIcon, { backgroundColor: '#EFF6FF' }]}>
-              <Feather name="check-square" size={20} color="#3B82F6" />
+          <TouchableOpacity
+            style={styles.moduleCard}
+            activeOpacity={0.75}
+            onPress={() => router.push('/projects' as any)}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#EFF6FF' }]}>
+              <Feather name="briefcase" size={22} color="#3B82F6" />
             </View>
-            <Text style={styles.statVal}>Nhiệm vụ</Text>
-            <Text style={styles.statDesc}>Danh sách việc làm</Text>
+            <Text style={styles.moduleName}>Quản lý Dự án</Text>
+            <Text style={styles.moduleDesc}>Tiến độ & Thành viên</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.statCard} activeOpacity={0.75}>
-            <View style={[styles.statIcon, { backgroundColor: '#ECFDF5' }]}>
-              <Feather name="users" size={20} color="#10B981" />
-            </View>
-            <Text style={styles.statVal}>Khách hàng</Text>
-            <Text style={styles.statDesc}>Hồ sơ đối tác</Text>
-          </TouchableOpacity>
+          {canViewCustomers ? (
+            <TouchableOpacity
+              style={styles.moduleCard}
+              activeOpacity={0.75}
+              onPress={() => router.push('/customers' as any)}
+            >
+              <View style={[styles.moduleIcon, { backgroundColor: '#ECFDF5' }]}>
+                <Feather name="users" size={22} color="#10B981" />
+              </View>
+              <Text style={styles.moduleName}>Khách hàng & CRM</Text>
+              <Text style={styles.moduleDesc}>Đối tác & Gọi nhanh</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.moduleCard}
+              activeOpacity={0.75}
+              onPress={() => router.push('/profile' as any)}
+            >
+              <View style={[styles.moduleIcon, { backgroundColor: '#ECFDF5' }]}>
+                <Feather name="user" size={22} color="#10B981" />
+              </View>
+              <Text style={styles.moduleName}>Hồ sơ cá nhân</Text>
+              <Text style={styles.moduleDesc}>Tài khoản & Thiết lập</Text>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity style={styles.statCard} activeOpacity={0.75}>
-            <View style={[styles.statIcon, { backgroundColor: '#FFFBEB' }]}>
-              <Feather name="file-text" size={20} color="#F59E0B" />
+          <TouchableOpacity
+            style={styles.moduleCard}
+            activeOpacity={0.75}
+            onPress={() => router.push('/explore')}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#FFFBEB' }]}>
+              <Feather name="grid" size={22} color="#F59E0B" />
             </View>
-            <Text style={styles.statVal}>Hợp đồng</Text>
-            <Text style={styles.statDesc}>Kinh tế & Phụ lục</Text>
+            <Text style={styles.moduleName}>Tất cả phân hệ</Text>
+            <Text style={styles.moduleDesc}>Hợp đồng, Tài chính...</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
+      {/* Month & Year Picker Modal */}
+      <MonthYearPickerModal
+        visible={isPickerVisible}
+        selectedDate={selectedDate}
+        onClose={() => setIsPickerVisible(false)}
+        onSelect={(newDate) => setSelectedDate(newDate)}
+      />
+
+      {/* Bottom Nav Bar */}
       <BottomNavBar />
     </SafeAreaView>
   );
@@ -251,7 +611,7 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
     color: PRIMARY_COLOR,
     textTransform: 'uppercase',
   },
@@ -269,91 +629,138 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
+  logoutBtn: {
+    backgroundColor: '#FEF2F2',
+  },
   notifDot: {
     position: 'absolute',
     top: 8,
     right: 8,
     width: 7,
     height: 7,
-    borderRadius: 3.5,
+    borderRadius: 4,
     backgroundColor: PRIMARY_COLOR,
-  },
-  logoutBtn: {
-    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
   scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 24,
   },
   searchBarWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: 14,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 1.2,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    height: 46,
+    marginBottom: 16,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
     elevation: 1,
   },
   searchInput: {
     flex: 1,
-    height: '100%',
-    paddingHorizontal: 10,
+    marginLeft: 10,
     fontSize: 14,
     color: '#0F172A',
   },
   sectionHeader: {
-    paddingHorizontal: 18,
-    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  timeSelectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  timeSelectorText: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  loadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+  },
+  loadingDesc: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
     gap: 12,
+    marginBottom: 16,
   },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
+  modulesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  moduleCard: {
+    width: '48%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  statIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
+  moduleIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     justifyContent: 'center',
-    marginBottom: 10,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  statVal: {
-    fontSize: 15,
+  moduleName: {
+    fontSize: 14,
     fontWeight: '700',
     color: '#0F172A',
+    marginBottom: 2,
   },
-  statDesc: {
-    fontSize: 12,
+  moduleDesc: {
+    fontSize: 11,
     color: '#64748B',
-    marginTop: 3,
   },
 });
