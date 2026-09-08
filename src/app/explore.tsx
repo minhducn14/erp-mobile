@@ -17,6 +17,7 @@ import {
   canAccessCustomers,
   canAccessContracts,
   canAccessFinance,
+  canAccessOpportunities,
   isManagementRole,
 } from '@/utils/rbac';
 
@@ -30,12 +31,12 @@ const MODULES = [
     badge: 'Cốt lõi',
   },
   {
-    id: 'contracts',
-    title: 'Hợp đồng & Phụ lục',
-    desc: 'Quản lý danh sách hợp đồng kinh tế, điều khoản thanh toán và phụ lục phát sinh.',
-    icon: 'document-text-outline' as const,
-    color: '#3B82F6',
-    badge: 'Pháp lý',
+    id: 'opportunities',
+    title: 'Cơ hội & Pipeline',
+    desc: 'Theo dõi phễu bán hàng, tỷ lệ thành công, báo giá và phê duyệt cơ hội BOD.',
+    icon: 'trending-up-outline' as const,
+    color: '#8B5CF6',
+    badge: 'Kinh doanh',
   },
   {
     id: 'customers',
@@ -44,6 +45,14 @@ const MODULES = [
     icon: 'people-outline' as const,
     color: '#10B981',
     badge: 'Kinh doanh',
+  },
+  {
+    id: 'contracts',
+    title: 'Hợp đồng & Phụ lục',
+    desc: 'Quản lý danh sách hợp đồng kinh tế, điều khoản thanh toán và phụ lục phát sinh.',
+    icon: 'document-text-outline' as const,
+    color: '#3B82F6',
+    badge: 'Pháp lý',
   },
   {
     id: 'finance',
@@ -58,7 +67,7 @@ const MODULES = [
     title: 'Đội ngũ & Nhân sự',
     desc: 'Phân quyền tài khoản (RBAC), phòng ban và đánh giá hiệu suất nhân viên.',
     icon: 'shield-checkmark-outline' as const,
-    color: '#8B5CF6',
+    color: '#EC4899',
     badge: 'Nhân sự',
   },
   {
@@ -66,7 +75,7 @@ const MODULES = [
     title: 'Thông báo & SSE Live',
     desc: 'Nhận thông báo cập nhật công việc và tương tác theo thời gian thực.',
     icon: 'notifications-outline' as const,
-    color: '#EC4899',
+    color: '#6366F1',
     badge: 'Real-time',
   },
 ];
@@ -86,6 +95,17 @@ export default function ExploreScreen() {
     switch (moduleId) {
       case 'projects':
         router.push('/projects' as any);
+        break;
+
+      case 'opportunities':
+        if (canAccessOpportunities(role)) {
+          router.push('/opportunities' as any);
+        } else {
+          Alert.alert(
+            'Giới hạn quyền truy cập',
+            'Phân hệ Quản lý Cơ hội & Pipeline chỉ dành cho Ban giám đốc và Bộ phận Kinh doanh.'
+          );
+        }
         break;
 
       case 'customers':
@@ -153,6 +173,7 @@ export default function ExploreScreen() {
   const isModuleLocked = (moduleId: string): boolean => {
     if (!isAuthenticated) return false;
     const role = user?.role;
+    if (moduleId === 'opportunities') return !canAccessOpportunities(role);
     if (moduleId === 'customers') return !canAccessCustomers(role);
     if (moduleId === 'contracts') return !canAccessContracts(role);
     if (moduleId === 'finance') return !canAccessFinance(role);

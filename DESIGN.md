@@ -64,7 +64,22 @@ Giao diện di động chuyên nghiệp cho hệ thống Quản trị nguồn l�
 - Thẻ danh sách cách lề hai bên 16px.
 - Khoảng cách giữa các thẻ danh sách 12px.
 
+## Chuẩn Định Dạng Số & Tiền Tệ (Number & Currency Standard)
+- **Dấu phân cách hàng nghìn bắt buộc:**
+  - Mọi số lượng, đơn giá, doanh thu, ngân sách, công nợ, tổng tiền trong toàn bộ ứng dụng **bắt buộc phải có dấu phân cách hàng nghìn theo chuẩn Việt Nam (dấu chấm `.`)**.
+  - Ví dụ: `100.000.000 VNĐ`, `15.500.000 ₫`, số lượng `1.200`.
+- **Ô nhập liệu số tiền & số lượng (Real-time Masking):**
+  - Mọi ô input nhận số tiền hoặc số lượng lớn phải tự động format dấu phân cách hàng nghìn theo thời gian thực (`formatNumberInput`) ngay khi người dùng gõ phím.
+  - Tuyệt đối không để người dùng tự nhập một chuỗi số dính liền như `100000000` gây nhầm lẫn chữ số 0.
+- **Tính chính xác trong báo cáo ERP:**
+  - Không viết tắt mơ hồ như `13 Tr` hay `2,5 Tỷ` trên các thẻ thông tin chi tiết, thẻ cơ hội, báo giá, hoặc bảng kê dịch vụ. Luôn hiển thị đầy đủ và rõ ràng từng hàng đơn vị: `12.500.000 ₫`.
+- **Thư viện chuẩn dùng chung:**
+  - Luôn sử dụng bộ helper tập trung từ `@/utils/formatters` (`formatVND`, `formatNumber`, `formatNumberInput`, `parseNumberInput`, `formatQuantity`).
+
 ## Do's and Don'ts
 - **DO** sử dụng màu cam `#F38820` làm trọng tâm nhận diện thương hiệu Getvini.
+- **DO** luôn áp dụng dấu phân cách hàng nghìn (dấu `.`) cho toàn bộ các con số và tiền tệ.
+- **DO** sử dụng utility `@/utils/formatters` cho mọi tác vụ format số/tiền.
+- **DON'T** hiển thị số trần không phân cách (ví dụ `50000000` là vi phạm tiêu chuẩn).
 - **DON'T** sử dụng các màu tím/gradient lạc lõng không thuộc bảng màu Getvini.
 - **DO** xử lý đầy đủ các trạng thái Loading, Empty State, Error State và Pull-to-refresh cho mọi màn hình.

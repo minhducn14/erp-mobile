@@ -5,6 +5,17 @@ import { useColorScheme } from 'react-native';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider } from '@/context/AuthContext';
 
+// Polyfill for Hermes Symbol.description compatibility
+if (typeof Symbol !== 'undefined' && !('description' in Symbol.prototype)) {
+  Object.defineProperty(Symbol.prototype, 'description', {
+    configurable: true,
+    get() {
+      const match = /\((.*)\)/.exec(this.toString());
+      return match ? match[1] : undefined;
+    },
+  });
+}
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {

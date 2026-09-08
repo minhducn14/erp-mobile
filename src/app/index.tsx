@@ -19,6 +19,7 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { ReviewQueueWidget } from '@/components/dashboard/ReviewQueueWidget';
 import { TodayTasksWidget } from '@/components/dashboard/TodayTasksWidget';
 import { FocusBanner } from '@/components/dashboard/FocusBanner';
+import { QuickActionGrid } from '@/components/dashboard/QuickActionGrid';
 import { HotProjectsWidget } from '@/components/dashboard/HotProjectsWidget';
 import { MonthYearPickerModal } from '@/components/dashboard/MonthYearPickerModal';
 import {
@@ -268,6 +269,18 @@ export default function HomeScreen() {
           onViewProjects={() => router.push('/projects' as any)}
         />
 
+        {/* Quick Actions Grid (8-Icon Shortcuts matching reference style) */}
+        <QuickActionGrid
+          userRole={user?.role}
+          totalDebt={
+            isAdminOrBod
+              ? adminMetrics?.totalDebt ?? 0
+              : isSale
+              ? saleMetrics?.totalDebt ?? 0
+              : 0
+          }
+        />
+
         {/* Section Header with Month/Year Switcher (mirroring MonthSelector on Web) */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
@@ -317,6 +330,7 @@ export default function HomeScreen() {
                   icon="folder"
                   color="#3B82F6"
                   bgColor="#EFF6FF"
+                  onPress={() => router.push('/projects' as any)}
                 />
                 <StatCard
                   title="Khách hàng mới"
@@ -325,6 +339,7 @@ export default function HomeScreen() {
                   icon="users"
                   color="#10B981"
                   bgColor="#ECFDF5"
+                  onPress={() => router.push('/customers' as any)}
                 />
                 <StatCard
                   title="Công nợ cần thu"
@@ -344,6 +359,7 @@ export default function HomeScreen() {
                   icon="users"
                   color={PRIMARY_COLOR}
                   bgColor="#FFF7ED"
+                  onPress={() => router.push('/customers' as any)}
                 />
                 <StatCard
                   title="Cơ hội kinh doanh"
@@ -352,6 +368,7 @@ export default function HomeScreen() {
                   icon="target"
                   color="#3B82F6"
                   bgColor="#EFF6FF"
+                  onPress={() => router.push('/opportunities' as any)}
                 />
                 <StatCard
                   title="Dự án liên quan"
@@ -360,6 +377,7 @@ export default function HomeScreen() {
                   icon="folder"
                   color="#10B981"
                   bgColor="#ECFDF5"
+                  onPress={() => router.push('/projects' as any)}
                 />
                 <StatCard
                   title="Công nợ theo dõi"
@@ -383,6 +401,7 @@ export default function HomeScreen() {
                   icon="folder"
                   color={PRIMARY_COLOR}
                   bgColor="#FFF7ED"
+                  onPress={() => router.push('/projects' as any)}
                 />
                 <StatCard
                   title="Nhiệm vụ của tôi"
@@ -391,6 +410,7 @@ export default function HomeScreen() {
                   icon="check-square"
                   color="#3B82F6"
                   bgColor="#EFF6FF"
+                  onPress={() => router.push('/tasks' as any)}
                 />
                 <StatCard
                   title="Chờ xét duyệt"
@@ -399,6 +419,7 @@ export default function HomeScreen() {
                   icon="clock"
                   color="#F59E0B"
                   bgColor="#FFFBEB"
+                  onPress={() => router.push('/tasks' as any)}
                 />
                 <StatCard
                   title="Đã hoàn thành"
