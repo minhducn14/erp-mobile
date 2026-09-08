@@ -11,7 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { canAccessOpportunities, isManagementRole } from '@/utils/rbac';
@@ -23,6 +23,7 @@ import {
 import {
   quotationService,
   QuotationItem,
+  QuotationStatus,
 } from '@/services/quotationService';
 import { customerService } from '@/services/customerService';
 import { QuotationItemCard } from '@/components/opportunities/QuotationItemCard';
@@ -130,9 +131,11 @@ export default function OpportunityDetailScreen() {
     }
   }, [id, hasAccess]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -348,7 +351,25 @@ export default function OpportunityDetailScreen() {
 
   const statusMeta = getStatusLabel(opportunity.status);
   const isAwaitingApproval = opportunity.status === 'PENDING_OPP_APPROVAL';
-  const hasCustomer = !!(opportunity.customer || opportunity.leadName);
+  const hasCustomer = !!(
+    opportunity.customer ||
+    opportunity.customerId ||
+    opportunity.leadName
+  );
+
+  const draftCount = quotations.filter((q) => q.status === 'DRAFT').length;
+  const showBadge = draftCount > 0;
+
+  // Logic khớp 100% bản Web (OpportunityDetailPage.jsx line 272):
+  // (hasCustomer) && (QUOTATION_DRAFTING || PENDING_QUOTE_APPROVAL || (OPP_APPROVED && (ADMIN || creator)))
+  const canCreateQuotation =
+    hasCustomer &&
+    (opportunity.status === 'QUOTATION_DRAFTING' ||
+      opportunity.status === 'PENDING_QUOTE_APPROVAL' ||
+      (opportunity.status === 'OPP_APPROVED' &&
+        (user?.role === 'ADMIN' || (opportunity.createdBy as any)?.id === user?.id)));
+
+  const canViewQuotations = hasCustomer && quotations.length > 0;
   const standaloneServices = opportunity.services?.filter((s) => !s.opportunityPackageId) || [];
   const packages = opportunity.packages || [];
   const attachments = opportunity.attachments || [];
@@ -485,6 +506,52 @@ export default function OpportunityDetailScreen() {
               <Text style={styles.stepperText}>Hợp đồng</Text>
             </View>
           </View>
+
+          {/* 2.1. THANH HÀNH ĐỘNG NHANH (QUICK ACTIONS BAR) ĐỒNG BỘ TỪ WEB */}
+          {hasCustomer && (canViewQuotations || canCreateQuotation) && (
+            <View style={styles.headerActionsBar}>
+              {canViewQuotations && (
+                <View style={styles.viewQuoteWrapper}>
+                  <TouchableOpacity
+                    style={styles.headerViewQuotesBtn}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/opportunities/quotations/list',
+                        params: { opportunityId: id, opportunityName: opportunity.name },
+                      })
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="file-text" size={15} color="#FFFFFF" />
+                    <Text style={styles.headerViewQuotesText}>Xem báo giá</Text>
+                  </TouchableOpacity>
+                  {showBadge && (
+                    <View style={styles.headerBadge}>
+                      <Text style={styles.headerBadgeText}>
+                        {draftCount > 9 ? '9+' : draftCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {canCreateQuotation && (
+                <TouchableOpacity
+                  style={styles.headerCreateQuoteBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/opportunities/quotations/create',
+                      params: { opportunityId: id },
+                    })
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Feather name="plus" size={15} color="#FFFFFF" />
+                  <Text style={styles.headerCreateQuoteText}>Tạo báo giá</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         {/* 3. KHỐI KHÁCH HÀNG & NGƯỜI LIÊN HỆ (OPTION A - VỊ TRÍ ƯU TIÊN SỐ 1) */}
@@ -824,31 +891,110 @@ export default function OpportunityDetailScreen() {
           </View>
         </View>
 
-        {/* 10. KHỐI BÁO GIÁ LIÊN KẾT */}
+        {/* 10. KHỐI BÁO GIÁ */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionTitleWithIcon}>
               <View style={[styles.titleIconBox, { backgroundColor: '#ECFDF5' }]}>
                 <Feather name="file-text" size={16} color="#059669" />
               </View>
-              <Text style={styles.sectionHeader}>Báo giá liên kết ({quotations.length})</Text>
+              <Text style={styles.sectionHeader}>Báo giá ({quotations.length})</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {canCreateQuotation && (
+                <TouchableOpacity
+                  style={styles.createQuoteInlineBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/opportunities/quotations/create',
+                      params: { opportunityId: id },
+                    })
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Feather name="plus" size={14} color="#059669" />
+                  <Text style={styles.createQuoteInlineText}>Tạo báo giá</Text>
+                </TouchableOpacity>
+              )}
+              {quotations.length > 0 && (
+                <TouchableOpacity
+                  style={styles.seeAllQuotesBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/opportunities/quotations/list',
+                      params: { opportunityId: id, opportunityName: opportunity?.name },
+                    })
+                  }
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.seeAllQuotesText}>Xem tất cả</Text>
+                  <Feather name="chevron-right" size={14} color="#64748B" />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
           {quotations.length > 0 ? (
-            quotations.map((quote) => (
-              <QuotationItemCard
-                key={quote.id}
-                item={quote}
-                isAdminOrBod={isAdminOrBod}
-                onApprove={handleApproveQuotation}
-                onReject={handleRejectQuotation}
-              />
-            ))
+            quotations.map((quote) => {
+              const hasApprovedQuote =
+                opportunity?.status === 'QUOTE_APPROVED' ||
+                quotations.some(
+                  (q) => q.status === QuotationStatus.APPROVED || q.status === 'APPROVED'
+                );
+              const isThisItemApproved =
+                quote.status === QuotationStatus.APPROVED || quote.status === 'APPROVED';
+              const isExpired = hasApprovedQuote && !isThisItemApproved;
+
+              return (
+                <QuotationItemCard
+                  key={quote.id}
+                  item={quote}
+                  isAdminOrBod={isAdminOrBod}
+                  isExpired={isExpired}
+                  onPress={(item) =>
+                    router.push({
+                      pathname: '/opportunities/quotations/[quotId]',
+                      params: { quotId: item.id, opportunityId: id },
+                    })
+                  }
+                  onApprove={isExpired ? undefined : handleApproveQuotation}
+                  onReject={isExpired ? undefined : handleRejectQuotation}
+                  onEdit={
+                    isExpired
+                      ? undefined
+                      : (item) =>
+                          router.push({
+                            pathname: '/opportunities/quotations/create',
+                            params: { opportunityId: id, quotationId: item.id },
+                          })
+                  }
+                />
+              );
+            })
           ) : (
             <View style={styles.noQuoteBox}>
               <Feather name="file-text" size={24} color="#CBD5E1" />
-              <Text style={styles.noQuoteText}>Chưa có bản báo giá nào được tạo cho cơ hội này.</Text>
+              <Text style={styles.noQuoteText}>
+                {hasCustomer
+                  ? 'Chưa có bản báo giá nào được tạo cho cơ hội này.'
+                  : 'Vui lòng gán thông tin khách hàng để thực hiện tạo báo giá.'}
+              </Text>
+              {canCreateQuotation && (
+                <TouchableOpacity
+                  style={styles.emptyCreateQuoteBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/opportunities/quotations/create',
+                      params: { opportunityId: id },
+                    })
+                  }
+                  activeOpacity={0.85}
+                >
+                  <Feather name="plus" size={14} color="#FFFFFF" />
+                  <Text style={styles.emptyCreateQuoteBtnText}>Tạo báo giá đầu tiên</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
@@ -1404,6 +1550,105 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94A3B8',
     textAlign: 'center',
+  },
+  createQuoteInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  createQuoteInlineText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  seeAllQuotesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  seeAllQuotesText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  emptyCreateQuoteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#059669',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  emptyCreateQuoteBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  headerActionsBar: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  viewQuoteWrapper: {
+    position: 'relative',
+  },
+  headerViewQuotesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  headerViewQuotesText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  headerBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  headerCreateQuoteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#059669',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  headerCreateQuoteText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   bottomBar: {
     padding: 16,
