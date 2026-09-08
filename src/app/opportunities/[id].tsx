@@ -24,6 +24,7 @@ import {
   quotationService,
   QuotationItem,
 } from '@/services/quotationService';
+import { customerService } from '@/services/customerService';
 import { QuotationItemCard } from '@/components/opportunities/QuotationItemCard';
 import { CustomerInfoCard } from '@/components/opportunities/CustomerInfoCard';
 import {
@@ -172,6 +173,41 @@ export default function OpportunityDetailScreen() {
       throw new Error(res.error);
     }
     Alert.alert('Thành công', 'Thông tin khách hàng đã được lưu thành công!');
+    await loadData();
+  };
+
+  // Inline Edit Customer Handler (chuẩn Web CustomerInfo.jsx)
+  const handleSaveEditCustomer = async (data: {
+    name?: string;
+    phone?: string;
+    email?: string;
+    taxId?: string;
+    address?: string;
+  }) => {
+    if (!id || !opportunity) return;
+
+    if (opportunity.customer) {
+      // KH hiện hữu: cập nhật qua customerService (chuẩn Web)
+      const res = await customerService.updateCustomer(opportunity.customer.id, {
+        phoneNumber: data.phone,
+        email: data.email,
+        taxId: data.taxId,
+        address: data.address,
+      } as any);
+      if (res.error) throw new Error(res.error);
+    } else {
+      // Lead (tiềm năng): cập nhật qua opportunityService
+      const res = await opportunityService.updateOpportunity(id, {
+        leadName: data.name,
+        leadPhone: data.phone,
+        leadEmail: data.email,
+        leadTaxId: data.taxId,
+        leadAddress: data.address,
+      });
+      if (res.error) throw new Error(res.error);
+    }
+
+    Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
     await loadData();
   };
 
@@ -455,7 +491,8 @@ export default function OpportunityDetailScreen() {
         <View style={styles.cardWrapper}>
           <CustomerInfoCard
             opportunity={opportunity}
-            onAddOrEditCustomer={() => setIsCustomerModalVisible(true)}
+            onAddCustomer={() => setIsCustomerModalVisible(true)}
+            onSaveEdit={handleSaveEditCustomer}
           />
         </View>
 
