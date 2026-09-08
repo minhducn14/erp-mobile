@@ -25,7 +25,11 @@ import {
   QuotationItem,
   QuotationStatus,
 } from '@/services/quotationService';
-import { contractService } from '@/services/contractService';
+import {
+  contractService,
+  CONTRACT_STATUS_CONFIG,
+  CONTRACT_STATUS_LABELS,
+} from '@/services/contractService';
 import { customerService } from '@/services/customerService';
 import { QuotationItemCard } from '@/components/opportunities/QuotationItemCard';
 import { CustomerInfoCard } from '@/components/opportunities/CustomerInfoCard';
@@ -1112,17 +1116,40 @@ export default function OpportunityDetailScreen() {
                 </View>
                 <Text style={styles.sectionHeader}>Hợp đồng kinh tế</Text>
               </View>
-              <View style={styles.contractStatusBadge}>
-                <Text style={styles.contractStatusBadgeText}>
-                  {linkedContract.status || 'Đã tạo HĐ'}
-                </Text>
-              </View>
+              {(() => {
+                const statusKey = linkedContract.status || '';
+                const conf = CONTRACT_STATUS_CONFIG[statusKey];
+                return (
+                  <View
+                    style={[
+                      styles.contractStatusBadge,
+                      conf ? { backgroundColor: conf.bg, borderColor: conf.border } : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.contractStatusBadgeText,
+                        conf ? { color: conf.color } : null,
+                      ]}
+                    >
+                      {conf?.text ||
+                        CONTRACT_STATUS_LABELS[statusKey] ||
+                        statusKey ||
+                        'Đã tạo HĐ'}
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
 
             <View style={styles.contractCardBody}>
               <View style={styles.contractCardTop}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.contractCardCode}>{linkedContract.contractCode}</Text>
+                  <Text style={styles.contractCardCode}>
+                    {linkedContract.contractCode ||
+                      (linkedContract as any).contract_code ||
+                      '—'}
+                  </Text>
                   <Text style={styles.contractCardName}>
                     {linkedContract.name || opportunity.name}
                   </Text>

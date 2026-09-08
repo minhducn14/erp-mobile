@@ -23,56 +23,23 @@ import {
   ContractItem,
   ContractStatus,
   MilestoneStatus,
+  CONTRACT_STATUS_CONFIG,
+  CONTRACT_STATUS_LABELS,
 } from '@/services/contractService';
 import { formatVNDFull, formatNumber } from '@/utils/formatters';
 
-// Dictionary mapping for Contract Status
-const CONTRACT_STATUS_CONFIG: Record<
-  string,
-  { text: string; color: string; bg: string; border: string }
-> = {
-  [ContractStatus.DRAFT]: {
-    text: 'Khởi tạo (Draft)',
-    color: '#475569',
-    bg: '#F1F5F9',
-    border: '#CBD5E1',
-  },
-  [ContractStatus.PROPOSAL_UPLOADED]: {
-    text: 'Chờ duyệt Proposal',
-    color: '#1D4ED8',
-    bg: '#EFF6FF',
-    border: '#BFDBFE',
-  },
-  [ContractStatus.PROPOSAL_APPROVED]: {
-    text: 'Đã duyệt Proposal',
-    color: '#059669',
-    bg: '#ECFDF5',
-    border: '#A7F3D0',
-  },
-  [ContractStatus.PROPOSAL_REJECTED]: {
-    text: 'Từ chối Proposal',
-    color: '#DC2626',
-    bg: '#FEF2F2',
-    border: '#FECACA',
-  },
-  [ContractStatus.SIGNED]: {
-    text: 'Đã ký kết',
-    color: '#0D9488',
-    bg: '#F0FDFA',
-    border: '#99F6E4',
-  },
-  [ContractStatus.COMPLETED]: {
-    text: 'Đã hoàn thành',
-    color: '#15803D',
-    bg: '#F0FDF4',
-    border: '#BBF7D0',
-  },
-  [ContractStatus.CANCELLED]: {
-    text: 'Đã hủy bỏ',
-    color: '#64748B',
-    bg: '#F8FAFC',
-    border: '#E2E8F0',
-  },
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch {
+    return dateStr;
+  }
 };
 
 export default function ContractDetailScreen() {
@@ -209,8 +176,9 @@ export default function ContractDetailScreen() {
     );
   }
 
+  const contractCode = contract.contractCode || (contract as any).contract_code || '—';
   const statusConfig = CONTRACT_STATUS_CONFIG[contract.status] || {
-    text: contract.status || 'Chưa xác định',
+    text: CONTRACT_STATUS_LABELS[contract.status] || contract.status || 'Chưa xác định',
     color: '#475569',
     bg: '#F1F5F9',
     border: '#E2E8F0',
@@ -312,7 +280,7 @@ export default function ContractDetailScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerInfo}>
-          <Text style={styles.headerCode}>{contract.contractCode || 'HỢP ĐỒNG'}</Text>
+          <Text style={styles.headerCode}>{contractCode !== '—' ? contractCode : 'HỢP ĐỒNG'}</Text>
           <Text style={styles.headerSub}>Chi tiết hồ sơ hợp đồng kinh tế</Text>
         </View>
 
@@ -340,20 +308,28 @@ export default function ContractDetailScreen() {
         {/* 2. STATUS & OVERVIEW CARD */}
         <View style={styles.mainCard}>
           <View style={styles.statusRow}>
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: statusConfig.bg, borderColor: statusConfig.border },
-              ]}
-            >
-              <Text style={[styles.statusBadgeText, { color: statusConfig.color }]}>
-                {statusConfig.text}
-              </Text>
+            <View style={styles.statusLeft}>
+              {/* Badge Mã hợp đồng (Chuẩn Web ERP) */}
+              <View style={styles.codeBadge}>
+                <Text style={styles.codeBadgeText}>{contractCode}</Text>
+              </View>
+
+              {/* Badge Trạng thái hợp đồng (Chuẩn Web ERP) */}
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: statusConfig.bg, borderColor: statusConfig.border },
+                ]}
+              >
+                <Text style={[styles.statusBadgeText, { color: statusConfig.color }]}>
+                  {statusConfig.text}
+                </Text>
+              </View>
             </View>
 
             {contract.createdAt && (
               <Text style={styles.dateText}>
-                Ngày tạo: {new Date(contract.createdAt).toLocaleDateString('vi-VN')}
+                {formatDate(contract.createdAt)}
               </Text>
             )}
           </View>
@@ -396,6 +372,58 @@ export default function ContractDetailScreen() {
                 </Text>
               </TouchableOpacity>
             )}
+          </View>
+        </View>
+
+        {/* 2.1 THÔNG TIN HỢP ĐỒNG (CHUẨN 100% WEB ContractInfo.jsx) */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleWithIcon}>
+              <View style={[styles.titleIconBox, { backgroundColor: '#EFF6FF' }]}>
+                <Feather name="file-text" size={16} color="#2563EB" />
+              </View>
+              <Text style={styles.sectionHeader}>Thông tin hợp đồng</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoList}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Mã hợp đồng</Text>
+              <View style={styles.contractCodeBox}>
+                <Text style={styles.contractCodeBoxText} selectable={true}>
+                  {contractCode}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Tên hợp đồng</Text>
+              <Text style={[styles.infoValue, { flex: 1, textAlign: 'right', fontWeight: '700' }]}>
+                {contract.name || '—'}
+              </Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Ngày tạo</Text>
+              <View style={styles.dateWithIcon}>
+                <Feather name="calendar" size={13} color="#64748B" />
+                <Text style={styles.infoValue}>{formatDate(contract.createdAt)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Trạng thái</Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: statusConfig.bg, borderColor: statusConfig.border },
+                ]}
+              >
+                <Text style={[styles.statusBadgeText, { color: statusConfig.color }]}>
+                  {statusConfig.text}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -914,6 +942,47 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
+    gap: 8,
+  },
+  statusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  codeBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  codeBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    fontFamily: 'monospace',
+  },
+  contractCodeBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  contractCodeBoxText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontFamily: 'monospace',
+  },
+  dateWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   statusBadge: {
     paddingHorizontal: 10,
