@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService, UserProfile, STORAGE_USER_KEY, STORAGE_REMEMBER_KEY } from '@/services/api';
+import { privateStorage } from '@/services/secureStorage';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -20,12 +20,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const savedUser = await AsyncStorage.getItem(STORAGE_USER_KEY);
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
+        // A cached profile is not proof of authentication. Keep it in memory only.
+        await privateStorage.removeItem(STORAGE_USER_KEY);
+        const response = await apiService.getMe();
+        if (response.data && !response.error) {
+          setUser(response.data);
         }
       } catch (e) {
         console.warn('Failed to restore auth user', e);
+        await privateStorage.removeItem(STORAGE_USER_KEY).catch(() => undefined);
       } finally {
         setIsLoading(false);
       }
@@ -43,15 +46,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const userData = response.data.user;
-      setUser(userData);
-      await AsyncStorage.setItem(STORAGE_USER_KEY, JSON.stringify(userData));
 
       if (rememberMe) {
-        await AsyncStorage.setItem(STORAGE_REMEMBER_KEY, username);
+        await privateStorage.setItem(STORAGE_REMEMBER_KEY, username);
       } else {
-        await AsyncStorage.removeItem(STORAGE_REMEMBER_KEY);
+        await privateStorage.removeItem(STORAGE_REMEMBER_KEY);
       }
 
+      setUser(userData);
       return { user: userData };
     } catch (err: any) {
       return { error: err.message || 'Đăng nhập thất bại. Vui lòng thử lại.' };
@@ -63,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await apiService.logout();
     } catch {}
     try {
-      await AsyncStorage.removeItem(STORAGE_USER_KEY);
+      await privateStorage.removeItem(STORAGE_USER_KEY);
     } catch {}
     setUser(null);
   }, []);

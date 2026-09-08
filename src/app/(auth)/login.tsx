@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { STORAGE_REMEMBER_KEY } from '@/services/api';
+import { privateStorage } from '@/services/secureStorage';
 
 const bg = require('@/assets/images/bg.jpg');
 
@@ -37,7 +37,7 @@ export default function LoginScreen() {
   useEffect(() => {
     const loadRememberedUsername = async () => {
       try {
-        const savedUsername = await AsyncStorage.getItem(STORAGE_REMEMBER_KEY);
+        const savedUsername = await privateStorage.getItem(STORAGE_REMEMBER_KEY);
         if (savedUsername) {
           setUsername(savedUsername);
           setRememberMe(true);
