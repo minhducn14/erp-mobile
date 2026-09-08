@@ -184,13 +184,37 @@ export default function ContractDetailScreen() {
     border: '#E2E8F0',
   };
 
-  // Financial Calculations
-  const sellingPrice = Number(contract.sellingPrice || 0);
+  // Financial Calculations (100% chuẩn Web ERP FinancialInfo.jsx)
+  const sellingPrice = Number(contract.sellingPrice || (contract as any).selling_price || 0);
   const costPrice = Number(contract.cost || 0);
-  const grossProfit = sellingPrice - costPrice;
-  const marginPercent = sellingPrice > 0 ? Math.round((grossProfit / sellingPrice) * 100) : 0;
-  const marginColor =
-    marginPercent >= 40 ? '#059669' : marginPercent >= 20 ? '#D97706' : '#DC2626';
+
+  const rawMilestones = contract.milestones || [];
+  const rawDebts = (contract as any).debts || [];
+
+  const processedMilestones = rawMilestones.map((m) => {
+    const debt = rawDebts.find((d: any) => d.milestone?.id === m.id || d.milestoneId === m.id);
+    let paidAmount = 0;
+    if (debt) {
+      const payments = debt.payments?.map((p: any) => ({ ...p, amount: Number(p.amount || 0) })) || [];
+      paidAmount = payments.reduce((sum: number, p: any) => sum + p.amount, 0);
+    } else if (m.status === 'COMPLETED') {
+      paidAmount = Number(m.amount || 0);
+    }
+
+    const amount = Number(m.amount || 0);
+    const remaining = Math.max(0, amount - paidAmount);
+    const isActive = !!debt || m.status === 'COMPLETED' || m.status === 'ACTIVE';
+
+    return {
+      paidAmount,
+      remaining,
+      isActive,
+    };
+  });
+
+  const totalPaid = processedMilestones.reduce((sum, m) => sum + m.paidAmount, 0);
+  const totalDebt = processedMilestones.reduce((sum, m) => sum + (m.isActive ? m.remaining : 0), 0);
+  const progressPercent = sellingPrice > 0 ? Math.round((totalPaid / sellingPrice) * 100) : 0;
 
   // Group services into Packages & Standalone (đồng bộ 100% cơ cấu bên Cơ hội)
   const packageServices = contract.services?.filter((s) => s.isPackageService) || [];
@@ -488,44 +512,62 @@ export default function ContractDetailScreen() {
           )}
         </View>
 
-        {/* 4. CARD TÀI CHÍNH & GIÁ TRỊ HỢP ĐỒNG */}
+        {/* 4. TỔNG KẾT TÀI CHÍNH (CHUẨN 100% WEB ERP FinancialInfo.jsx) */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#ECFDF5' }]}>
-                <Feather name="dollar-sign" size={16} color="#059669" />
+              <View style={[styles.titleIconBox, { backgroundColor: '#EFF6FF' }]}>
+                <Feather name="dollar-sign" size={16} color="#2563EB" />
               </View>
               <Text style={styles.sectionHeader}>Tổng kết tài chính</Text>
             </View>
           </View>
 
-          <View style={styles.financeGrid}>
-            <View style={styles.financeBox}>
-              <Text style={styles.financeBoxLabel}>Giá trị hợp đồng (Doanh thu)</Text>
-              <Text style={styles.financeBoxRevenue}>{formatVNDFull(sellingPrice)}</Text>
+          <View style={styles.financialGrid}>
+            {/* 1. TỔNG GIÁ TRỊ HỢP ĐỒNG */}
+            <View style={styles.financialCardTotal}>
+              <Text style={styles.financialCardTotalLabel}>TỔNG GIÁ TRỊ HỢP ĐỒNG</Text>
+              <Text style={styles.financialCardTotalValue}>{formatVNDFull(sellingPrice)}</Text>
             </View>
 
-            <View style={styles.financeBox}>
-              <Text style={styles.financeBoxLabel}>Chi phí giá vốn (Cost)</Text>
-              <Text style={styles.financeBoxCost}>{formatVNDFull(costPrice)}</Text>
-            </View>
-          </View>
-
-          <View style={styles.marginRow}>
-            <View style={styles.marginItem}>
-              <Text style={styles.marginLabel}>Lợi nhuận gộp:</Text>
-              <Text style={[styles.marginValue, { color: grossProfit >= 0 ? '#059669' : '#DC2626' }]}>
-                {formatVNDFull(grossProfit)}
+            {/* 2. TỔNG VỐN */}
+            <View style={styles.financialCard}>
+              <Text style={styles.financialCardLabel}>TỔNG VỐN</Text>
+              <Text style={[styles.financialCardValue, { color: '#059669' }]}>
+                {formatVNDFull(costPrice)}
               </Text>
             </View>
 
-            <View style={styles.marginItem}>
-              <Text style={styles.marginLabel}>Biên lợi nhuận:</Text>
-              <View style={[styles.marginBadge, { backgroundColor: marginColor + '15' }]}>
-                <Text style={[styles.marginBadgeText, { color: marginColor }]}>
-                  {marginPercent}%
-                </Text>
+            {/* 3. ĐÃ THANH TOÁN THỰC TẾ */}
+            <View style={styles.financialCard}>
+              <View style={styles.financialCardHeader}>
+                <Text style={styles.financialCardLabel}>ĐÃ THANH TOÁN THỰC TẾ</Text>
+                <View style={[styles.miniIconBox, { backgroundColor: '#ECFDF5' }]}>
+                  <Feather name="trending-up" size={13} color="#059669" />
+                </View>
               </View>
+              <Text style={[styles.financialCardValue, { color: '#059669' }]}>
+                {formatVNDFull(totalPaid)}
+              </Text>
+              <Text style={styles.financialCardSub}>
+                Bạn đã thu về {progressPercent}% doanh thu
+              </Text>
+            </View>
+
+            {/* 4. CÔNG NỢ CHỜ THU HỒI */}
+            <View style={styles.financialCard}>
+              <View style={styles.financialCardHeader}>
+                <Text style={styles.financialCardLabel}>CÔNG NỢ CHỜ THU HỒI</Text>
+                <View style={[styles.miniIconBox, { backgroundColor: '#FEF2F2' }]}>
+                  <Feather name="alert-circle" size={13} color="#DC2626" />
+                </View>
+              </View>
+              <Text style={[styles.financialCardValue, { color: '#DC2626' }]}>
+                {formatVNDFull(totalDebt)}
+              </Text>
+              <Text style={styles.financialCardSub}>
+                Tổng nợ từ các đợt đã kích hoạt
+              </Text>
             </View>
           </View>
         </View>
@@ -1140,64 +1182,67 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#059669',
   },
-  financeGrid: {
-    flexDirection: 'row',
+  financialGrid: {
     gap: 10,
-    marginBottom: 12,
   },
-  financeBox: {
-    flex: 1,
+  financialCardTotal: {
+    backgroundColor: '#1E40AF',
+    borderRadius: 12,
+    padding: 14,
+    shadowColor: '#1E40AF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  financialCardTotalLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#DBEAFE',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  financialCardTotalValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  financialCard: {
     backgroundColor: '#F8FAFC',
+    borderRadius: 12,
     padding: 12,
-    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  financeBoxLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  financeBoxRevenue: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  financeBoxCost: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#475569',
-  },
-  marginRow: {
+  financialCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    marginBottom: 2,
   },
-  marginItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  marginLabel: {
-    fontSize: 12,
+  financialCardLabel: {
+    fontSize: 10,
+    fontWeight: '700',
     color: '#64748B',
+    letterSpacing: 0.5,
   },
-  marginValue: {
-    fontSize: 13,
+  financialCardValue: {
+    fontSize: 16,
     fontWeight: '800',
+    marginTop: 2,
   },
-  marginBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  financialCardSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  miniIconBox: {
+    width: 22,
+    height: 22,
     borderRadius: 6,
-  },
-  marginBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   packagesWrapper: {
     gap: 12,
