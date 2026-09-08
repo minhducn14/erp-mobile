@@ -217,4 +217,23 @@ export const opportunityService = {
   async getReferralPartners() {
     return apiService.get<Array<{ id: string; name: string; phone?: string; email?: string }>>('/referral-partners');
   },
+
+  async getReferralPartner(id: string) {
+    return apiService.get<{
+      id: string;
+      name: string;
+      taxId?: string;
+      phone?: string;
+      email?: string;
+      customers?: Array<{
+        id: string;
+        name: string;
+        taxId?: string;
+        phoneNumber?: string;
+        phone?: string;
+        email?: string;
+        address?: string;
+      }>;
+    }>(`/referral-partners/${id}`);
+  },
 };

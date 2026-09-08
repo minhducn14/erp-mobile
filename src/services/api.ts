@@ -216,6 +216,13 @@ class ApiService {
       headers.Cookie = cookieHeader;
     }
 
+    const method = (options.method || 'GET').toUpperCase();
+    const startTime = Date.now();
+
+    if (__DEV__) {
+      console.log(`🌐 [API Request] [${method}] ${url}`, options.body ? `| Payload: ${options.body}` : '');
+    }
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -240,7 +247,13 @@ class ApiService {
         data = { raw: text };
       }
 
+      const duration = Date.now() - startTime;
+
       if (!response.ok) {
+        if (__DEV__) {
+          console.warn(`❌ [API Error] [${method}] ${cleanEndpoint} (${response.status}) [${duration}ms]:`, data);
+        }
+
         if (response.status === 401 && allowRefresh && this.shouldRefresh(cleanEndpoint)) {
           const refreshed = await this.refreshSession();
           if (refreshed) {
@@ -257,8 +270,16 @@ class ApiService {
         return { error: errorMsg, status: response.status };
       }
 
+      if (__DEV__) {
+        console.log(`✅ [API Success] [${method}] ${cleanEndpoint} (${response.status}) [${duration}ms]`);
+      }
+
       return { data, status: response.status };
     } catch (err: any) {
+      const duration = Date.now() - startTime;
+      if (__DEV__) {
+        console.error(`💥 [API Network Error] [${method}] ${cleanEndpoint} [${duration}ms]:`, err?.message || err);
+      }
       return {
         error: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối.',
         status: 0,
