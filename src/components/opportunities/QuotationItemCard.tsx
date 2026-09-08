@@ -6,15 +6,21 @@ import { QuotationItem, QuotationStatus } from '@/services/quotationService';
 interface QuotationItemCardProps {
   item: QuotationItem;
   isAdminOrBod?: boolean;
+  isExpired?: boolean;
+  onPress?: (item: QuotationItem) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  onEdit?: (item: QuotationItem) => void;
 }
 
 export const QuotationItemCard: React.FC<QuotationItemCardProps> = ({
   item,
   isAdminOrBod,
+  isExpired = false,
+  onPress,
   onApprove,
   onReject,
+  onEdit,
 }) => {
   const formatMoney = (val?: number) => {
     if (!val) return '0 ₫';
@@ -22,34 +28,53 @@ export const QuotationItemCard: React.FC<QuotationItemCardProps> = ({
   };
 
   const getStatusMeta = (status: string) => {
+    if (isExpired) {
+      return { label: 'Hết hiệu lực', color: '#64748B', bg: '#F1F5F9' };
+    }
     switch (status) {
       case QuotationStatus.DRAFT:
-        return { label: 'Bản nháp', color: '#64748B', bg: '#F1F5F9' };
+        return { label: 'Đang đợi duyệt', color: '#475569', bg: '#F1F5F9' };
       case QuotationStatus.PENDING_APPROVAL:
         return { label: 'Chờ BOD duyệt', color: '#D97706', bg: '#FEF3C7' };
       case QuotationStatus.APPROVED:
         return { label: 'Đã duyệt', color: '#059669', bg: '#D1FAE5' };
       case QuotationStatus.REJECTED:
         return { label: 'Từ chối', color: '#DC2626', bg: '#FEE2E2' };
+      case 'SENT':
+        return { label: 'Đã gửi', color: '#2563EB', bg: '#EFF6FF' };
       default:
         return { label: status, color: '#64748B', bg: '#F1F5F9' };
     }
   };
 
   const statusMeta = getStatusMeta(item.status);
-  const isPending = item.status === QuotationStatus.PENDING_APPROVAL;
+  const isPending =
+    item.status === QuotationStatus.DRAFT ||
+    item.status === QuotationStatus.PENDING_APPROVAL ||
+    item.status === 'DRAFT' ||
+    item.status === 'PENDING_APPROVAL';
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={onPress ? 0.7 : 1}
+      onPress={() => onPress && onPress(item)}
+      disabled={!onPress}
+    >
       <View style={styles.topRow}>
         <View style={styles.versionBadge}>
-          <Text style={styles.versionText}>Phiên bản #{item.version || 1}</Text>
+          <Text style={styles.versionText}>Báo giá lần {item.version || 1}</Text>
         </View>
 
-        <View style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}>
-          <Text style={[styles.statusText, { color: statusMeta.color }]}>
-            {statusMeta.label}
-          </Text>
+        <View style={styles.topRightRow}>
+          <View style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}>
+            <Text style={[styles.statusText, { color: statusMeta.color }]}>
+              {statusMeta.label}
+            </Text>
+          </View>
+          {onPress && (
+            <Feather name="chevron-right" size={16} color="#94A3B8" style={{ marginLeft: 6 }} />
+          )}
         </View>
       </View>
 
@@ -64,12 +89,19 @@ export const QuotationItemCard: React.FC<QuotationItemCardProps> = ({
         </Text>
       ) : null}
 
+      {!isExpired && item.status === QuotationStatus.REJECTED && !!item.description && (
+        <View style={styles.rejectReasonBox}>
+          <Text style={styles.rejectReasonLabel}>Lý do từ chối:</Text>
+          <Text style={styles.rejectReasonText}>{item.description}</Text>
+        </View>
+      )}
+
       <View style={styles.footerRow}>
         <Text style={styles.dateText}>
           {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : ''}
         </Text>
 
-        {isAdminOrBod && isPending && (
+        {!isExpired && isAdminOrBod && isPending && (
           <View style={styles.actionsRow}>
             {onReject && (
               <TouchableOpacity
@@ -94,8 +126,21 @@ export const QuotationItemCard: React.FC<QuotationItemCardProps> = ({
             )}
           </View>
         )}
+
+        {!isExpired && item.status === QuotationStatus.REJECTED && onEdit && (
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.editCardBtn}
+              onPress={() => onEdit(item)}
+              activeOpacity={0.75}
+            >
+              <Feather name="edit-2" size={13} color="#2563EB" />
+              <Text style={styles.editCardText}>Sửa báo giá</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -114,22 +159,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  topRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   versionBadge: {
     backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
   versionText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#2563EB',
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   statusText: {
@@ -157,6 +206,24 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontStyle: 'italic',
     marginBottom: 8,
+  },
+  rejectReasonBox: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  rejectReasonLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#DC2626',
+    marginBottom: 2,
+  },
+  rejectReasonText: {
+    fontSize: 12,
+    color: '#B91C1C',
   },
   footerRow: {
     flexDirection: 'row',
@@ -201,5 +268,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  editCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  editCardText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563EB',
   },
 });

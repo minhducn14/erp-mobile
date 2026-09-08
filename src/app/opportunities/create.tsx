@@ -524,6 +524,17 @@ const CalendarPickerModal: React.FC<{
   );
 };
 
+// Auto-format MM/YY input (chuẩn Web)
+const formatMonthYear = (value: string, prevValue: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 4);
+  // Backspace handling: nếu prev kết thúc bằng '/' và người dùng xóa
+  if (prevValue.endsWith('/') && digits.length === 2 && !value.includes('/')) {
+    return digits.slice(0, 1);
+  }
+  if (digits.length >= 2) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return digits;
+};
+
 export default function CreateOpportunityScreen() {
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
@@ -580,8 +591,25 @@ export default function CreateOpportunityScreen() {
     attachedFiles,
   } = formData;
 
+  // Opportunity Name Parts State (chuẩn Web: 3 ô ghép)
+  const [nameParts, setNameParts] = useState({
+    customerName: '',
+    brandName: '',
+    monthYear: '',
+  });
+
+  // Auto-combine: customerName_brandName_MM/YY
+  const opportunityName = useMemo(() => {
+    const { customerName, brandName, monthYear } = nameParts;
+    return [customerName.trim(), brandName.trim(), monthYear.trim()].filter(Boolean).join('_');
+  }, [nameParts]);
+
+  // Sync opportunityName vào store
+  useEffect(() => {
+    updateField('name', opportunityName);
+  }, [opportunityName]);
+
   // Convenience Setters
-  const setName = (val: string) => updateField('name', val);
   const setDescription = (val: string) => updateField('description', val);
   const setField = (val: string) => updateField('field', val);
   const setExpectedRevenue = (val: number | string) =>
@@ -886,8 +914,23 @@ export default function CreateOpportunityScreen() {
 
   // Submit Handler
   const handleSubmit = async () => {
-    if (!name.trim()) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên cơ hội kinh doanh / Doanh nghiệp.');
+    if (!nameParts.customerName.trim()) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên khách hàng.');
+      return;
+    }
+    if (!nameParts.brandName.trim()) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên Brand.');
+      return;
+    }
+    const monthYearNorm = nameParts.monthYear.trim();
+    const monthYearMatch = monthYearNorm.match(/^(\d{2})\/(\d{2})$/);
+    const monthVal = monthYearMatch ? Number(monthYearMatch[1]) : 0;
+    if (!monthYearNorm) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập tháng/năm (MM/YY).');
+      return;
+    }
+    if (!monthYearMatch || monthVal < 1 || monthVal > 12) {
+      Alert.alert('Sai định dạng', 'Tháng/năm phải có định dạng MM/YY, ví dụ 09/26.');
       return;
     }
 
@@ -1069,18 +1112,62 @@ export default function CreateOpportunityScreen() {
               </View>
             </View>
 
-            {/* Tên cơ hội / Doanh nghiệp */}
+            {/* Tên cơ hội: 3 ô ghép chuẩn Web (customerName + brandName + MM/YY) */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                Tên cơ hội / Doanh nghiệp <Text style={styles.reqStar}>*</Text>
+                Tên cơ hội<Text style={styles.reqStar}>*</Text>
               </Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="VD: GETVINI"
-                placeholderTextColor="#94A3B8"
-                value={name}
-                onChangeText={setName}
-              />
+
+              {/* Preview tên cơ hội kết hợp */}
+              {opportunityName.length > 0 && (
+                <View style={styles.namePreviewBox}>
+                  <Feather name="tag" size={13} color="#2563EB" />
+                  <Text style={styles.namePreviewText} numberOfLines={1}>
+                    {opportunityName}
+                  </Text>
+                </View>
+              )}
+
+              {/* Row 1: Tên khách hàng */}
+              <View style={styles.namePartGroup}>
+                <Text style={styles.namePartLabel}>Tên khách hàng <Text style={styles.reqStar}>*</Text></Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="VD: Công ty ABC"
+                  placeholderTextColor="#94A3B8"
+                  value={nameParts.customerName}
+                  onChangeText={(v) => setNameParts((prev) => ({ ...prev, customerName: v }))}
+                />
+              </View>
+
+              {/* Row 2: Tên Brand + MM/YY cạnh nhau */}
+              <View style={styles.namePartsRow}>
+                <View style={[styles.namePartGroup, { flex: 1, marginRight: 8 }]}>
+                  <Text style={styles.namePartLabel}>Tên Brand <Text style={styles.reqStar}>*</Text></Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="VD: GETVINI"
+                    placeholderTextColor="#94A3B8"
+                    value={nameParts.brandName}
+                    onChangeText={(v) => setNameParts((prev) => ({ ...prev, brandName: v }))}
+                  />
+                </View>
+
+                <View style={[styles.namePartGroup, { width: 100 }]}>
+                  <Text style={styles.namePartLabel}>Tháng/Năm <Text style={styles.reqStar}>*</Text></Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="mm/yy"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="numeric"
+                    maxLength={5}
+                    value={nameParts.monthYear}
+                    onChangeText={(v) =>
+                      setNameParts((prev) => ({ ...prev, monthYear: formatMonthYear(v, prev.monthYear) }))
+                    }
+                  />
+                </View>
+              </View>
             </View>
 
             {/* Mô tả chi tiết (Nằm trên Lĩnh vực) */}
@@ -1411,7 +1498,7 @@ export default function CreateOpportunityScreen() {
                         onPress={() => setActivePackageIndex(idx)}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.packageSelectPlaceholderBold}>-- Chọn gói mẫu --</Text>
+                        <Text style={styles.packageSelectPlaceholderBold}>-- Chọn gói dịch vụ --</Text>
                         <Feather name="chevron-down" size={18} color="#1E3A8A" />
                       </TouchableOpacity>
 
@@ -3201,5 +3288,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#64748B',
+  },
+
+  namePreviewBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 10,
+    gap: 6,
+  },
+  namePreviewText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1D4ED8',
+    fontFamily: 'monospace',
+  },
+  namePartsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  namePartGroup: {
+    marginBottom: 10,
+  },
+  namePartLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 5,
   },
 });

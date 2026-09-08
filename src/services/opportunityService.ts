@@ -40,31 +40,82 @@ export interface OpportunityItem {
   endDate?: string;
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | string;
   successChance?: number;
-  region?: string[];
+  region?: string[] | string;
   durationMonths?: number;
   status: OpportunityStatus | string;
-  customerType: CustomerType | string;
+  customerType?: CustomerType | string;
+  source?: 'INTERNAL' | 'REFERRAL_PARTNER' | string;
+  customerId?: string;
   leadName?: string;
   leadPhone?: string;
   leadEmail?: string;
   leadAddress?: string;
   leadTaxId?: string;
+  customerRequirements?: string;
   customer?: {
     id: string;
     name: string;
     phone?: string;
+    phoneNumber?: string;
     email?: string;
     address?: string;
+    taxId?: string;
   };
+  referralPartnerId?: string;
   referralPartner?: {
     id: string;
     name: string;
     phone?: string;
     email?: string;
+    taxId?: string;
   };
-  services?: OpportunityServiceItem[];
+  packages?: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    description?: string;
+    services?: Array<{
+      id: string;
+      serviceId: string;
+      service?: {
+        name: string;
+        unit?: string;
+        costPrice?: number;
+      };
+      quantity: number;
+      sellingPrice: number;
+      unit?: string;
+    }>;
+  }>;
+  services?: Array<{
+    id?: string;
+    serviceId?: string;
+    serviceName?: string;
+    service?: {
+      name: string;
+      unit?: string;
+    };
+    quantity?: number;
+    sellingPrice?: number;
+    expectedRevenue?: number;
+    description?: string;
+    opportunityPackageId?: string | null;
+    unit?: string;
+  }>;
+  attachments?: Array<{
+    id?: string;
+    name: string;
+    url: string;
+    type: 'FILE' | 'LINK' | string;
+    size?: number;
+  }>;
   quotations?: any[];
   creator?: {
+    id: string;
+    fullName?: string;
+    username?: string;
+  };
+  createdBy?: {
     id: string;
     fullName?: string;
     username?: string;
@@ -95,15 +146,16 @@ export interface OpportunityListResponse {
 export interface CreateOpportunityPayload {
   name: string;
   customerType?: CustomerType | string;
+  source?: 'INTERNAL' | 'REFERRAL_PARTNER' | string;
   field?: string;
   priority?: string;
-  customerId?: string;
+  customerId?: string | null;
   leadName?: string;
   leadPhone?: string;
   leadEmail?: string;
   leadAddress?: string;
   leadTaxId?: string;
-  referralPartnerId?: string;
+  referralPartnerId?: string | null;
   description?: string;
   expectedRevenue?: number;
   budget?: number;
@@ -164,5 +216,24 @@ export const opportunityService = {
 
   async getReferralPartners() {
     return apiService.get<Array<{ id: string; name: string; phone?: string; email?: string }>>('/referral-partners');
+  },
+
+  async getReferralPartner(id: string) {
+    return apiService.get<{
+      id: string;
+      name: string;
+      taxId?: string;
+      phone?: string;
+      email?: string;
+      customers?: Array<{
+        id: string;
+        name: string;
+        taxId?: string;
+        phoneNumber?: string;
+        phone?: string;
+        email?: string;
+        address?: string;
+      }>;
+    }>(`/referral-partners/${id}`);
   },
 };
