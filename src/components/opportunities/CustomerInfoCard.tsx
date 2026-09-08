@@ -65,6 +65,15 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
             Gán khách hàng hiện hữu trên hệ thống hoặc tạo mới khách hàng tiềm năng cho cơ hội này.
           </Text>
 
+          {opportunity.status === 'PENDING_OPP_APPROVAL' && (
+            <View style={styles.warningNoticeBox}>
+              <Feather name="alert-circle" size={14} color="#D97706" />
+              <Text style={styles.warningNoticeText}>
+                Cần thêm thông tin khách hàng để Ban Giám Đốc phê duyệt cơ hội này.
+              </Text>
+            </View>
+          )}
+
           <TouchableOpacity
             style={styles.addCustomerBtn}
             onPress={onAddOrEditCustomer}
@@ -309,7 +318,26 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 16,
+    marginBottom: 12,
+  },
+  warningNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    gap: 6,
     marginBottom: 14,
+  },
+  warningNoticeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B45309',
+    flex: 1,
+    lineHeight: 15,
   },
   addCustomerBtn: {
     flexDirection: 'row',

@@ -312,6 +312,7 @@ export default function OpportunityDetailScreen() {
 
   const statusMeta = getStatusLabel(opportunity.status);
   const isAwaitingApproval = opportunity.status === 'PENDING_OPP_APPROVAL';
+  const hasCustomer = !!(opportunity.customer || opportunity.leadName);
   const standaloneServices = opportunity.services?.filter((s) => !s.opportunityPackageId) || [];
   const packages = opportunity.packages || [];
   const attachments = opportunity.attachments || [];
@@ -839,21 +840,34 @@ export default function OpportunityDetailScreen() {
       {/* 12. STICKY BOTTOM BAR: NÚT DUYỆT CƠ HỘI CHO BOD / ADMIN */}
       {isAdminOrBod && isAwaitingApproval && (
         <View style={styles.bottomBar}>
-          <TouchableOpacity
-            style={[styles.approveActionBtn, isApproving && styles.approveActionBtnDisabled]}
-            onPress={handleApproveOpportunity}
-            disabled={isApproving}
-            activeOpacity={0.85}
-          >
-            {isApproving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Feather name="check-circle" size={18} color="#FFFFFF" />
-                <Text style={styles.approveActionBtnText}>Phê duyệt cơ hội này</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {hasCustomer ? (
+            <TouchableOpacity
+              style={[styles.approveActionBtn, isApproving && styles.approveActionBtnDisabled]}
+              onPress={handleApproveOpportunity}
+              disabled={isApproving}
+              activeOpacity={0.85}
+            >
+              {isApproving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Feather name="check-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.approveActionBtnText}>Phê duyệt cơ hội này</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.requireCustomerBtn}
+              onPress={() => setIsCustomerModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <Feather name="user-plus" size={17} color="#FFFFFF" />
+              <Text style={styles.requireCustomerBtnText}>
+                Thêm khách hàng để duyệt cơ hội
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </SafeAreaView>
@@ -1378,6 +1392,25 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   approveActionBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  requireCustomerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#D97706',
+    paddingVertical: 14,
+    borderRadius: 14,
+    shadowColor: '#D97706',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  requireCustomerBtnText: {
     fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
