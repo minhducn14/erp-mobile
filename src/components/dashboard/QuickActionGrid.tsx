@@ -213,7 +213,6 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
     <View style={styles.cardWrapper}>
       <View style={styles.headerTitleRow}>
         <Text style={styles.sectionHeaderTitle}>Tiện ích truy cập nhanh</Text>
-        <Text style={styles.sectionHeaderHint}>Chạm để thao tác</Text>
       </View>
 
       <View style={styles.gridContainer}>
@@ -252,10 +251,9 @@ const styles = StyleSheet.create({
   cardWrapper: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 14,
-    marginHorizontal: 16,
-    marginBottom: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
@@ -267,13 +265,13 @@ const styles = StyleSheet.create({
   headerTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
-    paddingHorizontal: 6,
-    marginBottom: 12,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    marginBottom: 14,
   },
   sectionHeaderTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#0F172A',
     letterSpacing: -0.2,
   },
@@ -293,20 +291,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
     position: 'relative',
   },
   itemLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#334155',
     textAlign: 'center',
-    lineHeight: 15,
+    lineHeight: 16,
   },
   badgeContainer: {
     position: 'absolute',
