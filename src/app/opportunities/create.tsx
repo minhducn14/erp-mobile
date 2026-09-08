@@ -1498,7 +1498,7 @@ export default function CreateOpportunityScreen() {
                         onPress={() => setActivePackageIndex(idx)}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.packageSelectPlaceholderBold}>-- Chọn gói mẫu --</Text>
+                        <Text style={styles.packageSelectPlaceholderBold}>-- Chọn gói dịch vụ --</Text>
                         <Feather name="chevron-down" size={18} color="#1E3A8A" />
                       </TouchableOpacity>
 
