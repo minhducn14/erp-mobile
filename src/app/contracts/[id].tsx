@@ -224,18 +224,77 @@ export default function ContractDetailScreen() {
   const marginColor =
     marginPercent >= 40 ? '#059669' : marginPercent >= 20 ? '#D97706' : '#DC2626';
 
-  // Group services into Packages & Standalone
+  // Group services into Packages & Standalone (đồng bộ 100% cơ cấu bên Cơ hội)
   const packageServices = contract.services?.filter((s) => s.isPackageService) || [];
   const standaloneServices = contract.services?.filter((s) => !s.isPackageService) || [];
 
   // Group package services by packageName
-  const packagesMap: Record<string, typeof packageServices> = {};
+  const packagesMap: Record<
+    string,
+    {
+      name: string;
+      quantity: number;
+      services: Array<{
+        id?: string;
+        name: string;
+        quantity: number;
+        sellingPrice: number;
+        unit: string;
+      }>;
+    }
+  > = {};
+
   packageServices.forEach((item) => {
     const pkgName = item.packageName || 'Gói dịch vụ';
     if (!packagesMap[pkgName]) {
-      packagesMap[pkgName] = [];
+      packagesMap[pkgName] = {
+        name: pkgName,
+        quantity: 1,
+        services: [],
+      };
     }
-    packagesMap[pkgName].push(item);
+    const unitName = item.service?.unit || 'Đơn vị';
+    const svcName = item.name || item.service?.name || 'Dịch vụ';
+    const existing = packagesMap[pkgName].services.find((s) => s.name === svcName);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      packagesMap[pkgName].services.push({
+        id: item.id,
+        name: svcName,
+        quantity: 1,
+        sellingPrice: Number(item.sellingPrice || 0),
+        unit: unitName,
+      });
+    }
+  });
+
+  const packagesList = Object.values(packagesMap);
+
+  // Group standalone services
+  const standaloneList: Array<{
+    id?: string;
+    name: string;
+    quantity: number;
+    sellingPrice: number;
+    unit: string;
+  }> = [];
+
+  standaloneServices.forEach((item) => {
+    const unitName = item.service?.unit || 'Đơn vị';
+    const svcName = item.name || item.service?.name || 'Dịch vụ lẻ';
+    const existing = standaloneList.find((s) => s.name === svcName);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      standaloneList.push({
+        id: item.id,
+        name: svcName,
+        quantity: 1,
+        sellingPrice: Number(item.sellingPrice || 0),
+        unit: unitName,
+      });
+    }
   });
 
   const isProposalAwaiting = contract.status === ContractStatus.PROPOSAL_UPLOADED;
@@ -443,85 +502,88 @@ export default function ContractDetailScreen() {
           </View>
         </View>
 
-        {/* 5. CARD DỊCH VỤ & GÓI DỊCH VỤ */}
+        {/* 5. KHỐI DỊCH VỤ & GÓI DỊCH VỤ (ĐỒNG BỘ 100% VỚI BÊN CƠ HỘI) */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#F0FDF4' }]}>
-                <Feather name="layers" size={16} color="#16A34A" />
+              <View style={[styles.titleIconBox, { backgroundColor: '#E0E7FF' }]}>
+                <Feather name="package" size={16} color="#4F46E5" />
               </View>
-              <Text style={styles.sectionHeader}>
-                Cơ cấu Dịch vụ ({contract.services?.length || 0})
-              </Text>
+              <Text style={styles.sectionHeader}>Dịch vụ & Gói dịch vụ</Text>
             </View>
           </View>
 
-          {/* Render Gói dịch vụ */}
-          {Object.keys(packagesMap).length > 0 && (
-            <View style={styles.serviceCategoryBlock}>
-              <Text style={styles.categoryTitle}>GÓI DỊCH VỤ</Text>
-              {Object.entries(packagesMap).map(([pkgName, items], idx) => (
+          {/* Danh sách các gói thầu */}
+          {packagesList.length > 0 && (
+            <View style={styles.packagesWrapper}>
+              {packagesList.map((pkg, idx) => (
                 <View key={idx} style={styles.packageCard}>
-                  <View style={styles.packageHeader}>
-                    <Feather name="package" size={15} color="#4338CA" />
-                    <Text style={styles.packageNameText}>{pkgName}</Text>
-                    <Text style={styles.packageCountBadge}>{items.length} dịch vụ</Text>
+                  <View style={styles.packageCardHeader}>
+                    <View style={styles.packageIcon}>
+                      <Feather name="briefcase" size={14} color="#2563EB" />
+                    </View>
+                    <Text style={styles.packageNameText}>
+                      Gói: {pkg.name}{' '}
+                      {pkg.quantity > 1 ? (
+                        <Text style={styles.packageQtyText}>x{pkg.quantity}</Text>
+                      ) : null}
+                    </Text>
                   </View>
 
-                  <View style={styles.packageItemsList}>
-                    {items.map((svcItem, sIdx) => (
-                      <View key={sIdx} style={styles.serviceItemRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.serviceItemName}>
-                            {svcItem.name || svcItem.service?.name || 'Dịch vụ'}
-                          </Text>
-                          <Text style={styles.serviceItemUnit}>
-                            Đơn vị: {svcItem.service?.unit || 'Dịch vụ'}
+                  {/* Định mức dịch vụ con */}
+                  <View style={styles.subServicesContainer}>
+                    <Text style={styles.subServicesNotice}>
+                      Số lượng dưới đây là định mức cho 1 gói:
+                    </Text>
+
+                    {pkg.services.length > 0 ? (
+                      pkg.services.map((s, sIdx) => (
+                        <View key={s.id || sIdx} style={styles.subServiceRow}>
+                          <View style={{ flex: 1, paddingRight: 8 }}>
+                            <Text style={styles.subServiceName}>{s.name}</Text>
+                            <Text style={styles.subServiceQuota}>
+                              Định mức: {s.quantity} {s.unit} / Gói
+                            </Text>
+                          </View>
+                          <Text style={styles.subServicePrice}>
+                            {formatNumber(s.sellingPrice)} VNĐ
                           </Text>
                         </View>
-                        <Text style={styles.serviceItemPrice}>
-                          {formatVNDFull(svcItem.sellingPrice)}
-                        </Text>
-                      </View>
-                    ))}
+                      ))
+                    ) : (
+                      <Text style={styles.emptySubText}>Chưa có dịch vụ thành phần trong gói.</Text>
+                    )}
                   </View>
                 </View>
               ))}
             </View>
           )}
 
-          {/* Render Dịch vụ đơn lẻ */}
-          {standaloneServices.length > 0 && (
-            <View style={styles.serviceCategoryBlock}>
-              <Text style={styles.categoryTitle}>DỊCH VỤ ĐƠN LẺ</Text>
-              <View style={styles.standaloneCard}>
-                {standaloneServices.map((svcItem, sIdx) => (
-                  <View
-                    key={sIdx}
-                    style={[
-                      styles.serviceItemRow,
-                      sIdx < standaloneServices.length - 1 && styles.serviceItemBorder,
-                    ]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.serviceItemName}>
-                        {svcItem.name || svcItem.service?.name || 'Dịch vụ đơn lẻ'}
-                      </Text>
-                      <Text style={styles.serviceItemUnit}>
-                        Đơn vị: {svcItem.service?.unit || 'Dịch vụ'}
-                      </Text>
-                    </View>
-                    <Text style={styles.serviceItemPrice}>
-                      {formatVNDFull(svcItem.sellingPrice)}
+          {/* Danh sách Dịch vụ lẻ */}
+          {standaloneList.length > 0 && (
+            <View style={styles.standaloneWrapper}>
+              <Text style={styles.sectionSubTitle}>Dịch vụ lẻ</Text>
+              {standaloneList.map((s, idx) => (
+                <View key={s.id || idx} style={styles.standaloneItemRow}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={styles.standaloneName}>{s.name}</Text>
+                    <Text style={styles.standaloneQty}>
+                      Số lượng: {s.quantity} {s.unit}
                     </Text>
                   </View>
-                ))}
-              </View>
+                  <Text style={styles.standalonePrice}>
+                    {formatNumber(s.sellingPrice)} VNĐ
+                  </Text>
+                </View>
+              ))}
             </View>
           )}
 
-          {(!contract.services || contract.services.length === 0) && (
-            <Text style={styles.emptyText}>Hợp đồng chưa có danh sách dịch vụ chi tiết</Text>
+          {packagesList.length === 0 && standaloneList.length === 0 && (
+            <View style={styles.emptyServicesBox}>
+              <Feather name="layers" size={24} color="#CBD5E1" />
+              <Text style={styles.emptyServicesText}>Chưa có dịch vụ hoặc gói nào được chọn.</Text>
+            </View>
           )}
         </View>
 
@@ -1068,83 +1130,132 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-  serviceCategoryBlock: {
-    marginTop: 8,
-  },
-  categoryTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.5,
-    marginBottom: 8,
+  packagesWrapper: {
+    gap: 12,
   },
   packageCard: {
-    backgroundColor: '#EEF2FF',
-    borderRadius: 10,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#E0E7FF',
-    padding: 10,
-    marginBottom: 8,
+    borderColor: '#BAE6FD',
   },
-  packageHeader: {
+  packageCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     marginBottom: 8,
   },
+  packageIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#E0F2FE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   packageNameText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0369A1',
     flex: 1,
+  },
+  packageQtyText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#3730A3',
-  },
-  packageCountBadge: {
-    fontSize: 11,
     fontWeight: '600',
-    color: '#4338CA',
-    backgroundColor: '#E0E7FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    color: '#0284C7',
   },
-  packageItemsList: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 8,
-    gap: 6,
+  subServicesContainer: {
+    marginLeft: 8,
+    paddingLeft: 10,
+    borderLeftWidth: 2,
+    borderLeftColor: '#BAE6FD',
+    gap: 8,
   },
-  standaloneCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 10,
+  subServicesNotice: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0284C7',
+    fontStyle: 'italic',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  serviceItemRow: {
+  subServiceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 4,
-  },
-  serviceItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 6,
+    borderBottomColor: '#E0F2FE',
   },
-  serviceItemName: {
+  subServiceName: {
     fontSize: 12,
     fontWeight: '600',
     color: '#1E293B',
   },
-  serviceItemUnit: {
+  subServiceQuota: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#64748B',
     marginTop: 1,
   },
-  serviceItemPrice: {
+  subServicePrice: {
     fontSize: 12,
     fontWeight: '700',
+    color: '#0369A1',
+  },
+  emptySubText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontStyle: 'italic',
+  },
+  standaloneWrapper: {
+    marginTop: 14,
+    gap: 6,
+  },
+  sectionSubTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  standaloneItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 6,
+  },
+  standaloneName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  standaloneQty: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  standalonePrice: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#059669',
+  },
+  emptyServicesBox: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyServicesText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
   },
   milestoneCard: {
     backgroundColor: '#F8FAFC',
