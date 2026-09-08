@@ -110,6 +110,13 @@ export interface OpportunityItem {
     size?: number;
   }>;
   quotations?: any[];
+  contracts?: Array<{
+    id: string;
+    contractCode: string;
+    name?: string;
+    status?: string;
+    sellingPrice?: number;
+  }>;
   creator?: {
     id: string;
     fullName?: string;

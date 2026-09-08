@@ -25,6 +25,7 @@ import {
   QuotationItem,
   QuotationStatus,
 } from '@/services/quotationService';
+import { contractService } from '@/services/contractService';
 import { customerService } from '@/services/customerService';
 import { QuotationItemCard } from '@/components/opportunities/QuotationItemCard';
 import { CustomerInfoCard } from '@/components/opportunities/CustomerInfoCard';
@@ -101,9 +102,66 @@ export default function OpportunityDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isCreatingContract, setIsCreatingContract] = useState(false);
 
   // Customer Assign Modal State
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
+
+  const handlePromptCreateContract = () => {
+    if (!opportunity) return;
+    const defaultName = opportunity.name
+      ? `Hợp đồng ${opportunity.name}`
+      : `Hợp đồng ${opportunity.opportunityCode}`;
+
+    Alert.alert(
+      'Xác nhận tạo hợp đồng',
+      `Hệ thống sẽ tạo hợp đồng mới dựa trên thông tin và báo giá đã duyệt của cơ hội "${opportunity.name}". Bạn có chắc chắn muốn tạo?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Tạo hợp đồng',
+          onPress: async () => {
+            try {
+              setIsCreatingContract(true);
+              const res = await contractService.createContract({
+                opportunityId: id as string,
+                name: defaultName,
+              });
+
+              if (res.data) {
+                const newContract = res.data;
+                Alert.alert('Thành công', 'Đã tạo hợp đồng kinh tế thành công!', [
+                  {
+                    text: 'Xem chi tiết hợp đồng',
+                    onPress: () => {
+                      if (newContract?.id) {
+                        router.push({
+                          pathname: '/contracts/[id]',
+                          params: { id: newContract.id },
+                        } as any);
+                      }
+                    },
+                  },
+                  {
+                    text: 'Đóng',
+                    style: 'cancel',
+                    onPress: () => loadData(),
+                  },
+                ]);
+                await loadData();
+              } else {
+                Alert.alert('Lỗi', res.error || 'Có lỗi xảy ra khi tạo hợp đồng');
+              }
+            } catch (err: any) {
+              Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi tạo hợp đồng');
+            } finally {
+              setIsCreatingContract(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const isAdminOrBod = isManagementRole(user?.role);
   const hasAccess = canAccessOpportunities(user?.role);
@@ -370,6 +428,13 @@ export default function OpportunityDetailScreen() {
         (user?.role === 'ADMIN' || (opportunity.createdBy as any)?.id === user?.id)));
 
   const canViewQuotations = hasCustomer && quotations.length > 0;
+  const canCreateContract = opportunity.status === 'QUOTE_APPROVED';
+  const linkedContract =
+    opportunity.contracts && opportunity.contracts.length > 0
+      ? opportunity.contracts[0]
+      : null;
+  const hasContract =
+    opportunity.status === 'CONTRACT_CREATED' || !!linkedContract;
   const standaloneServices = opportunity.services?.filter((s) => !s.opportunityPackageId) || [];
   const packages = opportunity.packages || [];
   const attachments = opportunity.attachments || [];
@@ -508,7 +573,7 @@ export default function OpportunityDetailScreen() {
           </View>
 
           {/* 2.1. THANH HÀNH ĐỘNG NHANH (QUICK ACTIONS BAR) ĐỒNG BỘ TỪ WEB */}
-          {hasCustomer && (canViewQuotations || canCreateQuotation) && (
+          {hasCustomer && (canViewQuotations || canCreateQuotation || canCreateContract || hasContract) && (
             <View style={styles.headerActionsBar}>
               {canViewQuotations && (
                 <View style={styles.viewQuoteWrapper}>
@@ -548,6 +613,44 @@ export default function OpportunityDetailScreen() {
                 >
                   <Feather name="plus" size={15} color="#FFFFFF" />
                   <Text style={styles.headerCreateQuoteText}>Tạo báo giá</Text>
+                </TouchableOpacity>
+              )}
+
+              {canCreateContract && (
+                <TouchableOpacity
+                  style={styles.headerCreateContractBtn}
+                  onPress={handlePromptCreateContract}
+                  disabled={isCreatingContract}
+                  activeOpacity={0.8}
+                >
+                  {isCreatingContract ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Feather name="briefcase" size={15} color="#FFFFFF" />
+                      <Text style={styles.headerCreateContractText}>Tạo hợp đồng</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {hasContract && linkedContract && (
+                <TouchableOpacity
+                  style={styles.headerViewContractBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/contracts/[id]',
+                      params: { id: linkedContract.id },
+                    } as any)
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Feather name="file-text" size={15} color="#FFFFFF" />
+                  <Text style={styles.headerViewContractText}>
+                    {linkedContract.contractCode
+                      ? `HĐ: ${linkedContract.contractCode}`
+                      : 'Xem hợp đồng'}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -998,6 +1101,85 @@ export default function OpportunityDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* 11. KHỐI HỢP ĐỒNG KINH TẾ (NẾU ĐÃ CÓ HỢP ĐỒNG HOẶC SẴN SÀNG TẠO) */}
+        {hasContract && linkedContract && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleWithIcon}>
+                <View style={[styles.titleIconBox, { backgroundColor: '#F0FDFA' }]}>
+                  <Feather name="briefcase" size={16} color="#0D9488" />
+                </View>
+                <Text style={styles.sectionHeader}>Hợp đồng kinh tế</Text>
+              </View>
+              <View style={styles.contractStatusBadge}>
+                <Text style={styles.contractStatusBadgeText}>
+                  {linkedContract.status || 'Đã tạo HĐ'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.contractCardBody}>
+              <View style={styles.contractCardTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.contractCardCode}>{linkedContract.contractCode}</Text>
+                  <Text style={styles.contractCardName}>
+                    {linkedContract.name || opportunity.name}
+                  </Text>
+                </View>
+                {linkedContract.sellingPrice ? (
+                  <Text style={styles.contractCardPrice}>
+                    {formatVNDFull(linkedContract.sellingPrice)}
+                  </Text>
+                ) : null}
+              </View>
+
+              <TouchableOpacity
+                style={styles.openContractDetailBtn}
+                onPress={() =>
+                  router.push({
+                    pathname: '/contracts/[id]',
+                    params: { id: linkedContract.id },
+                  } as any)
+                }
+                activeOpacity={0.85}
+              >
+                <Text style={styles.openContractDetailText}>Xem chi tiết hợp đồng</Text>
+                <Feather name="arrow-right" size={15} color="#0891B2" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* CALLOUT BANNER: SẴN SÀNG TẠO HỢP ĐỒNG */}
+        {canCreateContract && !linkedContract && (
+          <View style={styles.readyContractBanner}>
+            <View style={styles.readyContractIconBox}>
+              <Feather name="check-circle" size={20} color="#0891B2" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.readyContractTitle}>Báo giá đã được phê duyệt!</Text>
+              <Text style={styles.readyContractSub}>
+                Cơ hội kinh doanh này đã có bản báo giá được duyệt. Bạn có thể tiến hành tạo hồ sơ hợp đồng chính thức ngay.
+              </Text>
+              <TouchableOpacity
+                style={styles.readyCreateContractBtn}
+                onPress={handlePromptCreateContract}
+                disabled={isCreatingContract}
+                activeOpacity={0.85}
+              >
+                {isCreatingContract ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Feather name="plus-circle" size={15} color="#FFFFFF" />
+                    <Text style={styles.readyCreateContractBtnText}>Tạo hợp đồng ngay</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <View style={{ height: 20 }} />
       </ScrollView>
@@ -1646,6 +1828,136 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   headerCreateQuoteText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  headerCreateContractBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0891B2',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  headerCreateContractText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  headerViewContractBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  headerViewContractText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  contractStatusBadge: {
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: '#99F6E4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  contractStatusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0D9488',
+  },
+  contractCardBody: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+  },
+  contractCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  contractCardCode: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0891B2',
+    fontFamily: 'monospace',
+  },
+  contractCardName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  contractCardPrice: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#059669',
+  },
+  openContractDetailBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CFFAFE',
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  openContractDetailText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0891B2',
+  },
+  readyContractBanner: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: '#ECFEFF',
+    borderWidth: 1,
+    borderColor: '#CFFAFE',
+    borderRadius: 14,
+    padding: 16,
+  },
+  readyContractIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#CFFAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readyContractTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#155E75',
+    marginBottom: 4,
+  },
+  readyContractSub: {
+    fontSize: 12,
+    color: '#0E7490',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  readyCreateContractBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#0891B2',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  readyCreateContractBtnText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
