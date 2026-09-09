@@ -55,6 +55,14 @@ const MODULES = [
     badge: 'Pháp lý',
   },
   {
+    id: 'acceptances',
+    title: 'Yêu cầu Nghiệm thu',
+    desc: 'Quản lý, tạo yêu cầu và phê duyệt các biên bản nghiệm thu hạng mục dịch vụ dự án.',
+    icon: 'checkbox-outline' as const,
+    color: '#059669',
+    badge: 'Dự án',
+  },
+  {
     id: 'finance',
     title: 'Tài chính & Công nợ',
     desc: 'Theo dõi các đợt thanh toán, công nợ phải thu/phải trả và dòng tiền dự án.',
@@ -128,6 +136,10 @@ export default function ExploreScreen() {
             'Phân hệ Hợp đồng chỉ dành cho Ban giám đốc và Bộ phận Kinh doanh.'
           );
         }
+        break;
+
+      case 'acceptances':
+        router.push('/acceptances' as any);
         break;
 
       case 'finance':
