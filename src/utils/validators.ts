@@ -31,20 +31,23 @@ export const TAX_ID_REGEX = /^[0-9]{10}(-[0-9]{3})?$/;
 export const isValidUrl = (url?: string): boolean => {
   if (!url || !url.trim()) return false;
   const trimmed = url.trim();
-  const formatted = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  
-  // 1. Kiểm tra bằng new URL()
-  try {
-    const parsed = new URL(formatted);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return !!parsed.hostname;
-    }
-  } catch {
-    // Fallback sang Regex nếu new URL không khả thi
+
+  // 1. Kiểm tra cấu trúc tên miền / IP / localhost bằng Regex nghiêm ngặt
+  const strictUrlRegex = /^(https?:\/\/)?(localhost|([0-9]{1,3}\.){3}[0-9]{1,3}|([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(:[0-9]{1,5})?(\/.*)?$/i;
+  if (!strictUrlRegex.test(trimmed)) {
+    return false;
   }
 
-  // 2. Kiểm tra bằng Regex
-  return URL_REGEX.test(formatted);
+  // 2. Định dạng tạm thời để thử nghiệm với native new URL()
+  const formatted = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  // 3. Sử dụng new URL() để đảm bảo cú pháp URL hoàn toàn hợp lệ trong JS Engine
+  try {
+    const parsed = new URL(formatted);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
 };
 
 /**

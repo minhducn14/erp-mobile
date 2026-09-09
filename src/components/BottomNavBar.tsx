@@ -13,11 +13,24 @@ export default function BottomNavBar() {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, user } = useAuth();
 
+  // Auto-hide BottomNavBar on any detail screen or sub-flow route (e.g. /projects/123)
+  const isDetailPage =
+    pathname.includes('/[') ||
+    pathname.includes('/projects/') ||
+    pathname.includes('/contracts/') ||
+    pathname.includes('/tasks/') ||
+    pathname.includes('/opportunities/') ||
+    pathname.includes('/customers/');
+
+  if (isDetailPage) {
+    return null;
+  }
+
   const isHome = pathname === '/' || pathname === '/index';
-  const isTasks = pathname.startsWith('/tasks');
-  const isProjects = pathname.startsWith('/projects');
-  const isCustomers = pathname.startsWith('/customers');
-  const isProfile = pathname.startsWith('/profile');
+  const isTasks = pathname === '/tasks' || pathname === '/tasks/index' || pathname === '/tasks/';
+  const isProjects = pathname === '/projects' || pathname === '/projects/index' || pathname === '/projects/';
+  const isCustomers = pathname === '/customers' || pathname === '/customers/index' || pathname === '/customers/';
+  const isProfile = pathname === '/profile' || pathname === '/profile/index' || pathname === '/profile/';
 
   const navigateTo = (route: string) => {
     if (!isAuthenticated && route !== '/(auth)/login') {
