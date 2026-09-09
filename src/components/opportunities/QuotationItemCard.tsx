@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { QuotationItem, QuotationStatus } from '@/services/quotationService';
+import { formatVND } from '@/utils/formatters';
 
 interface QuotationItemCardProps {
   item: QuotationItem;
@@ -22,10 +23,7 @@ export const QuotationItemCard: React.FC<QuotationItemCardProps> = ({
   onReject,
   onEdit,
 }) => {
-  const formatMoney = (val?: number) => {
-    if (!val) return '0 ₫';
-    return `${val.toLocaleString('vi-VN')} ₫`;
-  };
+  const formatMoney = (val?: number) => formatVND(val);
 
   const getStatusMeta = (status: string) => {
     if (isExpired) {

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BrandColors } from '@/constants/colors';
+import { formatVND } from '@/utils/formatters';
 
 interface FocusBannerProps {
   userName?: string;
@@ -32,7 +33,7 @@ export const FocusBanner: React.FC<FocusBannerProps> = ({
     if (val >= 1_000_000) {
       return `${(val / 1_000_000).toFixed(0)} Tr`;
     }
-    return `${val.toLocaleString('vi-VN')} ₫`;
+    return formatVND(val);
   };
 
   return (

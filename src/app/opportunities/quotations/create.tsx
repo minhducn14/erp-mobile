@@ -729,7 +729,7 @@ export default function QuotationCreateEditScreen() {
                     >
                       <Feather name="minus" size={16} color="#334155" />
                     </TouchableOpacity>
-                    <Text style={styles.stepperValue}>{pkg.quantity}</Text>
+                    <Text style={styles.stepperValue}>{formatNumber(pkg.quantity)}</Text>
                     <TouchableOpacity
                       style={styles.stepperBtn}
                       onPress={() => handlePackageQuantityChange(pkg.name, 1)}
@@ -813,7 +813,7 @@ export default function QuotationCreateEditScreen() {
                           </Text>
                         </View>
                         <Text style={styles.subItemDesc}>
-                          Định mức: {sub.norm} {sub.unit || 'lần'} / gói | Số lượng tổng: {sub.quantity}
+                          Định mức: {formatNumber(sub.norm)} {sub.unit || 'lần'} / gói | Số lượng tổng: {formatNumber(sub.quantity)}
                         </Text>
                         {priceType === 'custom' ? (
                           <View style={styles.subItemInputRow}>
@@ -879,7 +879,7 @@ export default function QuotationCreateEditScreen() {
                   >
                     <Feather name="minus" size={16} color="#334155" />
                   </TouchableOpacity>
-                  <Text style={styles.stepperValue}>{item.quantity}</Text>
+                  <Text style={styles.stepperValue}>{formatNumber(item.quantity)}</Text>
                   <TouchableOpacity
                     style={styles.stepperBtn}
                     onPress={() => handleStandaloneQuantityChange(item.originalIndex, 1)}

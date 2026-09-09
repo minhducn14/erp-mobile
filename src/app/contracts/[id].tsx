@@ -18,6 +18,8 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { isManagementRole } from '@/utils/rbac';
 import { BrandColors } from '@/constants/colors';
+import * as DocumentPicker from 'expo-document-picker';
+import { uploadToCloudinary, PickedFile } from '@/services/cloudinaryService';
 import {
   contractService,
   ContractItem,
@@ -27,6 +29,14 @@ import {
   CONTRACT_STATUS_LABELS,
 } from '@/services/contractService';
 import { formatVNDFull, formatNumber } from '@/utils/formatters';
+import { isValidUrl, normalizeUrl } from '@/utils/validators';
+import {
+  projectService,
+  ProjectItem,
+  UserPMItem,
+  PROJECT_STATUS_CONFIG,
+  PROJECT_STATUS_LABELS,
+} from '@/services/projectService';
 
 const formatDate = (dateStr?: string) => {
   if (!dateStr) return '—';
@@ -57,12 +67,54 @@ export default function ContractDetailScreen() {
   const [isRejectModalVisible, setIsRejectModalVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
+  // Upload Proposal Modal State (Chuẩn 100% Web ProposalManagement.jsx)
+  const [isUploadProposalModalVisible, setIsUploadProposalModalVisible] = useState(false);
+  const [uploadProposalMethod, setUploadProposalMethod] = useState<'FILE' | 'LINK'>('FILE');
+  const [proposalFile, setProposalFile] = useState<PickedFile | null>(null);
+  const [proposalLink, setProposalLink] = useState('');
+  const [quotationMethod, setQuotationMethod] = useState<'NONE' | 'LINK' | 'FILE'>('NONE');
+  const [quotationFile, setQuotationFile] = useState<PickedFile | null>(null);
+  const [quotationLink, setQuotationLink] = useState('');
+
+  // Upload progress & loading states
+  const [isUploadingProposal, setIsUploadingProposal] = useState(false);
+  const [isUploadingSigned, setIsUploadingSigned] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Project Info State (Chuẩn 100% Web ERP ProjectInfo.jsx)
+  const [project, setProject] = useState<ProjectItem | null>(null);
+  const [pmUsers, setPmUsers] = useState<UserPMItem[]>([]);
+  const [selectedPmId, setSelectedPmId] = useState<string>('');
+  const [isAssigningPm, setIsAssigningPm] = useState(false);
+  const [isPmPickerVisible, setIsPmPickerVisible] = useState(false);
+
+  useEffect(() => {
+    if (isAdminOrBod) {
+      projectService.getPmUsers().then((res) => {
+        if (res.data) setPmUsers(res.data);
+      });
+    }
+  }, [isAdminOrBod]);
+
   const loadContract = useCallback(async () => {
     if (!id) return;
     try {
       const res = await contractService.getContract(id as string);
       if (res.data) {
         setContract(res.data);
+        // Tải dự án liên kết với hợp đồng (Chuẩn Web ERP ProjectInfo.jsx)
+        try {
+          const projRes = await projectService.getProjectByContract(id as string);
+          if (projRes.data) {
+            setProject(projRes.data);
+            const pmMember = projRes.data.team?.members?.find((m) => m.role === 'PROJECT_MANAGER');
+            setSelectedPmId(pmMember?.user?.id || '');
+          } else {
+            setProject(null);
+          }
+        } catch {
+          setProject(null);
+        }
       } else if (res.error) {
         Alert.alert('Lỗi', res.error);
       }
@@ -77,6 +129,25 @@ export default function ContractDetailScreen() {
   useEffect(() => {
     loadContract();
   }, [loadContract]);
+
+  const handleAssignPmSubmit = async (pmId: string) => {
+    if (!contract) return;
+    try {
+      setIsAssigningPm(true);
+      const res = await projectService.assignProject(contract.id, pmId || null);
+      if (res.error) {
+        Alert.alert('Lỗi phân công', res.error);
+      } else {
+        Alert.alert('Thành công', 'Phân công PM phụ trách dự án thành công!');
+        setIsPmPickerVisible(false);
+        loadContract();
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể phân công PM');
+    } finally {
+      setIsAssigningPm(false);
+    }
+  };
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -151,6 +222,221 @@ export default function ContractDetailScreen() {
       Alert.alert('Lỗi', err?.message || 'Từ chối thất bại');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const openProposalEditor = () => {
+    setUploadProposalMethod('FILE');
+    setProposalFile(null);
+    setProposalLink('');
+    setQuotationMethod(contract?.quotation_link ? 'LINK' : 'NONE');
+    setQuotationFile(null);
+    setQuotationLink(contract?.quotation_link || '');
+    setIsUploadProposalModalVisible(true);
+  };
+
+  const handlePickProposalFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/msword',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          '*/*',
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const lower = asset.name.toLowerCase();
+        if (
+          !lower.endsWith('.docx') &&
+          !lower.endsWith('.doc') &&
+          !lower.endsWith('.xls') &&
+          !lower.endsWith('.xlsx')
+        ) {
+          Alert.alert(
+            'Định dạng không hợp lệ',
+            'Chỉ chấp nhận file .docx, .xls hoặc .xlsx cho hợp đồng'
+          );
+          return;
+        }
+        setProposalFile({
+          uri: asset.uri,
+          name: asset.name,
+          mimeType: asset.mimeType,
+          size: asset.size,
+        });
+      }
+    } catch {
+      Alert.alert('Lỗi', 'Không thể mở trình chọn tệp tin');
+    }
+  };
+
+  const handlePickQuotationFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          '*/*',
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const lower = asset.name.toLowerCase();
+        if (!lower.endsWith('.xls') && !lower.endsWith('.xlsx')) {
+          Alert.alert(
+            'Định dạng không hợp lệ',
+            'Chỉ chấp nhận file Excel .xls hoặc .xlsx cho báo giá'
+          );
+          return;
+        }
+        setQuotationFile({
+          uri: asset.uri,
+          name: asset.name,
+          mimeType: asset.mimeType,
+          size: asset.size,
+        });
+      }
+    } catch {
+      Alert.alert('Lỗi', 'Không thể mở trình chọn tệp tin');
+    }
+  };
+
+  const handleSubmitProposal = async () => {
+    if (!contract) return;
+    if (uploadProposalMethod === 'FILE' && !proposalFile) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn file Word hoặc Excel hợp đồng');
+      return;
+    }
+    if (uploadProposalMethod === 'LINK') {
+      if (!proposalLink.trim()) {
+        Alert.alert('Thiếu thông tin', 'Vui lòng nhập link hợp đồng');
+        return;
+      }
+      if (!isValidUrl(proposalLink)) {
+        Alert.alert(
+          'Đường dẫn không hợp lệ',
+          'Đường dẫn link hợp đồng không đúng định dạng. Vui lòng kiểm tra lại (Ví dụ: https://docs.google.com/...)'
+        );
+        return;
+      }
+    }
+
+    if (quotationMethod === 'LINK') {
+      if (!quotationLink.trim()) {
+        Alert.alert('Thiếu thông tin', 'Vui lòng nhập link báo giá');
+        return;
+      }
+      if (!isValidUrl(quotationLink)) {
+        Alert.alert(
+          'Đường dẫn không hợp lệ',
+          'Đường dẫn link báo giá không đúng định dạng. Vui lòng kiểm tra lại (Ví dụ: https://docs.google.com/...)'
+        );
+        return;
+      }
+    }
+
+    try {
+      setIsUploadingProposal(true);
+      setUploadProgress(0);
+
+      let uploadedFile: any = undefined;
+      if (uploadProposalMethod === 'FILE' && proposalFile) {
+        uploadedFile = await uploadToCloudinary(proposalFile, 'GETVINI/ERP/proposal', (p) =>
+          setUploadProgress(p)
+        );
+      }
+
+      let uploadedQuotationFile: any = undefined;
+      if (quotationMethod === 'FILE' && quotationFile) {
+        uploadedQuotationFile = await uploadToCloudinary(
+          quotationFile,
+          'GETVINI/ERP/quotation',
+          (p) => setUploadProgress(p)
+        );
+      }
+
+      if (uploadProposalMethod === 'FILE' || quotationMethod === 'FILE') {
+        setUploadProgress(100);
+      }
+
+      const qLink =
+        uploadedQuotationFile?.url ||
+        (quotationMethod === 'LINK' ? normalizeUrl(quotationLink) : undefined);
+
+      const res = await contractService.uploadProposal(contract.id, {
+        file: uploadedFile,
+        contractLink: uploadProposalMethod === 'LINK' ? normalizeUrl(proposalLink) : undefined,
+        quotationLink: qLink || undefined,
+      });
+
+      if (res.error) {
+        Alert.alert('Lỗi cập nhật', res.error);
+      } else {
+        await new Promise((r) => setTimeout(r, 350));
+        Alert.alert('Thành công', 'Cập nhật hợp đồng thành công!');
+        setIsUploadProposalModalVisible(false);
+        loadContract();
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Cập nhật hợp đồng thất bại');
+    } finally {
+      setIsUploadingProposal(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleUploadSignedFile = async () => {
+    if (!contract) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', '*/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        if (!asset.name.toLowerCase().endsWith('.pdf')) {
+          Alert.alert('Định dạng không hợp lệ', 'Chỉ chấp nhận file .pdf cho hợp đồng đã ký');
+          return;
+        }
+
+        setIsUploadingSigned(true);
+        setUploadProgress(0);
+
+        const uploadedFile = await uploadToCloudinary(
+          {
+            uri: asset.uri,
+            name: asset.name,
+            mimeType: asset.mimeType || 'application/pdf',
+            size: asset.size,
+          },
+          'GETVINI/ERP/signed',
+          (p) => setUploadProgress(p)
+        );
+
+        setUploadProgress(100);
+
+        const res = await contractService.uploadSigned(contract.id, uploadedFile);
+        if (res.error) {
+          Alert.alert('Lỗi', res.error);
+        } else {
+          await new Promise((r) => setTimeout(r, 350));
+          Alert.alert('Thành công', 'Tải lên hợp đồng đã ký thành công!');
+          loadContract();
+        }
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể tải lên hợp đồng đã ký');
+    } finally {
+      setIsUploadingSigned(false);
+      setUploadProgress(0);
     }
   };
 
@@ -512,6 +798,115 @@ export default function ContractDetailScreen() {
           )}
         </View>
 
+        {/* 3.1 CARD DỰ ÁN CỦA HỢP ĐỒNG (CHUẨN 100% WEB ERP ProjectInfo.jsx) */}
+        {project ? (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleWithIcon}>
+                <View style={[styles.titleIconBox, { backgroundColor: '#EEF2FF' }]}>
+                  <Feather name="briefcase" size={16} color="#4F46E5" />
+                </View>
+                <Text style={styles.sectionHeader}>Dự án của hợp đồng</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.projectLinkBtn}
+                onPress={() => router.push(`/projects/${project.id}` as any)}
+                activeOpacity={0.7}
+              >
+                <Feather name="external-link" size={13} color="#2563EB" />
+                <Text style={styles.projectLinkText}>Xem dự án</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.infoList}>
+              {/* Tên dự án */}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Tên dự án</Text>
+                <Text
+                  style={[
+                    styles.infoValue,
+                    { flex: 1, textAlign: 'right', fontWeight: '700', color: '#1E1B4B' },
+                  ]}
+                >
+                  {project.name}
+                </Text>
+              </View>
+
+              {/* Trạng thái dự án */}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Trạng thái dự án</Text>
+                {(() => {
+                  const projStatusConfig = PROJECT_STATUS_CONFIG[project.status] || {
+                    text: PROJECT_STATUS_LABELS[project.status] || project.status || 'Đang thực hiện',
+                    color: '#047857',
+                    bg: '#ECFDF5',
+                    border: '#A7F3D0',
+                  };
+                  return (
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: projStatusConfig.bg, borderColor: projStatusConfig.border },
+                      ]}
+                    >
+                      <Text style={[styles.statusBadgeText, { color: projStatusConfig.color }]}>
+                        {projStatusConfig.text}
+                      </Text>
+                    </View>
+                  );
+                })()}
+              </View>
+
+              {/* PM Phụ trách */}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>PM phụ trách</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {(() => {
+                    const pmMember = project.team?.members?.find(
+                      (m) => m.role === 'PROJECT_MANAGER'
+                    );
+                    const hasPm = !!pmMember?.user;
+                    const pmName = pmMember?.user?.fullName || 'Chưa phân công PM';
+                    return (
+                      <>
+                        <Text
+                          style={[
+                            styles.infoValue,
+                            { fontWeight: '700', color: hasPm ? '#0F172A' : '#94A3B8' },
+                          ]}
+                        >
+                          {pmName}
+                        </Text>
+
+                        {isAdminOrBod && !hasPm && (
+                          <TouchableOpacity
+                            style={styles.assignPmBtn}
+                            onPress={() => setIsPmPickerVisible(true)}
+                            disabled={isAssigningPm}
+                            activeOpacity={0.7}
+                          >
+                            <Feather name="user-plus" size={12} color="#2563EB" />
+                            <Text style={styles.assignPmBtnText}>Phân công</Text>
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    );
+                  })()}
+                </View>
+              </View>
+
+              {/* Lead dự án */}
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Lead dự án</Text>
+                <Text style={[styles.infoValue, { fontWeight: '600' }]}>
+                  {project.team?.teamLead?.fullName || 'PM chưa chọn lead'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
         {/* 4. TỔNG KẾT TÀI CHÍNH (CHUẨN 100% WEB ERP FinancialInfo.jsx) */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
@@ -735,60 +1130,200 @@ export default function ContractDetailScreen() {
           )}
         </View>
 
-        {/* 7. CARD HỒ SƠ ĐỀ XUẤT & KÝ KẾT (PROPOSAL & SIGNED FILES) */}
+        {/* 7. CARD QUẢN LÝ HỢP ĐỒNG (PROPOSAL & SIGNED FILES - CHUẨN 100% WEB ProposalManagement.jsx) */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionTitleWithIcon}>
               <View style={[styles.titleIconBox, { backgroundColor: '#F3E8FF' }]}>
-                <Feather name="file" size={16} color="#7E22CE" />
+                <Feather name="file-text" size={16} color="#9333EA" />
               </View>
-              <Text style={styles.sectionHeader}>Tài liệu hợp đồng</Text>
+              <Text style={styles.sectionHeader}>Quản lý hợp đồng</Text>
             </View>
           </View>
 
-          <View style={styles.documentsList}>
-            {/* File Proposal */}
-            <View style={styles.docItem}>
-              <View style={[styles.docIconBox, { backgroundColor: '#EFF6FF' }]}>
-                <Feather name="file-text" size={18} color="#2563EB" />
+          <View style={styles.proposalBoxList}>
+            {/* Box 1: Hợp đồng dự thảo (Proposal) */}
+            <View style={styles.proposalCardItem}>
+              <View style={styles.proposalCardTop}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.proposalItemTitle}>
+                    Hợp đồng{' '}
+                    <Text style={styles.proposalItemHint}>(.docx, Excel hoặc link)</Text>
+                  </Text>
+                  <Text style={styles.proposalItemSub}>
+                    {contract.proposal_contract ? 'Đã upload' : 'Chưa có file'}
+                  </Text>
+                </View>
+
+                {/* Proposal Action Buttons */}
+                <View style={styles.proposalBtnRow}>
+                  {contract.proposal_contract ? (
+                    <>
+                      <TouchableOpacity
+                        style={styles.proposalViewBtn}
+                        onPress={() => handleOpenLink(contract.proposal_contract)}
+                        activeOpacity={0.7}
+                      >
+                        <Feather name="file-text" size={13} color="#334155" />
+                        <Text style={styles.proposalViewBtnText}>Xem</Text>
+                      </TouchableOpacity>
+
+                      {contract.status === ContractStatus.PROPOSAL_UPLOADED && isAdminOrBod && (
+                        <View style={styles.proposalReviewBtnGroup}>
+                          <TouchableOpacity
+                            style={styles.proposalApproveBtn}
+                            onPress={handleApproveProposal}
+                            disabled={actionLoading || isUploadingProposal || isUploadingSigned}
+                            activeOpacity={0.7}
+                          >
+                            <Feather name="check-circle" size={13} color="#FFFFFF" />
+                            <Text style={styles.proposalApproveBtnText}>Duyệt</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.proposalRejectBtn}
+                            onPress={() => setIsRejectModalVisible(true)}
+                            disabled={actionLoading || isUploadingProposal || isUploadingSigned}
+                            activeOpacity={0.7}
+                          >
+                            <Feather name="x" size={13} color="#DC2626" />
+                            <Text style={styles.proposalRejectBtnText}>Từ chối</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {contract.status === ContractStatus.PROPOSAL_REJECTED && (
+                        <TouchableOpacity
+                          style={styles.proposalUploadNewBtn}
+                          onPress={openProposalEditor}
+                          disabled={isUploadingProposal || isUploadingSigned}
+                          activeOpacity={0.7}
+                        >
+                          {isUploadingProposal ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          ) : (
+                            <Feather name="upload" size={13} color="#FFFFFF" />
+                          )}
+                          <Text style={styles.proposalUploadNewBtnText}>Upload bản mới</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.proposalUploadPrimaryBtn}
+                      onPress={openProposalEditor}
+                      disabled={isUploadingProposal || isUploadingSigned}
+                      activeOpacity={0.7}
+                    >
+                      {isUploadingProposal ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Feather name="upload" size={13} color="#FFFFFF" />
+                      )}
+                      <Text style={styles.proposalUploadPrimaryBtnText}>Upload</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.docTitle}>Hợp đồng dự thảo (Proposal)</Text>
-                <Text style={styles.docSubtitle}>
-                  {contract.proposal_contract ? 'Đã đính kèm tài liệu' : 'Chưa có file dự thảo'}
-                </Text>
-              </View>
-              {contract.proposal_contract ? (
+
+              {/* Quotation link if exists */}
+              {contract.quotation_link ? (
                 <TouchableOpacity
-                  style={styles.docActionBtn}
-                  onPress={() => handleOpenLink(contract.proposal_contract)}
+                  style={styles.quotationLinkRow}
+                  onPress={() => handleOpenLink(contract.quotation_link)}
+                  activeOpacity={0.7}
                 >
-                  <Feather name="download" size={14} color="#2563EB" />
-                  <Text style={styles.docActionText}>Mở file</Text>
+                  <Feather name="file-text" size={14} color="#2563EB" />
+                  <Text style={styles.quotationLinkText}>Xem link báo giá</Text>
+                  <Feather name="external-link" size={12} color="#2563EB" />
                 </TouchableOpacity>
               ) : null}
+
+              {/* Rejection callout box if PROPOSAL_REJECTED */}
+              {contract.status === ContractStatus.PROPOSAL_REJECTED &&
+                (contract.rejectReason || (contract as any).rejectionReason) && (
+                  <View style={styles.rejectionNoticeBox}>
+                    <Text style={styles.rejectionNoticeTitle}>LÝ DO TỪ CHỐI HIỆN TẠI:</Text>
+                    <Text style={styles.rejectionNoticeText}>
+                      {contract.rejectReason || (contract as any).rejectionReason}
+                    </Text>
+                  </View>
+                )}
+
+              {/* Progress bar if uploading proposal */}
+              {isUploadingProposal && (
+                <View style={styles.uploadProgressContainer}>
+                  <View style={styles.uploadProgressHeader}>
+                    <Text style={styles.uploadProgressTitle}>Đang tải lên hợp đồng...</Text>
+                    <Text style={styles.uploadProgressPercent}>{uploadProgress}%</Text>
+                  </View>
+                  <View style={styles.uploadProgressBarTrack}>
+                    <View
+                      style={[styles.uploadProgressBarFill, { width: `${uploadProgress}%` }]}
+                    />
+                  </View>
+                </View>
+              )}
             </View>
 
-            {/* File Signed */}
-            <View style={styles.docItem}>
-              <View style={[styles.docIconBox, { backgroundColor: '#F0FDF4' }]}>
-                <Feather name="check-square" size={18} color="#16A34A" />
+            {/* Box 2: Hợp đồng đã ký (Signed Contract) */}
+            <View style={styles.proposalCardItem}>
+              <View style={styles.proposalCardTop}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.proposalItemTitle}>
+                    Hợp đồng đã ký{' '}
+                    <Text style={styles.proposalItemHint}>(.pdf)</Text>
+                  </Text>
+                  <Text style={styles.proposalItemSub}>
+                    {contract.signed_contract ? 'Đã upload' : 'Chưa có file'}
+                  </Text>
+                </View>
+
+                <View style={styles.proposalBtnRow}>
+                  {contract.signed_contract ? (
+                    <TouchableOpacity
+                      style={styles.proposalViewBtn}
+                      onPress={() => handleOpenLink(contract.signed_contract)}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="check-circle" size={13} color="#16A34A" />
+                      <Text style={[styles.proposalViewBtnText, { color: '#16A34A' }]}>Xem</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.signedUploadBtn}
+                      onPress={handleUploadSignedFile}
+                      disabled={isUploadingSigned || isUploadingProposal}
+                      activeOpacity={0.7}
+                    >
+                      {isUploadingSigned ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Feather name="upload" size={13} color="#FFFFFF" />
+                      )}
+                      <Text style={styles.signedUploadBtnText}>Upload</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.docTitle}>Hợp đồng đã ký kết</Text>
-                <Text style={styles.docSubtitle}>
-                  {contract.signed_contract ? 'Bản quét hợp đồng đã ký' : 'Chưa tải lên bản ký'}
-                </Text>
-              </View>
-              {contract.signed_contract ? (
-                <TouchableOpacity
-                  style={styles.docActionBtn}
-                  onPress={() => handleOpenLink(contract.signed_contract)}
-                >
-                  <Feather name="external-link" size={14} color="#16A34A" />
-                  <Text style={[styles.docActionText, { color: '#16A34A' }]}>Xem bản ký</Text>
-                </TouchableOpacity>
-              ) : null}
+
+              {/* Progress bar if uploading signed contract */}
+              {isUploadingSigned && (
+                <View style={styles.uploadProgressContainer}>
+                  <View style={styles.uploadProgressHeader}>
+                    <Text style={styles.uploadProgressTitle}>Đang tải lên bản đã ký...</Text>
+                    <Text style={styles.uploadProgressPercent}>{uploadProgress}%</Text>
+                  </View>
+                  <View style={styles.uploadProgressBarTrack}>
+                    <View
+                      style={[
+                        styles.uploadProgressBarFill,
+                        { backgroundColor: '#4F46E5', width: `${uploadProgress}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -876,6 +1411,385 @@ export default function ContractDetailScreen() {
                 ) : (
                   <Text style={styles.modalConfirmRejectText}>Xác nhận từ chối</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 10. MODAL UPLOAD PROPOSAL (ĐỒNG BỘ 100% WEB ProposalManagement.jsx) */}
+      <Modal
+        visible={isUploadProposalModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!isUploadingProposal) setIsUploadProposalModalVisible(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.uploadModalContent]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={[styles.miniIconBox, { backgroundColor: '#EFF6FF' }]}>
+                  <Feather name="upload-cloud" size={16} color="#2563EB" />
+                </View>
+                <Text style={styles.modalTitle}>Cập nhật Proposal hợp đồng</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!isUploadingProposal) setIsUploadProposalModalVisible(false);
+                }}
+                disabled={isUploadingProposal}
+              >
+                <Feather name="x" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 440 }} showsVerticalScrollIndicator={false}>
+              {/* Section 1: Phương thức tải Hợp đồng */}
+              <Text style={styles.uploadSectionLabel}>1. Chọn hình thức upload hợp đồng</Text>
+              <View style={styles.methodSelectorRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.methodOptionBtn,
+                    uploadProposalMethod === 'FILE' && styles.methodOptionBtnActive,
+                  ]}
+                  onPress={() => {
+                    setUploadProposalMethod('FILE');
+                    setProposalLink('');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Feather
+                    name="upload"
+                    size={16}
+                    color={uploadProposalMethod === 'FILE' ? '#2563EB' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.methodOptionText,
+                      uploadProposalMethod === 'FILE' && styles.methodOptionTextActive,
+                    ]}
+                  >
+                    Tải file Word/Excel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.methodOptionBtn,
+                    uploadProposalMethod === 'LINK' && styles.methodOptionBtnActive,
+                  ]}
+                  onPress={() => {
+                    setUploadProposalMethod('LINK');
+                    setProposalFile(null);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Feather
+                    name="link-2"
+                    size={16}
+                    color={uploadProposalMethod === 'LINK' ? '#2563EB' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.methodOptionText,
+                      uploadProposalMethod === 'LINK' && styles.methodOptionTextActive,
+                    ]}
+                  >
+                    Nhập link hợp đồng
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {uploadProposalMethod === 'FILE' && (
+                <View style={styles.fieldBlock}>
+                  <Text style={styles.fieldSubLabel}>File hợp đồng (.docx, .xls, .xlsx)</Text>
+                  {proposalFile ? (
+                    <View style={styles.selectedFileBox}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={styles.selectedFileName} numberOfLines={1}>
+                          {proposalFile.name}
+                        </Text>
+                        <Text style={styles.selectedFileSize}>
+                          {proposalFile.size
+                            ? `${(proposalFile.size / 1024).toFixed(1)} KB`
+                            : 'Đã sẵn sàng tải lên'}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.changeFileBtn}
+                        onPress={handlePickProposalFile}
+                        disabled={isUploadingProposal}
+                      >
+                        <Text style={styles.changeFileText}>Đổi file</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.pickFileDashedBtn}
+                      onPress={handlePickProposalFile}
+                      disabled={isUploadingProposal}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="file-plus" size={20} color="#2563EB" />
+                      <Text style={styles.pickFileDashedText}>Bấm để chọn file từ thiết bị</Text>
+                      <Text style={styles.pickFileDashedHint}>Hỗ trợ định dạng .docx, .xls, .xlsx</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {uploadProposalMethod === 'LINK' && (
+                <View style={styles.fieldBlock}>
+                  <Text style={styles.fieldSubLabel}>Link hợp đồng (Google Docs, Drive...)</Text>
+                  <TextInput
+                    style={styles.urlInput}
+                    value={proposalLink}
+                    onChangeText={setProposalLink}
+                    placeholder="https://docs.google.com/..."
+                    placeholderTextColor="#94A3B8"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                  />
+                </View>
+              )}
+
+              {/* Section 2: Báo giá (nếu có) */}
+              <Text style={[styles.uploadSectionLabel, { marginTop: 16 }]}>2. Báo giá (nếu có)</Text>
+              <View style={styles.methodSelectorRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.methodOptionBtn,
+                    quotationMethod === 'LINK' && styles.methodOptionBtnActive,
+                  ]}
+                  onPress={() => {
+                    setQuotationMethod(quotationMethod === 'LINK' ? 'NONE' : 'LINK');
+                    setQuotationFile(null);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Feather
+                    name="link-2"
+                    size={16}
+                    color={quotationMethod === 'LINK' ? '#2563EB' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.methodOptionText,
+                      quotationMethod === 'LINK' && styles.methodOptionTextActive,
+                    ]}
+                  >
+                    Nhập link báo giá
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.methodOptionBtn,
+                    quotationMethod === 'FILE' && styles.methodOptionBtnActive,
+                  ]}
+                  onPress={() => {
+                    setQuotationMethod(quotationMethod === 'FILE' ? 'NONE' : 'FILE');
+                    setQuotationLink('');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Feather
+                    name="file-text"
+                    size={16}
+                    color={quotationMethod === 'FILE' ? '#2563EB' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.methodOptionText,
+                      quotationMethod === 'FILE' && styles.methodOptionTextActive,
+                    ]}
+                  >
+                    Tải file Excel
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {quotationMethod === 'LINK' && (
+                <View style={styles.fieldBlock}>
+                  <TextInput
+                    style={styles.urlInput}
+                    value={quotationLink}
+                    onChangeText={setQuotationLink}
+                    placeholder="https://docs.google.com/spreadsheets/..."
+                    placeholderTextColor="#94A3B8"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                  />
+                </View>
+              )}
+
+              {quotationMethod === 'FILE' && (
+                <View style={styles.fieldBlock}>
+                  {quotationFile ? (
+                    <View style={styles.selectedFileBox}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={styles.selectedFileName} numberOfLines={1}>
+                          {quotationFile.name}
+                        </Text>
+                        <Text style={styles.selectedFileSize}>
+                          {quotationFile.size
+                            ? `${(quotationFile.size / 1024).toFixed(1)} KB`
+                            : 'Đã sẵn sàng tải lên'}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.changeFileBtn}
+                        onPress={handlePickQuotationFile}
+                        disabled={isUploadingProposal}
+                      >
+                        <Text style={styles.changeFileText}>Đổi file</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.pickFileDashedBtn}
+                      onPress={handlePickQuotationFile}
+                      disabled={isUploadingProposal}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="file-plus" size={18} color="#2563EB" />
+                      <Text style={styles.pickFileDashedText}>Chọn file Excel báo giá</Text>
+                      <Text style={styles.pickFileDashedHint}>Chỉ chấp nhận file .xls, .xlsx</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {/* Progress bar in modal */}
+              {isUploadingProposal && (
+                <View style={[styles.uploadProgressContainer, { marginTop: 16 }]}>
+                  <View style={styles.uploadProgressHeader}>
+                    <Text style={styles.uploadProgressTitle}>Đang tải lên máy chủ Cloudinary...</Text>
+                    <Text style={styles.uploadProgressPercent}>{uploadProgress}%</Text>
+                  </View>
+                  <View style={styles.uploadProgressBarTrack}>
+                    <View
+                      style={[styles.uploadProgressBarFill, { width: `${uploadProgress}%` }]}
+                    />
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={[styles.modalActions, { marginTop: 16 }]}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setIsUploadProposalModalVisible(false)}
+                disabled={isUploadingProposal}
+              >
+                <Text style={styles.modalCancelText}>Hủy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalConfirmSaveBtn,
+                  (isUploadingProposal ||
+                    (uploadProposalMethod === 'FILE' ? !proposalFile : !proposalLink.trim())) && {
+                    opacity: 0.5,
+                  },
+                ]}
+                onPress={handleSubmitProposal}
+                disabled={
+                  isUploadingProposal ||
+                  (uploadProposalMethod === 'FILE' ? !proposalFile : !proposalLink.trim())
+                }
+              >
+                {isUploadingProposal ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Feather name="check" size={16} color="#FFFFFF" />
+                )}
+                <Text style={styles.modalConfirmSaveText}>
+                  {isUploadingProposal ? 'Đang lưu...' : 'Lưu'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 11. MODAL PHÂN CÔNG PM DỰ ÁN (CHUẨN 100% WEB ProjectInfo.jsx) */}
+      <Modal
+        visible={isPmPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsPmPickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Phân công PM phụ trách dự án</Text>
+              <TouchableOpacity onPress={() => setIsPmPickerVisible(false)}>
+                <Feather name="x" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSub}>
+              Chọn Quản lý dự án (PM) để chịu trách nhiệm triển khai hợp đồng này:
+            </Text>
+
+            <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
+              {pmUsers.length > 0 ? (
+                pmUsers.map((pm) => {
+                  const isSelected = selectedPmId === pm.id;
+                  return (
+                    <TouchableOpacity
+                      key={pm.id}
+                      style={[styles.pmUserItem, isSelected && styles.pmUserItemActive]}
+                      onPress={() => {
+                        setSelectedPmId(pm.id);
+                        handleAssignPmSubmit(pm.id);
+                      }}
+                      disabled={isAssigningPm}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[styles.pmUserAvatar, isSelected && { backgroundColor: '#2563EB' }]}
+                      >
+                        <Text
+                          style={[
+                            styles.pmUserAvatarText,
+                            isSelected && { color: '#FFFFFF' },
+                          ]}
+                        >
+                          {pm.fullName?.substring(0, 1).toUpperCase() || 'P'}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.pmUserName,
+                            isSelected && { color: '#1D4ED8', fontWeight: '700' },
+                          ]}
+                        >
+                          {pm.fullName}
+                        </Text>
+                        {pm.email ? <Text style={styles.pmUserEmail}>{pm.email}</Text> : null}
+                      </View>
+                      {isSelected ? <Feather name="check-circle" size={18} color="#2563EB" /> : null}
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <Text style={styles.emptyText}>Không tìm thấy tài khoản PM nào</Text>
+              )}
+            </ScrollView>
+
+            <View style={[styles.modalActions, { marginTop: 16 }]}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setIsPmPickerVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Đóng</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1618,5 +2532,402 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  // Proposal Management Card Styles (Chuẩn 100% Web ProposalManagement.jsx)
+  proposalBoxList: {
+    gap: 12,
+  },
+  proposalCardItem: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 14,
+  },
+  proposalCardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  proposalItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  proposalItemHint: {
+    fontSize: 12,
+    fontWeight: '400',
+    fontStyle: 'italic',
+    color: '#94A3B8',
+  },
+  proposalItemSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  proposalBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  proposalViewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  proposalViewBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  proposalReviewBtnGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  proposalApproveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: '#16A34A',
+    borderRadius: 8,
+  },
+  proposalApproveBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  proposalRejectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+  },
+  proposalRejectBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  proposalUploadNewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
+  },
+  proposalUploadNewBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  proposalUploadPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
+  },
+  proposalUploadPrimaryBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  signedUploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: '#4F46E5',
+    borderRadius: 8,
+  },
+  signedUploadBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  quotationLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  quotationLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  rejectionNoticeBox: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    borderRadius: 8,
+  },
+  rejectionNoticeTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#991B1B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  rejectionNoticeText: {
+    fontSize: 12,
+    color: '#B91C1C',
+    lineHeight: 16,
+  },
+  uploadProgressContainer: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  uploadProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  uploadProgressTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+    textTransform: 'uppercase',
+  },
+  uploadProgressPercent: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
+  uploadProgressBarTrack: {
+    height: 6,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 99,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  uploadProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#2563EB',
+    borderRadius: 99,
+  },
+  // Modal Upload Proposal Styles
+  uploadModalContent: {
+    maxWidth: 480,
+    maxHeight: '85%',
+  },
+  uploadSectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 8,
+  },
+  methodSelectorRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  methodOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  methodOptionBtnActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  methodOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  methodOptionTextActive: {
+    color: '#1D4ED8',
+    fontWeight: '700',
+  },
+  fieldBlock: {
+    marginBottom: 8,
+  },
+  fieldSubLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+    marginBottom: 6,
+  },
+  urlInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  pickFileDashedBtn: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#93C5FD',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  pickFileDashedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  pickFileDashedHint: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  selectedFileBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    padding: 10,
+  },
+  selectedFileName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E40AF',
+  },
+  selectedFileSize: {
+    fontSize: 11,
+    color: '#3B82F6',
+    marginTop: 2,
+  },
+  changeFileBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+    borderRadius: 6,
+  },
+  changeFileText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  modalConfirmSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#2563EB',
+  },
+  modalConfirmSaveText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  // ProjectInfo Card & PM Assignment Styles (Chuẩn 100% Web ProjectInfo.jsx)
+  projectLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  projectLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  assignPmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  assignPmBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  pmUserItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  pmUserItemActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  pmUserAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pmUserAvatarText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  pmUserName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  pmUserEmail: {
+    fontSize: 11,
+    color: '#64748B',
   },
 });
