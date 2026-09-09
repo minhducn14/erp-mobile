@@ -255,6 +255,27 @@ export const contractService = {
   },
 
   /**
+   * Tải lên Proposal hợp đồng (file hoặc link, kèm link báo giá nếu có)
+   */
+  async uploadProposal(
+    id: string,
+    payload: {
+      file?: any;
+      contractLink?: string;
+      quotationLink?: string;
+    }
+  ) {
+    return apiService.post<ContractItem>(`/contracts/${id}/proposal`, payload);
+  },
+
+  /**
+   * Tải lên Hợp đồng đã ký (.pdf)
+   */
+  async uploadSigned(id: string, file: any) {
+    return apiService.post<ContractItem>(`/contracts/${id}/signed`, { file });
+  },
+
+  /**
    * Duyệt Proposal hợp đồng (BOD / Admin)
    */
   async approveProposal(id: string) {

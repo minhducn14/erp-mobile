@@ -9,7 +9,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BrandColors } from '@/constants/colors';
-import { canAccessOpportunities, canAccessCustomers, isManagementRole } from '@/utils/rbac';
+import { canAccessOpportunities, canAccessCustomers, canAccessContracts, isManagementRole } from '@/utils/rbac';
+import { formatVND } from '@/utils/formatters';
 
 interface QuickActionGridProps {
   userRole?: string;
@@ -34,12 +35,13 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
   const router = useRouter();
   const hasOppAccess = canAccessOpportunities(userRole);
   const hasCustAccess = canAccessCustomers(userRole);
+  const hasContractAccess = canAccessContracts(userRole);
   const isMgmt = isManagementRole(userRole);
 
   const formatShortMoney = (val: number) => {
     if (val >= 1_000_000_000) return `${(val / 1_000_000_000).toFixed(1)} Tỷ`;
     if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(0)} Tr`;
-    return `${val.toLocaleString('vi-VN')} ₫`;
+    return formatVND(val);
   };
 
   // Actions for Sales & Management roles (BOD, Admin, BD, Admin Sale)
@@ -52,6 +54,15 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: '#8B5CF6',
       bgColor: '#F3E8FF',
       onPress: () => router.push('/opportunities' as any),
+    },
+    {
+      id: 'contracts',
+      label: 'Hợp đồng',
+      iconName: 'document-text-outline',
+      iconType: 'ionicons',
+      iconColor: '#2563EB',
+      bgColor: '#EFF6FF',
+      onPress: () => router.push('/contracts' as any),
     },
     {
       id: 'create_opp',
@@ -111,7 +122,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
         Alert.alert(
           'Theo dõi Công nợ',
           totalDebt > 0
-            ? `Tổng công nợ cần thu kỳ này là ${totalDebt.toLocaleString('vi-VN')} ₫.`
+            ? `Tổng công nợ cần thu kỳ này là ${formatVND(totalDebt)}.`
             : 'Hiện tại không có công nợ quá hạn cần xử lý.'
         );
       },
