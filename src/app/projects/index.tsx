@@ -8,13 +8,29 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { projectService, ProjectItem } from '@/services/projectService';
+import {
+  projectService,
+  ProjectItem,
+  PROJECT_STATUS_CONFIG,
+} from '@/services/projectService';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
+import { formatNumber } from '@/utils/formatters';
+
+const STATUS_FILTERS = [
+  { key: 'ALL', label: 'Tất cả' },
+  { key: 'IN_PROGRESS', label: 'Đang triển khai' },
+  { key: 'CONFIRMED', label: 'Đã xác nhận' },
+  { key: 'PLANNING', label: 'Lập kế hoạch' },
+  { key: 'COMPLETED', label: 'Hoàn thành' },
+  { key: 'ON_HOLD', label: 'Tạm dừng' },
+  { key: 'CANCELLED', label: 'Đã hủy' },
+];
 
 export default function ProjectsScreen() {
   const router = useRouter();
@@ -22,6 +38,7 @@ export default function ProjectsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
 
   const loadProjects = useCallback(async () => {
     try {
@@ -47,36 +64,39 @@ export default function ProjectsScreen() {
   };
 
   const filteredProjects = projects.filter((p) => {
+    // Filter by status
+    if (selectedStatusFilter !== 'ALL' && p.status !== selectedStatusFilter) {
+      return false;
+    }
+    // Filter by search query
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       p.name?.toLowerCase().includes(q) ||
+      p.code?.toLowerCase().includes(q) ||
       p.contract?.customer?.name?.toLowerCase().includes(q) ||
       p.contract?.contractCode?.toLowerCase().includes(q)
     );
   });
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return { bg: '#ECFDF5', text: '#059669', label: 'Hoàn thành' };
-      case 'IN_PROGRESS':
-        return { bg: '#FFF7ED', text: BrandColors.primary, label: 'Đang triển khai' };
-      case 'CONFIRMED':
-        return { bg: '#EFF6FF', text: '#2563EB', label: 'Đã xác nhận' };
-      case 'CANCELLED':
-        return { bg: '#FEF2F2', text: '#EF4444', label: 'Đã hủy' };
-      default:
-        return { bg: '#F1F5F9', text: '#64748B', label: status || 'Khởi tạo' };
+    const config = PROJECT_STATUS_CONFIG[status];
+    if (config) {
+      return { bg: config.bg, text: config.color, label: config.text };
     }
+    return { bg: '#F1F5F9', text: '#64748B', label: status || 'Khởi tạo' };
   };
 
   const renderProjectCard = ({ item }: { item: ProjectItem }) => {
     const status = getStatusColor(item.status);
-    const progress = item.progress ?? 45; // Default representative visual progress if not computed
+    const progress = item.progress ?? 0;
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.8}
+        onPress={() => router.push(`/projects/${item.id}` as any)}
+      >
         <View style={styles.cardTop}>
           <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
             <Text style={[styles.statusText, { color: status.text }]}>{status.label}</Text>
@@ -126,11 +146,11 @@ export default function ProjectsScreen() {
 
           {item.contract?.sellingPrice ? (
             <Text style={styles.priceText}>
-              {(item.contract.sellingPrice / 1_000_000).toLocaleString('vi-VN')} Tr
+              {formatNumber(item.contract.sellingPrice)} đ
             </Text>
           ) : null}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -166,6 +186,37 @@ export default function ProjectsScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Horizontal Status Filters */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScrollContent}
+        >
+          {STATUS_FILTERS.map((f) => {
+            const isActive = selectedStatusFilter === f.key;
+            return (
+              <TouchableOpacity
+                key={f.key}
+                style={[
+                  styles.filterPill,
+                  isActive && styles.filterPillActive,
+                ]}
+                onPress={() => setSelectedStatusFilter(f.key)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    isActive && styles.filterTextActive,
+                  ]}
+                >
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Content List */}
@@ -194,8 +245,8 @@ export default function ProjectsScreen() {
               <Feather name="folder" size={44} color="#CBD5E1" />
               <Text style={styles.emptyTitle}>Chưa có dự án nào</Text>
               <Text style={styles.emptyDesc}>
-                {searchQuery
-                  ? 'Không tìm thấy dự án phù hợp với từ khóa.'
+                {searchQuery || selectedStatusFilter !== 'ALL'
+                  ? 'Không tìm thấy dự án phù hợp với bộ lọc.'
                   : 'Hiện tại chưa có dự án nào được giao kết.'}
               </Text>
             </View>
@@ -239,10 +290,12 @@ const styles = StyleSheet.create({
   },
   searchWrapper: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    gap: 10,
   },
   searchBox: {
     flexDirection: 'row',
@@ -257,6 +310,30 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: '#0F172A',
+  },
+  filterScrollContent: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  filterPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterPillActive: {
+    backgroundColor: BrandColors.primary,
+    borderColor: BrandColors.primary,
+  },
+  filterText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  filterTextActive: {
+    color: '#FFFFFF',
   },
   listContent: {
     padding: 16,
@@ -398,3 +475,4 @@ const styles = StyleSheet.create({
     maxWidth: 260,
   },
 });
+

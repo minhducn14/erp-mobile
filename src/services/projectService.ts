@@ -70,7 +70,15 @@ export interface ProjectItem {
   contract?: {
     id: string;
     contractCode?: string;
+    name?: string;
+    description?: string;
     sellingPrice?: number;
+    attachments?: Array<{
+      name: string;
+      url: string;
+      type?: string;
+      size?: number;
+    }>;
     customer?: {
       id: string;
       name: string;
@@ -91,6 +99,7 @@ export interface ProjectItem {
       user?: {
         id: string;
         fullName: string;
+        email?: string;
       };
     }>;
   };
@@ -103,24 +112,78 @@ export interface UserPMItem {
   role?: string;
 }
 
+export interface ProjectDetailItem extends ProjectItem {
+  projectManager?: {
+    id: string;
+    fullName: string;
+    email?: string;
+  };
+  jobs?: Array<any>;
+  tasks?: Array<any>;
+  contract?: ProjectItem['contract'] & {
+    contractCode?: string;
+    signingDate?: string;
+    sellingPrice?: number;
+    totalCost?: number;
+    vatAmount?: number;
+    paidAmount?: number;
+    remainingAmount?: number;
+  };
+}
+
 class ProjectService {
   async getProjects(filters?: Record<string, any>): Promise<{ data?: ProjectItem[]; error?: string }> {
-    const res = await apiService.get<ProjectItem[]>('/projects', filters);
-    return { data: res.data, error: res.error };
+    const params = { limit: 100, ...filters };
+    const res = await apiService.get<any>('/projects', params);
+    const raw = res.data;
+    const items = Array.isArray(raw)
+      ? raw
+      : raw?.data && Array.isArray(raw.data)
+      ? raw.data
+      : [];
+    return { data: items, error: res.error };
   }
 
-  async getProjectById(id: string): Promise<{ data?: ProjectItem; error?: string }> {
-    const res = await apiService.get<ProjectItem>(`/projects/${id}`);
-    return { data: res.data, error: res.error };
+  async getProjectById(id: string): Promise<{ data?: ProjectDetailItem; error?: string }> {
+    const res = await apiService.get<any>(`/projects/${id}`);
+    const item = res.data?.data && typeof res.data.data === 'object' && !Array.isArray(res.data.data)
+      ? res.data.data
+      : res.data;
+    return { data: item, error: res.error };
   }
 
   async getProjectByContract(contractId: string): Promise<{ data?: ProjectItem; error?: string }> {
-    const res = await apiService.get<ProjectItem>(`/projects/contract/${contractId}`);
-    return { data: res.data, error: res.error };
+    const res = await apiService.get<any>(`/projects/contract/${contractId}`);
+    const item = res.data?.data && typeof res.data.data === 'object' && !Array.isArray(res.data.data)
+      ? res.data.data
+      : res.data;
+    return { data: item, error: res.error };
   }
+
 
   async assignProject(contractId: string, pmId: string | null): Promise<{ data?: any; error?: string }> {
     const res = await apiService.post('/projects/assign', { contractId, pmId });
+    return { data: res.data, error: res.error };
+  }
+
+  async assignPm(contractId: string, pmId: string): Promise<{ data?: any; error?: string }> {
+    const res = await apiService.post('/projects/assign', { contractId, pmId });
+    return { data: res.data, error: res.error };
+  }
+
+
+  async updateProjectStatus(id: string, status: string): Promise<{ data?: any; error?: string }> {
+    const res = await apiService.patch(`/projects/${id}/status`, { status });
+    return { data: res.data, error: res.error };
+  }
+
+  async updateProjectProgress(id: string, progress: number): Promise<{ data?: any; error?: string }> {
+    const res = await apiService.patch(`/projects/${id}/progress`, { progress });
+    return { data: res.data, error: res.error };
+  }
+
+  async confirmProject(id: string): Promise<{ data?: any; error?: string }> {
+    const res = await apiService.post(`/projects/${id}/confirm`, {});
     return { data: res.data, error: res.error };
   }
 
@@ -131,3 +194,4 @@ class ProjectService {
 }
 
 export const projectService = new ProjectService();
+
