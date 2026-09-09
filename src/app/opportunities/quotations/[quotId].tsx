@@ -21,6 +21,7 @@ import {
   QuotationStatus,
   QuotationItem,
 } from '@/services/quotationService';
+import { formatVND, formatNumber } from '@/utils/formatters';
 
 export default function QuotationDetailScreen() {
   const router = useRouter();
@@ -210,10 +211,7 @@ export default function QuotationDetailScreen() {
     };
   }, [quotation]);
 
-  const formatMoney = (val?: number) => {
-    if (!val) return '0 ₫';
-    return `${Math.round(val).toLocaleString('vi-VN')} ₫`;
-  };
+  const formatMoney = (val?: number) => formatVND(val);
 
   const isThisApproved =
     quotation?.status === QuotationStatus.APPROVED || quotation?.status === 'APPROVED';
@@ -528,7 +526,7 @@ export default function QuotationDetailScreen() {
                     <View style={styles.packageHeaderLeft}>
                       <Text style={styles.packageName}>{pkg.name}</Text>
                       <Text style={styles.packageQty}>
-                        Số lượng: <Text style={{ fontWeight: '700' }}>x{pkg.quantity}</Text>
+                        Số lượng: <Text style={{ fontWeight: '700' }}>x{formatNumber(pkg.quantity)}</Text>
                       </Text>
                     </View>
 
@@ -565,7 +563,7 @@ export default function QuotationDetailScreen() {
                               {item.name || item.service?.name || 'Dịch vụ'}
                             </Text>
                             <Text style={styles.subItemNorm}>
-                              Định mức: {item.norm} {item.service?.unit || item.unit || 'lần'} / gói | Đơn giá: {formatMoney(item.sellingPrice)}
+                              Định mức: {formatNumber(item.norm)} {item.service?.unit || item.unit || 'lần'} / gói | Đơn giá: {formatMoney(item.sellingPrice)}
                             </Text>
                           </View>
                           <Text style={styles.subItemRevenue}>
@@ -602,7 +600,7 @@ export default function QuotationDetailScreen() {
 
                 <View style={styles.standaloneMetaRow}>
                   <Text style={styles.standaloneMetaText}>
-                    Số lượng: <Text style={styles.boldText}>{item.quantity} {item.service?.unit || item.unit || 'gói'}</Text>
+                    Số lượng: <Text style={styles.boldText}>{formatNumber(item.quantity)} {item.service?.unit || item.unit || 'gói'}</Text>
                   </Text>
                   <Text style={styles.standaloneMetaText}>
                     Đơn giá: <Text style={styles.boldText}>{formatMoney(item.sellingPrice)}</Text>

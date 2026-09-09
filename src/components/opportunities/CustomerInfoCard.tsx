@@ -14,6 +14,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { BrandColors } from '@/constants/colors';
 import { OpportunityItem } from '@/services/opportunityService';
 import { fetchTaxInfo } from '@/utils/tax';
+import { isValidEmail, isValidPhone, isValidTaxId } from '@/utils/validators';
 
 interface CustomerInfoCardProps {
   opportunity: OpportunityItem;
@@ -118,19 +119,15 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
   };
 
   const handleSave = async () => {
-    const phoneRegex = /^\+?[0-9]{10,15}$/;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const taxIdRegex = /^\d{10}(\s?-\s?\d{3})?$/;
-
-    if (editData.phone && !phoneRegex.test(editData.phone.trim())) {
-      Alert.alert('Lỗi', 'Số điện thoại không hợp lệ');
+    if (editData.phone && !isValidPhone(editData.phone)) {
+      Alert.alert('Lỗi', 'Số điện thoại không hợp lệ (Phải từ 8 - 15 chữ số)');
       return;
     }
-    if (editData.email && !emailRegex.test(editData.email.trim())) {
-      Alert.alert('Lỗi', 'Email không hợp lệ');
+    if (editData.email && !isValidEmail(editData.email)) {
+      Alert.alert('Lỗi', 'Email không hợp lệ (Ví dụ: example@domain.com)');
       return;
     }
-    if (editData.taxId && !taxIdRegex.test(editData.taxId.trim())) {
+    if (editData.taxId && !isValidTaxId(editData.taxId)) {
       Alert.alert('Lỗi', 'Mã số thuế không hợp lệ (Phải là 10 số hoặc 13 số định dạng XXXXXXXXXX-XXX)');
       return;
     }

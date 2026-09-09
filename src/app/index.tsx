@@ -28,6 +28,7 @@ import {
   TaskItem,
 } from '@/services/dashboardService';
 import { BrandColors } from '@/constants/colors';
+import { formatVND } from '@/utils/formatters';
 import {
   canAccessCustomers,
   isManagementRole,
@@ -159,7 +160,7 @@ export default function HomeScreen() {
     if (val >= 1_000_000) {
       return `${(val / 1_000_000).toFixed(0)} Tr`;
     }
-    return `${val.toLocaleString('vi-VN')} ₫`;
+    return formatVND(val);
   };
 
   const hotProjects =

@@ -121,10 +121,7 @@ export default function ExploreScreen() {
 
       case 'contracts':
         if (canAccessContracts(role)) {
-          Alert.alert(
-            'Phân hệ Hợp đồng',
-            'Tính năng quản lý hợp đồng chi tiết đang được tối ưu cho phiên bản di động.'
-          );
+          router.push('/contracts' as any);
         } else {
           Alert.alert(
             'Giới hạn quyền truy cập',

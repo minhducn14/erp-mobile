@@ -17,6 +17,7 @@ import { BrandColors } from '@/constants/colors';
 import { customerService, CustomerItem } from '@/services/customerService';
 import { opportunityService } from '@/services/opportunityService';
 import { fetchTaxInfo } from '@/utils/tax';
+import { isValidEmail, isValidPhone, isValidTaxId } from '@/utils/validators';
 
 export interface CustomerAssignData {
   customerType: 'DIRECT' | 'REFERRAL';
@@ -226,26 +227,22 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
   // Submit Handler
   const handleSave = async () => {
     if (customerStatus === 'POTENTIAL') {
-      const phoneRegex = /^\+?[0-9]{10,15}$/;
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const taxIdRegex = /^\d{10}(\s?-\s?\d{3})?$/;
-
       if (!leadName.trim()) {
         Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên khách hàng.');
         return;
       }
 
-      if (leadPhone.trim() && !phoneRegex.test(leadPhone.trim())) {
-        Alert.alert('Lỗi', 'Số điện thoại không hợp lệ (10-15 chữ số).');
+      if (leadPhone.trim() && !isValidPhone(leadPhone)) {
+        Alert.alert('Lỗi', 'Số điện thoại không hợp lệ (8 - 15 chữ số).');
         return;
       }
 
-      if (leadEmail.trim() && !emailRegex.test(leadEmail.trim())) {
-        Alert.alert('Lỗi', 'Địa chỉ email không hợp lệ.');
+      if (leadEmail.trim() && !isValidEmail(leadEmail)) {
+        Alert.alert('Lỗi', 'Địa chỉ email không hợp lệ (Ví dụ: user@domain.com).');
         return;
       }
 
-      if (leadTaxId.trim() && !taxIdRegex.test(leadTaxId.trim().replace(/-/g, ''))) {
+      if (leadTaxId.trim() && !isValidTaxId(leadTaxId)) {
         Alert.alert('Lỗi', 'Mã số thuế không hợp lệ (Phải là 10 số hoặc 13 số).');
         return;
       }
