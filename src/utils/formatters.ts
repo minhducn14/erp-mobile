@@ -14,15 +14,28 @@
  */
 export const formatNumber = (value: number | string | undefined | null): string => {
   if (value === null || value === undefined || value === '') return '0';
+
+  let num: number;
   if (typeof value === 'number') {
     if (isNaN(value)) return '0';
-    const parts = value.toString().split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return parts.join(',');
+    num = value;
+  } else {
+    const cleanStr = String(value).trim();
+    if (!cleanStr) return '0';
+
+    // 1. Direct JS numeric string check (e.g., "510020000.000", "510020000", "1500.5")
+    const directNum = Number(cleanStr);
+    if (!isNaN(directNum)) {
+      num = directNum;
+    } else {
+      // 2. Pre-formatted Vietnamese numeric string (e.g., "1.500.000,50" or "1.500.000")
+      const parsedNum = Number(cleanStr.replace(/\./g, '').replace(/,/g, '.'));
+      if (isNaN(parsedNum)) return '0';
+      num = parsedNum;
+    }
   }
-  const cleanStr = String(value).trim();
-  const num = Number(cleanStr.replace(/\./g, '').replace(/,/g, '.'));
-  if (isNaN(num)) return '0';
+
+  // Format integer part with dot (.) as thousand separator and decimal part with comma (,)
   const parts = num.toString().split('.');
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return parts.join(',');
