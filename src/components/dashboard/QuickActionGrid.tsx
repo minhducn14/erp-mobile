@@ -71,7 +71,6 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconType: 'feather',
       iconColor: BrandColors.primary,
       bgColor: '#FFF4EA',
-      badge: 'Mới',
       onPress: () => router.push('/opportunities/create' as any),
     },
     {
@@ -102,30 +101,13 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       onPress: () => router.push('/tasks' as any),
     },
     {
-      id: 'review',
-      label: 'Duyệt việc',
-      iconName: 'time-outline',
-      iconType: 'ionicons',
-      iconColor: '#EC4899',
-      bgColor: '#FDF2F8',
-      onPress: () => router.push('/tasks' as any),
-    },
-    {
-      id: 'debt',
-      label: 'Công nợ thu',
-      iconName: 'card-outline',
+      id: 'acceptances',
+      label: 'Nghiệm thu',
+      iconName: 'checkmark-done-circle-outline',
       iconType: 'ionicons',
       iconColor: '#059669',
       bgColor: '#ECFDF5',
-      badge: totalDebt > 0 ? formatShortMoney(totalDebt) : undefined,
-      onPress: () => {
-        Alert.alert(
-          'Theo dõi Công nợ',
-          totalDebt > 0
-            ? `Tổng công nợ cần thu kỳ này là ${formatVND(totalDebt)}.`
-            : 'Hiện tại không có công nợ quá hạn cần xử lý.'
-        );
-      },
+      onPress: () => router.push('/acceptances' as any),
     },
     {
       id: 'explore',
@@ -159,13 +141,13 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       onPress: () => router.push('/projects' as any),
     },
     {
-      id: 'my_review',
-      label: 'Chờ duyệt',
-      iconName: 'time-outline',
+      id: 'my_acceptances',
+      label: 'Nghiệm thu',
+      iconName: 'checkmark-done-circle-outline',
       iconType: 'ionicons',
-      iconColor: '#F59E0B',
-      bgColor: '#FFFBEB',
-      onPress: () => router.push('/tasks' as any),
+      iconColor: '#059669',
+      bgColor: '#ECFDF5',
+      onPress: () => router.push('/acceptances' as any),
     },
     {
       id: 'profile',

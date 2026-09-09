@@ -5,7 +5,17 @@ export interface AdminMetrics {
   totalCustomers?: number;
   newCustomers?: number;
   activeProjects?: number;
+  currentProjects?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    customerName?: string;
+    serviceCount: number;
+    completedServiceCount: number;
+    progress: number;
+  }>;
   totalDebt?: number;
+  pendingApprovalCount?: number;
   upcomingDebts?: Array<{
     id: string;
     name: string;
@@ -30,6 +40,11 @@ export interface MemberMetrics {
   completedTasks?: number;
   inProgressTasks?: number;
   pendingTasks?: number;
+  doingCount?: number;
+  completedCount?: number;
+  reworkCount?: number;
+  violationCount?: number;
+  vinicoin?: number;
   todayTasks?: Array<{
     id: string;
     title: string;

@@ -22,6 +22,10 @@ import { FocusBanner } from '@/components/dashboard/FocusBanner';
 import { QuickActionGrid } from '@/components/dashboard/QuickActionGrid';
 import { HotProjectsWidget } from '@/components/dashboard/HotProjectsWidget';
 import { MonthYearPickerModal } from '@/components/dashboard/MonthYearPickerModal';
+import { AdminDashboardView } from '@/components/dashboard/views/AdminDashboardView';
+import { SalesDashboardView } from '@/components/dashboard/views/SalesDashboardView';
+import { TeamLeadDashboardView } from '@/components/dashboard/views/TeamLeadDashboardView';
+import { MemberDashboardView } from '@/components/dashboard/views/MemberDashboardView';
 import {
   dashboardService,
   DashboardResponse,
@@ -164,7 +168,9 @@ export default function HomeScreen() {
   };
 
   const hotProjects =
-    teamLeadProjects.length > 0
+    isAdminOrBod && Array.isArray(adminMetrics?.currentProjects) && adminMetrics.currentProjects.length > 0
+      ? adminMetrics.currentProjects
+      : teamLeadProjects.length > 0
       ? teamLeadProjects
       : isSale && Array.isArray(saleMetrics?.projects) && saleMetrics.projects.length > 0
       ? saleMetrics.projects
@@ -252,7 +258,7 @@ export default function HomeScreen() {
           pendingApprovalCount={reviewTasks.length}
           activeProjectCount={
             isAdminOrBod
-              ? adminMetrics?.activeProjects ?? teamLeadProjects.length ?? 0
+              ? adminMetrics?.currentProjects?.length ?? adminMetrics?.activeProjects ?? teamLeadProjects.length ?? 0
               : isSale
               ? saleMetrics?.projects?.length ?? 0
               : teamLeadProjects.length || memberMetrics?.participatingProjects?.length || 0
@@ -312,160 +318,32 @@ export default function HomeScreen() {
             <ActivityIndicator size="small" color={PRIMARY_COLOR} />
             <Text style={styles.loadingDesc}>Đang đồng bộ dữ liệu Getvini...</Text>
           </View>
+        ) : isAdminOrBod ? (
+          <AdminDashboardView
+            adminMetrics={adminMetrics}
+            reviewTasks={reviewTasks}
+            teamLeadProjects={teamLeadProjects}
+            onTaskPress={(task) => router.push(`/tasks/${task.id}` as any)}
+          />
+        ) : isSale ? (
+          <SalesDashboardView saleMetrics={saleMetrics} />
+        ) : (user?.role === 'TEAM_LEAD' || user?.role === 'PM' || teamLeadProjects.length > 0) ? (
+          <TeamLeadDashboardView
+            teamLeadProjects={teamLeadProjects}
+            reviewTasks={reviewTasks}
+            todayTasks={todayTasks}
+            onTaskPress={(task) => router.push(`/tasks/${task.id}` as any)}
+          />
         ) : (
-          <View style={styles.statsGrid}>
-            {isAdminOrBod ? (
-              <>
-                <StatCard
-                  title="Doanh thu ký"
-                  value={formatMoney(adminMetrics?.totalRevenue)}
-                  subtitle="Hợp đồng kỳ này"
-                  icon="dollar-sign"
-                  color={PRIMARY_COLOR}
-                  bgColor="#FFF7ED"
-                />
-                <StatCard
-                  title="Dự án đang chạy"
-                  value={adminMetrics?.activeProjects ?? teamLeadProjects.length ?? 0}
-                  subtitle="Tiến độ hoạt động"
-                  icon="folder"
-                  color="#3B82F6"
-                  bgColor="#EFF6FF"
-                  onPress={() => router.push('/projects' as any)}
-                />
-                <StatCard
-                  title="Khách hàng mới"
-                  value={adminMetrics?.newCustomers ?? 0}
-                  subtitle="Kỳ báo cáo"
-                  icon="users"
-                  color="#10B981"
-                  bgColor="#ECFDF5"
-                  onPress={() => router.push('/customers' as any)}
-                />
-                <StatCard
-                  title="Công nợ cần thu"
-                  value={formatMoney(adminMetrics?.totalDebt)}
-                  subtitle="Chờ thanh toán"
-                  icon="alert-circle"
-                  color="#F59E0B"
-                  bgColor="#FFFBEB"
-                />
-              </>
-            ) : isSale ? (
-              <>
-                <StatCard
-                  title="Khách hàng của tôi"
-                  value={saleMetrics?.totalCustomers ?? 0}
-                  subtitle="Khách hàng phụ trách"
-                  icon="users"
-                  color={PRIMARY_COLOR}
-                  bgColor="#FFF7ED"
-                  onPress={() => router.push('/customers' as any)}
-                />
-                <StatCard
-                  title="Cơ hội kinh doanh"
-                  value={saleMetrics?.totalOpportunities ?? 0}
-                  subtitle="Đang chăm sóc"
-                  icon="target"
-                  color="#3B82F6"
-                  bgColor="#EFF6FF"
-                  onPress={() => router.push('/opportunities' as any)}
-                />
-                <StatCard
-                  title="Dự án liên quan"
-                  value={saleMetrics?.projects?.length ?? 0}
-                  subtitle="Theo dõi thực hiện"
-                  icon="folder"
-                  color="#10B981"
-                  bgColor="#ECFDF5"
-                  onPress={() => router.push('/projects' as any)}
-                />
-                <StatCard
-                  title="Công nợ theo dõi"
-                  value={formatMoney(saleMetrics?.totalDebt)}
-                  subtitle="Cần nhắc thu"
-                  icon="dollar-sign"
-                  color="#F59E0B"
-                  bgColor="#FFFBEB"
-                />
-              </>
-            ) : (
-              <>
-                <StatCard
-                  title="Dự án tham gia"
-                  value={
-                    teamLeadProjects.length > 0
-                      ? teamLeadProjects.length
-                      : memberMetrics?.participatingProjects?.length ?? 0
-                  }
-                  subtitle="Đang thực hiện"
-                  icon="folder"
-                  color={PRIMARY_COLOR}
-                  bgColor="#FFF7ED"
-                  onPress={() => router.push('/projects' as any)}
-                />
-                <StatCard
-                  title="Nhiệm vụ của tôi"
-                  value={todayTasks.length || memberMetrics?.totalTasks || 0}
-                  subtitle="Tổng công việc"
-                  icon="check-square"
-                  color="#3B82F6"
-                  bgColor="#EFF6FF"
-                  onPress={() => router.push('/tasks' as any)}
-                />
-                <StatCard
-                  title="Chờ xét duyệt"
-                  value={reviewTasks.length || 0}
-                  subtitle="Cần phản hồi"
-                  icon="clock"
-                  color="#F59E0B"
-                  bgColor="#FFFBEB"
-                  onPress={() => router.push('/tasks' as any)}
-                />
-                <StatCard
-                  title="Đã hoàn thành"
-                  value={memberMetrics?.completedTasks ?? 0}
-                  subtitle="Nghiệm thu đạt"
-                  icon="award"
-                  color="#10B981"
-                  bgColor="#ECFDF5"
-                />
-              </>
-            )}
-          </View>
-        )}
-
-        {/* Review Queue Widget (if tasks await review) */}
-        {reviewTasks.length > 0 && (
-          <ReviewQueueWidget
-            tasks={reviewTasks}
-            onViewAll={() => router.push('/tasks' as any)}
-            onTaskPress={(task) => {
-              router.push(`/tasks/${task.id}` as any);
-            }}
+          <MemberDashboardView
+            memberMetrics={memberMetrics}
+            todayTasks={todayTasks}
+            onTaskPress={(task) => router.push(`/tasks/${task.id}` as any)}
           />
         )}
-
-        {/* Hot Projects Widget (mirroring HotProjectList on Web) */}
-        {hotProjects.length > 0 && (
-          <HotProjectsWidget
-            projects={hotProjects}
-            onViewAll={() => router.push('/projects' as any)}
-            onProjectPress={() => router.push('/projects' as any)}
-          />
-        )}
-
-        {/* Today's Tasks Widget */}
-        <TodayTasksWidget
-          tasks={todayTasks}
-          onViewAll={() => router.push('/tasks' as any)}
-          onTaskPress={(task) => {
-            router.push(`/tasks/${task.id}` as any);
-          }}
-        />
 
         {/* Operational Modules Grid */}
-        <View style={styles.sectionHeader}>
+        {/* <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Phân hệ tác nghiệp</Text>
         </View>
 
@@ -531,7 +409,7 @@ export default function HomeScreen() {
             <Text style={styles.moduleName}>Tất cả phân hệ</Text>
             <Text style={styles.moduleDesc}>Hợp đồng, Tài chính...</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </ScrollView>
 
       {/* Month & Year Picker Modal */}
