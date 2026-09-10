@@ -21,6 +21,7 @@ import {
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 import { formatNumber } from '@/utils/formatters';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 
 const STATUS_FILTERS = [
   { key: 'ALL', label: 'Tất cả' },
@@ -57,6 +58,8 @@ export default function ProjectsScreen() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  useSSERefresh('invalidate_Projects', loadProjects);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -437,15 +440,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flex: 1,
+    marginRight: 8,
+    overflow: 'hidden',
   },
   teamText: {
     fontSize: 12,
     color: '#64748B',
+    flex: 1,
   },
   priceText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+    flexShrink: 0,
   },
   loadingContainer: {
     flex: 1,
@@ -475,4 +482,3 @@ const styles = StyleSheet.create({
     maxWidth: 260,
   },
 });
-

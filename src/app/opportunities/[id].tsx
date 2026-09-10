@@ -25,6 +25,7 @@ import {
   QuotationItem,
   QuotationStatus,
 } from '@/services/quotationService';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 import {
   contractService,
   CONTRACT_STATUS_CONFIG,
@@ -197,6 +198,11 @@ export default function OpportunityDetailScreen() {
     useCallback(() => {
       loadData();
     }, [loadData])
+  );
+
+  useSSERefresh(
+    ['invalidate_Opportunities', 'invalidate_Tasks'],
+    loadData
   );
 
   const handleRefresh = () => {
@@ -591,8 +597,8 @@ export default function OpportunityDetailScreen() {
                     }
                     activeOpacity={0.8}
                   >
-                    <Feather name="file-text" size={15} color="#FFFFFF" />
-                    <Text style={styles.headerViewQuotesText}>Xem báo giá</Text>
+                    <Feather name="file-text" size={14} color="#FFFFFF" />
+                    <Text style={styles.headerViewQuotesText} numberOfLines={1}>Xem báo giá</Text>
                   </TouchableOpacity>
                   {showBadge && (
                     <View style={styles.headerBadge}>
@@ -615,8 +621,8 @@ export default function OpportunityDetailScreen() {
                   }
                   activeOpacity={0.8}
                 >
-                  <Feather name="plus" size={15} color="#FFFFFF" />
-                  <Text style={styles.headerCreateQuoteText}>Tạo báo giá</Text>
+                  <Feather name="plus" size={14} color="#FFFFFF" />
+                  <Text style={styles.headerCreateQuoteText} numberOfLines={1}>Tạo báo giá</Text>
                 </TouchableOpacity>
               )}
 
@@ -631,8 +637,8 @@ export default function OpportunityDetailScreen() {
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <Feather name="briefcase" size={15} color="#FFFFFF" />
-                      <Text style={styles.headerCreateContractText}>Tạo hợp đồng</Text>
+                      <Feather name="briefcase" size={14} color="#FFFFFF" />
+                      <Text style={styles.headerCreateContractText} numberOfLines={1}>Tạo hợp đồng</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -649,8 +655,8 @@ export default function OpportunityDetailScreen() {
                   }
                   activeOpacity={0.8}
                 >
-                  <Feather name="file-text" size={15} color="#FFFFFF" />
-                  <Text style={styles.headerViewContractText}>
+                  <Feather name="file-text" size={14} color="#FFFFFF" />
+                  <Text style={styles.headerViewContractText} numberOfLines={1}>
                     {linkedContract.contractCode
                       ? `HĐ: ${linkedContract.contractCode}`
                       : 'Xem hợp đồng'}
@@ -684,14 +690,24 @@ export default function OpportunityDetailScreen() {
           <View style={styles.financialGrid}>
             <View style={styles.financialBox}>
               <Text style={styles.financialLabel}>Doanh thu kỳ vọng</Text>
-              <Text style={styles.revenueHighlight}>
+              <Text 
+                style={styles.revenueHighlight} 
+                numberOfLines={1} 
+                adjustsFontSizeToFit 
+                minimumFontScale={0.75}
+              >
                 {formatVNDFull(opportunity.expectedRevenue)}
               </Text>
             </View>
 
             <View style={styles.financialBox}>
               <Text style={styles.financialLabel}>Ngân sách dự kiến</Text>
-              <Text style={styles.financialValue}>
+              <Text 
+                style={styles.financialValue} 
+                numberOfLines={1} 
+                adjustsFontSizeToFit 
+                minimumFontScale={0.75}
+              >
                 {formatVNDFull(opportunity.budget)}
               </Text>
             </View>
@@ -1803,7 +1819,8 @@ const styles = StyleSheet.create({
   },
   headerActionsBar: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
@@ -1811,10 +1828,13 @@ const styles = StyleSheet.create({
   },
   viewQuoteWrapper: {
     position: 'relative',
+    flex: 1,
+    minWidth: 125,
   },
   headerViewQuotesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     backgroundColor: '#0F172A',
     paddingHorizontal: 14,
@@ -1876,11 +1896,14 @@ const styles = StyleSheet.create({
   headerViewContractBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     backgroundColor: '#0F172A',
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 9,
     borderRadius: 8,
+    flex: 1,
+    minWidth: 120,
   },
   headerViewContractText: {
     fontSize: 13,

@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   useWindowDimensions,
+  ScrollView,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -82,6 +83,13 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
   const [leadAddress, setLeadAddress] = useState('');
   const [isFetchingTax, setIsFetchingTax] = useState(false);
   const [autoTaxSuccess, setAutoTaxSuccess] = useState(false);
+
+  // Refs cho ô nhập liệu để tự động chuyển ô (focus next)
+  const leadTaxIdRef = useRef<TextInput>(null);
+  const leadNameRef = useRef<TextInput>(null);
+  const leadPhoneRef = useRef<TextInput>(null);
+  const leadEmailRef = useRef<TextInput>(null);
+  const leadAddressRef = useRef<TextInput>(null);
 
   // Dropdown mở/đóng các picker
   const [openPicker, setOpenPicker] = useState<'TYPE' | 'PARTNER' | 'STATUS' | null>(null);
@@ -275,7 +283,7 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.sheetContainer, { height: height * 0.82, maxHeight: height * 0.92 }]}>
+        <View style={[styles.sheetContainer, { height: height * 0.82, maxHeight: height * 0.90 }]}>
           {/* Header */}
           <View style={styles.sheetHeader}>
             <View>
@@ -287,12 +295,14 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* Android already resizes the modal for the keyboard; a second offset
+              from KeyboardAwareScrollView would over-scroll the focused field. */}
           <KeyboardAwareScrollView
             style={styles.sheetBody}
-            contentContainerStyle={[styles.sheetBodyContent, { flexGrow: 1 }]}
-            enableOnAndroid={true}
-            enableAutomaticScroll={true}
-            extraScrollHeight={Platform.OS === 'ios' ? 40 : 80}
+            contentContainerStyle={styles.sheetBodyContent}
+            enableOnAndroid={false}
+            enableAutomaticScroll={Platform.OS === 'ios'}
+            extraScrollHeight={Platform.OS === 'ios' ? 40 : 0}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={true}
           >
@@ -500,78 +510,85 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                   Chọn khách hàng hiện hữu: <Text style={styles.reqStar}>*</Text>
                 </Text>
 
-                {/* Search input */}
-                <View style={styles.searchBoxWrap}>
-                  <Feather name="search" size={16} color="#94A3B8" />
-                  <TextInput
-                    style={styles.searchTextInput}
-                    placeholder="Tìm theo tên công ty, MST, SĐT..."
-                    placeholderTextColor="#94A3B8"
-                    value={customerSearch}
-                    onChangeText={setCustomerSearch}
-                  />
-                  {customerSearch.length > 0 && (
-                    <TouchableOpacity onPress={() => setCustomerSearch('')}>
-                      <Feather name="x" size={15} color="#94A3B8" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Danh sách chọn khách hàng */}
                 {isLoadingCustomers || isLoadingPartnerDetails ? (
                   <View style={styles.loadingBox}>
                     <ActivityIndicator size="small" color={BrandColors.primary} />
                     <Text style={styles.loadingText}>Đang tải danh sách khách hàng...</Text>
                   </View>
-                ) : (
-                  <View style={styles.customerSelectList}>
-                    {filteredCustomers.slice(0, 15).map((c) => {
-                      const isSelected = selectedCustomerId === c.id;
-                      const displayPhone = c.phoneNumber || c.phone;
-                      return (
-                        <TouchableOpacity
-                          key={c.id}
-                          style={[styles.customerOptionCard, isSelected && styles.customerOptionCardSelected]}
-                          onPress={() => setSelectedCustomerId(c.id)}
-                          activeOpacity={0.8}
-                        >
-                          <View style={[styles.customerRadio, isSelected && styles.customerRadioSelected]}>
-                            {isSelected && <View style={styles.customerRadioDot} />}
-                          </View>
-                          <View style={styles.customerMetaBox}>
-                            <Text
-                              style={[styles.customerOptionName, isSelected && styles.customerOptionNameSelected]}
-                              numberOfLines={1}
-                            >
-                              {c.name}
-                            </Text>
-                            <View style={styles.customerOptionSubRow}>
-                              {c.taxId ? <Text style={styles.customerOptionBadge}>MST: {c.taxId}</Text> : null}
-                              {displayPhone ? <Text style={styles.customerOptionSubText}>SĐT: {displayPhone}</Text> : null}
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-
-                    {customerType === 'REFERRAL' && displayCustomers.length === 0 && (
-                      <View style={styles.emptyCustomerBox}>
-                        <Feather name="info" size={20} color="#94A3B8" />
-                        <Text style={styles.emptyCustomerText}>
-                          Đối tác này chưa có khách hàng liên kết nào.
-                        </Text>
-                      </View>
-                    )}
-
-                    {displayCustomers.length > 0 && filteredCustomers.length === 0 && (
-                      <View style={styles.emptyCustomerBox}>
-                        <Feather name="inbox" size={20} color="#CBD5E1" />
-                        <Text style={styles.emptyCustomerText}>
-                          Không tìm thấy khách hàng nào phù hợp với từ khóa.
-                        </Text>
-                      </View>
-                    )}
+                ) : displayCustomers.length === 0 ? (
+                  <View style={styles.noCustomerRedBox}>
+                    <Feather name="alert-circle" size={16} color="#DC2626" />
+                    <Text style={styles.noCustomerRedText}>
+                      {customerType === 'REFERRAL'
+                        ? 'Đối tác này chưa có khách hàng liên kết nào.'
+                        : 'Không có khách hàng hiện hữu nào trong hệ thống.'}
+                    </Text>
                   </View>
+                ) : (
+                  <>
+                    {/* Search input - Chỉ hiện khi có danh sách khách hàng */}
+                    <View style={styles.searchBoxWrap}>
+                      <Feather name="search" size={16} color="#94A3B8" />
+                      <TextInput
+                        style={styles.searchTextInput}
+                        placeholder="Tìm theo tên công ty, MST, SĐT..."
+                        placeholderTextColor="#94A3B8"
+                        value={customerSearch}
+                        onChangeText={setCustomerSearch}
+                      />
+                      {customerSearch.length > 0 && (
+                        <TouchableOpacity onPress={() => setCustomerSearch('')}>
+                          <Feather name="x" size={15} color="#94A3B8" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Danh sách chọn khách hàng */}
+                    <ScrollView
+                      style={styles.customerSelectList}
+                      contentContainerStyle={styles.customerSelectListContent}
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled={true}
+                    >
+                      {filteredCustomers.slice(0, 30).map((c) => {
+                        const isSelected = selectedCustomerId === c.id;
+                        const displayPhone = c.phoneNumber || c.phone;
+                        return (
+                          <TouchableOpacity
+                            key={c.id}
+                            style={[styles.customerOptionCard, isSelected && styles.customerOptionCardSelected]}
+                            onPress={() => setSelectedCustomerId(c.id)}
+                            activeOpacity={0.8}
+                          >
+                            <View style={[styles.customerRadio, isSelected && styles.customerRadioSelected]}>
+                              {isSelected && <View style={styles.customerRadioDot} />}
+                            </View>
+                            <View style={styles.customerMetaBox}>
+                              <Text
+                                style={[styles.customerOptionName, isSelected && styles.customerOptionNameSelected]}
+                                numberOfLines={1}
+                              >
+                                {c.name}
+                              </Text>
+                              <View style={styles.customerOptionSubRow}>
+                                {c.taxId ? <Text style={styles.customerOptionBadge}>MST: {c.taxId}</Text> : null}
+                                {displayPhone ? <Text style={styles.customerOptionSubText}>SĐT: {displayPhone}</Text> : null}
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+
+                      {displayCustomers.length > 0 && filteredCustomers.length === 0 && (
+                        <View style={styles.emptyCustomerBox}>
+                          <Feather name="inbox" size={20} color="#CBD5E1" />
+                          <Text style={styles.emptyCustomerText}>
+                            Không tìm thấy khách hàng nào phù hợp với từ khóa.
+                          </Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  </>
                 )}
               </View>
             )}
@@ -598,10 +615,14 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                   </View>
 
                   <TextInput
+                    ref={leadTaxIdRef}
                     style={styles.textInput}
                     placeholder="Nhập mã số thuế (10 hoặc 13 số)"
                     placeholderTextColor="#94A3B8"
                     keyboardType="numeric"
+                    returnKeyType="next"
+                    onSubmitEditing={() => leadNameRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={leadTaxId}
                     onChangeText={setLeadTaxId}
                   />
@@ -616,9 +637,13 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                     Tên khách hàng: <Text style={styles.reqStar}>*</Text>
                   </Text>
                   <TextInput
+                    ref={leadNameRef}
                     style={[styles.textInput, isFetchingTax && styles.textInputLoading]}
                     placeholder={isFetchingTax ? 'Đang tải tên doanh nghiệp...' : 'Nhập tên khách hàng'}
                     placeholderTextColor="#94A3B8"
+                    returnKeyType="next"
+                    onSubmitEditing={() => leadPhoneRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={leadName}
                     onChangeText={setLeadName}
                   />
@@ -628,10 +653,14 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                 <View style={styles.formGroup}>
                   <Text style={styles.groupLabel}>Điện thoại:</Text>
                   <TextInput
+                    ref={leadPhoneRef}
                     style={styles.textInput}
                     placeholder="Nhập số điện thoại"
                     placeholderTextColor="#94A3B8"
                     keyboardType="phone-pad"
+                    returnKeyType="next"
+                    onSubmitEditing={() => leadEmailRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={leadPhone}
                     onChangeText={setLeadPhone}
                   />
@@ -641,11 +670,15 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                 <View style={styles.formGroup}>
                   <Text style={styles.groupLabel}>Email:</Text>
                   <TextInput
+                    ref={leadEmailRef}
                     style={styles.textInput}
                     placeholder="Nhập email"
                     placeholderTextColor="#94A3B8"
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    returnKeyType="next"
+                    onSubmitEditing={() => leadAddressRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={leadEmail}
                     onChangeText={setLeadEmail}
                   />
@@ -655,12 +688,14 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                 <View style={styles.formGroup}>
                   <Text style={styles.groupLabel}>Địa chỉ:</Text>
                   <TextInput
+                    ref={leadAddressRef}
                     style={[styles.textInput, styles.textAreaInput]}
                     placeholder="Nhập địa chỉ"
                     placeholderTextColor="#94A3B8"
                     multiline
                     numberOfLines={2}
                     textAlignVertical="top"
+                    returnKeyType="done"
                     value={leadAddress}
                     onChangeText={setLeadAddress}
                   />
@@ -859,7 +894,10 @@ const styles = StyleSheet.create({
   },
   customerSelectList: {
     maxHeight: 220,
+  },
+  customerSelectListContent: {
     gap: 6,
+    paddingBottom: 8,
   },
   customerOptionCard: {
     flexDirection: 'row',
@@ -923,6 +961,24 @@ const styles = StyleSheet.create({
   customerOptionSubText: {
     fontSize: 11,
     color: '#64748B',
+  },
+  noCustomerRedBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+    marginTop: 4,
+  },
+  noCustomerRedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#DC2626',
+    flex: 1,
   },
   emptyCustomerBox: {
     paddingVertical: 24,

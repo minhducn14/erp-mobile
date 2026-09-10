@@ -37,6 +37,7 @@ import {
   PROJECT_STATUS_CONFIG,
   PROJECT_STATUS_LABELS,
 } from '@/services/projectService';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 
 const formatDate = (dateStr?: string) => {
   if (!dateStr) return '—';
@@ -129,6 +130,8 @@ export default function ContractDetailScreen() {
   useEffect(() => {
     loadContract();
   }, [loadContract]);
+
+  useSSERefresh('invalidate_Contracts', loadContract);
 
   const handleAssignPmSubmit = async (pmId: string) => {
     if (!contract) return;
@@ -715,9 +718,9 @@ export default function ContractDetailScreen() {
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Ngày tạo</Text>
-              <View style={styles.dateWithIcon}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flex: 1, gap: 5 }}>
                 <Feather name="calendar" size={13} color="#64748B" />
-                <Text style={styles.infoValue}>{formatDate(contract.createdAt)}</Text>
+                <Text style={[styles.infoValue, { flex: 0 }]}>{formatDate(contract.createdAt)}</Text>
               </View>
             </View>
 
@@ -861,7 +864,7 @@ export default function ContractDetailScreen() {
               {/* PM Phụ trách */}
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>PM phụ trách</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 6 }}>
                   {(() => {
                     const pmMember = project.team?.members?.find(
                       (m) => m.role === 'PROJECT_MANAGER'
@@ -873,7 +876,7 @@ export default function ContractDetailScreen() {
                         <Text
                           style={[
                             styles.infoValue,
-                            { fontWeight: '700', color: hasPm ? '#0F172A' : '#94A3B8' },
+                            { flex: 0, fontWeight: '700', color: hasPm ? '#0F172A' : '#94A3B8' },
                           ]}
                         >
                           {pmName}
@@ -2071,16 +2074,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 3,
+    paddingVertical: 4,
+    gap: 10,
   },
   infoLabel: {
     fontSize: 12,
     color: '#64748B',
+    flexShrink: 0,
   },
   infoValue: {
     fontSize: 13,
     fontWeight: '600',
     color: '#1E293B',
+    flex: 1,
+    textAlign: 'right',
   },
   phoneLink: {
     flexDirection: 'row',
