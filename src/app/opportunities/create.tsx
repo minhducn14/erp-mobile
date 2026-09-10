@@ -35,6 +35,7 @@ import {
   parseNumberInput,
   formatQuantity,
 } from '@/utils/formatters';
+import { isValidUrl, normalizeUrl } from '@/utils/validators';
 
 import {
   useOpportunityFormStore,
@@ -267,7 +268,9 @@ const SuccessChanceSlider: React.FC<{
     <View style={styles.sliderContainer}>
       <View style={styles.sliderHeaderRow}>
         <View style={styles.sliderHeaderLeft}>
-          <Text style={styles.inputLabel}>Khả năng thành công</Text>
+          <Text style={styles.inputLabel}>
+            Khả năng thành công <Text style={styles.reqStar}>*</Text>
+          </Text>
           <View
             style={[
               styles.chanceStatusBadge,
@@ -597,6 +600,11 @@ export default function CreateOpportunityScreen() {
     brandName: '',
     monthYear: '',
   });
+
+  // Refs cho việc nhảy tự động giữa các ô nhập liệu khi nhấn Hoàn tất/Next
+  const brandNameRef = useRef<TextInput>(null);
+  const monthYearRef = useRef<TextInput>(null);
+  const descriptionRef = useRef<TextInput>(null);
 
   // Auto-combine: customerName_brandName_MM/YY
   const opportunityName = useMemo(() => {
@@ -939,6 +947,39 @@ export default function CreateOpportunityScreen() {
       return;
     }
 
+    if (!field) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn lĩnh vực cho cơ hội.');
+      return;
+    }
+
+    const expRevNum = Number(expectedRevenue) || 0;
+    if (expRevNum <= 0) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập Doanh thu kỳ vọng lớn hơn 0 VNĐ.');
+      return;
+    }
+
+    const budgetNum = Number(budget) || 0;
+    if (budgetNum <= 0) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập Ngân sách dự kiến lớn hơn 0 VNĐ.');
+      return;
+    }
+
+    const successChanceNum = Number(successChance) || 0;
+    if (successChanceNum <= 0) {
+      Alert.alert('Thiếu thông tin', 'Tỉ lệ thành công phải lớn hơn 0%.');
+      return;
+    }
+
+    if (!startDate || startDate.length !== 10 || !validateDateString(startDate)) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ và đúng định dạng ngày dự kiến bắt đầu (DD/MM/YYYY).');
+      return;
+    }
+
+    if (!endDate || endDate.length !== 10 || !validateDateString(endDate)) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ và đúng định dạng ngày dự kiến kết thúc (DD/MM/YYYY).');
+      return;
+    }
+
     if (dateError) {
       Alert.alert('Lỗi ngày tháng', dateError);
       return;
@@ -967,7 +1008,24 @@ export default function CreateOpportunityScreen() {
           })),
         }));
 
-      const validLinks = links.map((l) => l.trim()).filter((l) => l.length > 0);
+      if (validServices.length === 0 && validPackages.length === 0) {
+        Alert.alert('Thiếu thông tin', 'Vui lòng chọn ít nhất 1 dịch vụ lẻ hoặc 1 gói dịch vụ.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const rawLinks = links.map((l) => l.trim()).filter((l) => l.length > 0);
+      for (const linkItem of rawLinks) {
+        if (!isValidUrl(linkItem)) {
+          Alert.alert(
+            'Sai định dạng liên kết',
+            `Đường dẫn "${linkItem}" không đúng định dạng. Vui lòng kiểm tra lại (Ví dụ: google.com hoặc https://example.com).`
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      const validLinks = rawLinks.map((l) => normalizeUrl(l));
 
       const payload: CreateOpportunityPayload = {
         name: name.trim(),
@@ -1135,6 +1193,9 @@ export default function CreateOpportunityScreen() {
                   style={styles.textInput}
                   placeholder="VD: Công ty ABC"
                   placeholderTextColor="#94A3B8"
+                  returnKeyType="next"
+                  onSubmitEditing={() => brandNameRef.current?.focus()}
+                  blurOnSubmit={false}
                   value={nameParts.customerName}
                   onChangeText={(v) => setNameParts((prev) => ({ ...prev, customerName: v }))}
                 />
@@ -1145,9 +1206,13 @@ export default function CreateOpportunityScreen() {
                 <View style={[styles.namePartGroup, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.namePartLabel}>Tên Brand <Text style={styles.reqStar}>*</Text></Text>
                   <TextInput
+                    ref={brandNameRef}
                     style={styles.textInput}
                     placeholder="VD: GETVINI"
                     placeholderTextColor="#94A3B8"
+                    returnKeyType="next"
+                    onSubmitEditing={() => monthYearRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={nameParts.brandName}
                     onChangeText={(v) => setNameParts((prev) => ({ ...prev, brandName: v }))}
                   />
@@ -1156,11 +1221,15 @@ export default function CreateOpportunityScreen() {
                 <View style={[styles.namePartGroup, { width: 100 }]}>
                   <Text style={styles.namePartLabel}>Tháng/Năm <Text style={styles.reqStar}>*</Text></Text>
                   <TextInput
+                    ref={monthYearRef}
                     style={styles.textInput}
                     placeholder="mm/yy"
                     placeholderTextColor="#94A3B8"
                     keyboardType="numeric"
                     maxLength={5}
+                    returnKeyType="next"
+                    onSubmitEditing={() => descriptionRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={nameParts.monthYear}
                     onChangeText={(v) =>
                       setNameParts((prev) => ({ ...prev, monthYear: formatMonthYear(v, prev.monthYear) }))
@@ -1176,6 +1245,7 @@ export default function CreateOpportunityScreen() {
                 Mô tả <Text style={styles.reqStar}>*</Text>
               </Text>
               <TextInput
+                ref={descriptionRef}
                 style={[styles.textInput, styles.textArea]}
                 placeholder="Mô tả chi tiết về cơ hội..."
                 placeholderTextColor="#94A3B8"
@@ -1202,7 +1272,9 @@ export default function CreateOpportunityScreen() {
 
             {/* Lĩnh vực */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Lĩnh vực</Text>
+              <Text style={styles.inputLabel}>
+                Lĩnh vực <Text style={styles.reqStar}>*</Text>
+              </Text>
               <TouchableOpacity
                 style={styles.selectDropdownBtn}
                 onPress={() => setIsFieldModalVisible(true)}
@@ -1237,7 +1309,7 @@ export default function CreateOpportunityScreen() {
             <View style={[styles.inputRow, isSmallScreen && styles.inputRowSmall]}>
               <View style={[styles.inputGroup, isSmallScreen ? styles.inputColFull : styles.inputColHalfLeft]}>
                 <Text style={styles.inputLabel}>
-                  Doanh thu kỳ vọng <Text style={styles.inputLabelSub}>(giá muốn bán cho khách)</Text>
+                  Doanh thu kỳ vọng <Text style={styles.reqStar}>*</Text> <Text style={styles.inputLabelSub}>(giá muốn bán cho khách)</Text>
                 </Text>
                 <View style={styles.currencyInputWrap}>
                   <TextInput
@@ -1254,7 +1326,7 @@ export default function CreateOpportunityScreen() {
 
               <View style={[styles.inputGroup, isSmallScreen ? styles.inputColFull : styles.inputColHalfRight]}>
                 <Text style={styles.inputLabel}>
-                  Ngân sách dự kiến <Text style={styles.inputLabelSub}>(ngân sách của khách đề xuất)</Text>
+                  Ngân sách dự kiến <Text style={styles.reqStar}>*</Text> <Text style={styles.inputLabelSub}>(ngân sách của khách đề xuất)</Text>
                 </Text>
                 <View style={styles.currencyInputWrap}>
                   <TextInput
@@ -1286,7 +1358,9 @@ export default function CreateOpportunityScreen() {
             {/* Ngày bắt đầu & Ngày kết thúc */}
             <View style={[styles.inputRow, isSmallScreen && styles.inputRowSmall]}>
               <View style={[styles.inputGroup, isSmallScreen ? styles.inputColFull : styles.inputColHalfLeft]}>
-                <Text style={styles.inputLabel}>Dự kiến bắt đầu</Text>
+                <Text style={styles.inputLabel}>
+                  Dự kiến bắt đầu <Text style={styles.reqStar}>*</Text>
+                </Text>
                 <View style={styles.dateInputWrap}>
                   <TouchableOpacity
                     onPress={() => setActiveDatePicker('start')}
@@ -1307,7 +1381,9 @@ export default function CreateOpportunityScreen() {
               </View>
 
               <View style={[styles.inputGroup, isSmallScreen ? styles.inputColFull : styles.inputColHalfRight]}>
-                <Text style={styles.inputLabel}>Dự kiến kết thúc</Text>
+                <Text style={styles.inputLabel}>
+                  Dự kiến kết thúc <Text style={styles.reqStar}>*</Text>
+                </Text>
                 <View style={styles.dateInputWrap}>
                   <TouchableOpacity
                     onPress={() => setActiveDatePicker('end')}
@@ -1470,7 +1546,9 @@ export default function CreateOpportunityScreen() {
                 <View style={styles.servicesHeaderIconBox}>
                   <Feather name="briefcase" size={18} color="#6366F1" />
                 </View>
-                <Text style={styles.cardSectionTitle}>Dịch vụ đề xuất</Text>
+                <Text style={styles.cardSectionTitle}>
+                  Dịch vụ đề xuất <Text style={styles.reqStar}>*</Text>
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.addPrimaryTextBtn}
