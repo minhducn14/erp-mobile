@@ -4,11 +4,13 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ProjectDetailItem } from '@/services/projectService';
 import { TEAM_MEMBER_ROLE_LABELS, USER_ROLE } from '@/services/teamService';
+import { ProductDescriptionSection } from './ProductDescriptionSection';
 import { BrandColors } from '@/constants/colors';
 import { formatNumber } from '@/utils/formatters';
 
 interface ProjectOverviewTabProps {
   project: ProjectDetailItem;
+  user?: any;
   onOpenAssignPm: () => void;
   onConfirmProject?: () => void;
   isConfirming?: boolean;
@@ -28,6 +30,7 @@ interface ProjectOverviewTabProps {
 
 export default function ProjectOverviewTab({
   project,
+  user,
   onOpenAssignPm,
   onConfirmProject,
   isConfirming,
@@ -190,6 +193,13 @@ export default function ProjectOverviewTab({
           )}
         </View>
       </View>
+
+      {/* Product Description (Thông tin chuẩn) Section */}
+      <ProductDescriptionSection
+        projectId={project.id}
+        user={user}
+        project={project}
+      />
 
       {/* Task Progress Stat Card */}
       <View style={styles.card}>

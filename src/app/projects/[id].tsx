@@ -373,6 +373,7 @@ export default function ProjectDetailScreen() {
         {activeTab === 'OVERVIEW' && project && (
           <ProjectOverviewTab
             project={project}
+            user={user}
             onOpenAssignPm={() => setShowAssignPm(true)}
             onConfirmProject={handleConfirmProject}
             isConfirming={isConfirming}
