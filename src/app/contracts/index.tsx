@@ -24,6 +24,7 @@ import {
   CONTRACT_STATUS_LABELS,
 } from '@/services/contractService';
 import BottomNavBar from '@/components/BottomNavBar';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 
 const CONTRACT_TABS = [
   { key: 'ALL', label: 'Tất cả' },
@@ -78,6 +79,8 @@ export default function ContractsScreen() {
     setIsLoading(true);
     fetchContracts();
   }, [fetchContracts]);
+
+  useSSERefresh('invalidate_Contracts', fetchContracts);
 
   useFocusEffect(
     useCallback(() => {

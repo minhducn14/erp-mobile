@@ -16,6 +16,7 @@ import { taskService } from '@/services/taskService';
 import { TaskItem } from '@/services/dashboardService';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 
 type StatusFilter = 'ALL' | 'TODO' | 'IN_PROGRESS' | 'AWAITING_REVIEW' | 'ACCEPTED';
 
@@ -57,6 +58,8 @@ export default function TasksScreen() {
     setIsLoading(true);
     loadTasks();
   }, [loadTasks]);
+
+  useSSERefresh('invalidate_Tasks', loadTasks);
 
   const handleRefresh = () => {
     setIsRefreshing(true);

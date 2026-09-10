@@ -36,6 +36,7 @@ import AcceptanceReviewModal from '@/components/projects/AcceptanceReviewModal';
 import AddTeamMemberModal from '@/components/projects/AddTeamMemberModal';
 import EditTeamMemberRoleModal from '@/components/projects/EditTeamMemberRoleModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 
 type TabKey = 'OVERVIEW' | 'TASKS' | 'ACCEPTANCE';
 
@@ -77,16 +78,18 @@ export default function ProjectDetailScreen() {
   const isAdminOrBod = isManagementRole(user?.role);
   const assignedPmId =
     project?.projectManager?.id ||
-    project?.team?.members?.find((m) => m.role === 'PROJECT_MANAGER')?.user?.id;
+    project?.team?.members?.find((m) => m.role === 'PROJECT_MANAGER' || m.role === 'PM')?.user?.id;
   const isAssignedPm = !!user?.id && !!assignedPmId && assignedPmId === user.id;
   const leadUser =
     project?.team?.teamLead ||
-    project?.team?.members?.find((m) => m.role === 'ACCOUNT' && m.user?.id !== assignedPmId)?.user;
+    project?.team?.members?.find(
+      (m) => (m.role === 'LEAD' || m.role === 'ACCOUNT' || m.role === 'TEAM_LEAD') && m.user?.id !== assignedPmId
+    )?.user;
   const isCurrentTeamLead = !!user?.id && !!leadUser?.id && user.id === leadUser.id;
-
+  const isAdmin = user?.role === 'ADMIN';
   const canAssignPm = isAdminOrBod;
   const canConfirmProject =
-    (isAdminOrBod || isAssignedPm) && project?.status === 'PENDING_CONFIRMATION';
+    (isAdmin || isCurrentTeamLead) && project?.status === 'PENDING_CONFIRMATION';
   const isPmOrAdmin = isAdminOrBod || isAssignedPm;
 
   // Can manage team members if Admin/BOD/PM/Lead, AND project has a PM assigned
@@ -143,7 +146,20 @@ export default function ProjectDetailScreen() {
     try {
       const res = await projectService.getProjectById(id);
       if (res.data) {
-        setProject(res.data);
+        let fullProject = res.data;
+        if (fullProject.team?.id) {
+          const membersRes = await teamService.getTeamMembers(fullProject.team.id);
+          if (membersRes.data && Array.isArray(membersRes.data)) {
+            fullProject = {
+              ...fullProject,
+              team: {
+                ...fullProject.team,
+                members: membersRes.data as any,
+              },
+            };
+          }
+        }
+        setProject(fullProject);
       }
     } catch {
       // Graceful fallback
@@ -172,6 +188,7 @@ export default function ProjectDetailScreen() {
     if (!id) return;
     setIsLoadingAcceptances(true);
     try {
+      console.log(id)
       const res = await acceptanceService.getAcceptanceRequests(id);
       if (res.data && Array.isArray(res.data)) {
         setAcceptances(res.data);
@@ -188,6 +205,9 @@ export default function ProjectDetailScreen() {
     loadTasks();
     loadAcceptances();
   }, [loadProjectDetail, loadTasks, loadAcceptances]);
+
+  useSSERefresh('invalidate_Projects', loadProjectDetail);
+  useSSERefresh(['invalidate_Tasks', 'invalidate_TaskReviews'], loadTasks);
 
   const isTaskAssignable = useCallback((t: TaskDetail): boolean => {
     if (t.assigneeId || (t as any).assignee?.id) return false;
@@ -403,7 +423,7 @@ export default function ProjectDetailScreen() {
             acceptances={acceptances}
             isLoading={isLoadingAcceptances}
             projectStatus={project?.status}
-            isPmOrAdmin={isPmOrAdmin}
+            isPmOrAdmin={isPmOrAdmin||isCurrentTeamLead}
             onOpenCreateAcceptance={() => setShowCreateAcceptance(true)}
             onOpenReviewAcceptance={(item) => {
               setReviewingAcceptance(item);

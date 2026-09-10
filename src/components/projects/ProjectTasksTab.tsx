@@ -326,9 +326,9 @@ export default function ProjectTasksTab({
         <View style={styles.lockBanner}>
           <Feather name="lock" size={18} color="#C2410C" />
           <View style={{ flex: 1 }}>
-            <Text style={styles.lockBannerTitle}>Dự án chưa được PM chấp nhận</Text>
+            <Text style={styles.lockBannerTitle}>Dự án chưa được Lead chấp nhận</Text>
             <Text style={styles.lockBannerDesc}>
-              Tất cả các tính năng phân công, tạo việc phát sinh và cập nhật tiến độ đều bị tạm khóa cho đến khi PM chấp nhận dự án.
+              Tất cả các tính năng phân công, tạo việc phát sinh và cập nhật tiến độ đều bị tạm khóa cho đến khi Lead chấp nhận dự án.
             </Text>
           </View>
         </View>

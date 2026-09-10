@@ -12,6 +12,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
@@ -68,6 +69,11 @@ export default function QuotationsListScreen() {
     useCallback(() => {
       fetchData();
     }, [fetchData])
+  );
+
+  useSSERefresh(
+    'invalidate_Quotations',
+    fetchData
   );
 
   const handleRefresh = () => {

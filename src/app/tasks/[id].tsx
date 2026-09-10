@@ -20,6 +20,7 @@ import ReworkTaskModal from '@/components/tasks/ReworkTaskModal';
 import TaskResultModal from '@/components/tasks/TaskResultModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
 import TaskReviewModal from '@/components/tasks/TaskReviewModal';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 
 const formatDateTimeStr = (dateStr?: string) => {
   if (!dateStr) return 'Chưa thiết lập';
@@ -89,6 +90,8 @@ export default function TaskDetailScreen() {
   useEffect(() => {
     loadTask();
   }, [loadTask]);
+
+  useSSERefresh(['invalidate_Tasks', 'invalidate_TaskReviews'], loadTask);
 
   const currentUserId = user?.id;
   const teamLeadId = task?.project?.team?.teamLead?.id;

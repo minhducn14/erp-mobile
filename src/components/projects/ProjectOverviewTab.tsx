@@ -40,9 +40,15 @@ export default function ProjectOverviewTab({
   canManageTeam = false,
 }: ProjectOverviewTabProps) {
   const router = useRouter();
-  const pmUser = project.projectManager || project.team?.members?.find((m) => m.role === 'PROJECT_MANAGER')?.user;
+  const pmUser =
+    project.projectManager ||
+    project.team?.members?.find((m) => m.role === 'PROJECT_MANAGER' || m.role === 'PM')?.user;
   const pm = pmUser;
-  const leadUser = project.team?.teamLead || project.team?.members?.find((m) => m.role === 'ACCOUNT' && m.user?.id !== pmUser?.id)?.user;
+  const leadUser =
+    project.team?.teamLead ||
+    project.team?.members?.find(
+      (m) => (m.role === 'LEAD' || m.role === 'ACCOUNT' || m.role === 'TEAM_LEAD') && m.user?.id !== pmUser?.id
+    )?.user;
   const team = project.team;
   const contract = project.contract;
   const progress = project.progress ?? 0;
@@ -82,13 +88,13 @@ export default function ProjectOverviewTab({
         </View>
       )}
 
-      {/* 2. Pending Confirmation Banner (If project has PM & status is PENDING_CONFIRMATION) */}
-      {pm && project.status === 'PENDING_CONFIRMATION' && (
+      {/* 2. Pending Confirmation Banner (If project status is PENDING_CONFIRMATION) */}
+      {(leadUser) && project.status === 'PENDING_CONFIRMATION' && (
         <View style={styles.confirmBanner}>
           <View style={styles.confirmBannerHeader}>
             <Feather name="clock" size={20} color="#C2410C" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.confirmTitle}>Dự án đang chờ PM xác nhận</Text>
+              <Text style={styles.confirmTitle}>Dự án đang chờ Lead xác nhận</Text>
             </View>
           </View>
 
@@ -112,7 +118,7 @@ export default function ProjectOverviewTab({
             <View style={styles.lockNotice}>
               <Feather name="lock" size={13} color="#9A3412" />
               <Text style={styles.lockNoticeText}>
-                Chỉ PM phụ trách ({pm.fullName}) hoặc Ban quản lý mới có quyền chấp nhận dự án.
+                Chỉ Lead phụ trách mới có quyền chấp nhận dự án.
               </Text>
             </View>
           )}
@@ -376,7 +382,7 @@ export default function ProjectOverviewTab({
                 activeOpacity={0.8}
               >
                 <Feather name="plus-circle" size={15} color={BrandColors.primary} />
-                <Text style={styles.addMemberFullBtnText}>+ Thêm thành viên vào đội dự án</Text>
+                <Text style={styles.addMemberFullBtnText}>Thêm thành viên vào đội dự án</Text>
               </TouchableOpacity>
             )}
           </View>
