@@ -6,17 +6,26 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/context/AuthContext';
+import { useUserProfileQuery, useLogoutMutation } from '@/hooks/queries';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const storeUser = useAuthStore((state) => state.user);
+
+  // TanStack Query Hooks
+  const { data: queryUser, isLoading, refetch, isRefetching } = useUserProfileQuery();
+  const logoutMutation = useLogoutMutation();
+
+  const user = queryUser || storeUser;
 
   const handleLogout = () => {
     Alert.alert(
@@ -28,7 +37,7 @@ export default function ProfileScreen() {
           text: 'Đăng xuất',
           style: 'destructive',
           onPress: async () => {
-            await logout();
+            await logoutMutation.mutateAsync();
             router.replace('/(auth)/login');
           },
         },
@@ -43,7 +52,17 @@ export default function ProfileScreen() {
         <Text style={styles.headerTitle}>Hồ sơ cá nhân</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
+            tintColor={BrandColors.primary}
+          />
+        }
+      >
         {/* Profile Card */}
         <View style={styles.userCard}>
           <View style={styles.avatarBox}>

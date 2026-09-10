@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { apiService, UserProfile, STORAGE_USER_KEY, STORAGE_REMEMBER_KEY } from '@/services/api';
-import { privateStorage } from '@/services/secureStorage';
+import React, { createContext, useContext, useCallback } from 'react';
+import { UserProfile } from '@/services/api';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useUserProfileQuery, useLoginMutation, useLogoutMutation } from '@/hooks/queries/useAuthQuery';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -13,68 +14,39 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
 
-  // Restore user session on startup
-  useEffect(() => {
-    const bootstrap = async () => {
+  // Bootstrap user session via TanStack Query and sync into useAuthStore & privateStorage
+  useUserProfileQuery();
+
+  const loginMutation = useLoginMutation();
+  const logoutMutation = useLogoutMutation();
+
+  const login = useCallback(
+    async ({ username, password, rememberMe }: { username: string; password: string; rememberMe?: boolean }) => {
       try {
-        // A cached profile is not proof of authentication. Keep it in memory only.
-        await privateStorage.removeItem(STORAGE_USER_KEY);
-        const response = await apiService.getMe();
-        if (response.data && !response.error) {
-          setUser(response.data);
-        }
-      } catch (e) {
-        console.warn('Failed to restore auth user', e);
-        await privateStorage.removeItem(STORAGE_USER_KEY).catch(() => undefined);
-      } finally {
-        setIsLoading(false);
+        const userData = await loginMutation.mutateAsync({ username, password, rememberMe });
+        return { user: userData };
+      } catch (err: any) {
+        return { error: err.message || 'Đăng nhập thất bại. Vui lòng thử lại.' };
       }
-    };
-
-    bootstrap();
-  }, []);
-
-  const login = useCallback(async ({ username, password, rememberMe }: { username: string; password: string; rememberMe?: boolean }) => {
-    try {
-      const response = await apiService.login({ username, password, rememberMe });
-
-      if (response.error || !response.data) {
-        return { error: response.error || 'Đăng nhập thất bại. Vui lòng thử lại.' };
-      }
-
-      const userData = response.data.user;
-
-      if (rememberMe) {
-        await privateStorage.setItem(STORAGE_REMEMBER_KEY, username);
-      } else {
-        await privateStorage.removeItem(STORAGE_REMEMBER_KEY);
-      }
-
-      setUser(userData);
-      return { user: userData };
-    } catch (err: any) {
-      return { error: err.message || 'Đăng nhập thất bại. Vui lòng thử lại.' };
-    }
-  }, []);
+    },
+    [loginMutation]
+  );
 
   const logout = useCallback(async () => {
     try {
-      await apiService.logout();
+      await logoutMutation.mutateAsync();
     } catch {}
-    try {
-      await privateStorage.removeItem(STORAGE_USER_KEY);
-    } catch {}
-    setUser(null);
-  }, []);
+  }, [logoutMutation]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated,
         isLoading,
         login,
         logout,

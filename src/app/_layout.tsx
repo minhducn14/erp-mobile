@@ -5,6 +5,8 @@ import { useColorScheme } from 'react-native';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider } from '@/context/AuthContext';
 import { useSSE } from '@/hooks/useSSE';
+import { useSSEQueryBridge } from '@/hooks/useSSEQueryBridge';
+import { QueryProvider } from '@/providers/QueryProvider';
 
 // Polyfill for Hermes Symbol.description compatibility
 if (typeof Symbol !== 'undefined' && !('description' in Symbol.prototype)) {
@@ -23,26 +25,29 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <SSEManager />
-        <AnimatedSplashOverlay />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            animation: 'fade',
-          }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="explore" options={{ headerShown: false }} />
-        </Stack>
-      </ThemeProvider>
-    </AuthProvider>
+    <QueryProvider>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <SSEManager />
+          <AnimatedSplashOverlay />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'fade',
+            }}
+          >
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="explore" options={{ headerShown: false }} />
+          </Stack>
+        </ThemeProvider>
+      </AuthProvider>
+    </QueryProvider>
   );
 }
 
 function SSEManager() {
   useSSE();
+  useSSEQueryBridge();
   return null;
 }

@@ -41,23 +41,57 @@ import {
 
 const PRIMARY_COLOR = BrandColors.primary;
 
+import {
+  useDashboardQuery,
+  useMyTasksQuery,
+  useAwaitingReviewTasksQuery,
+} from '@/hooks/queries';
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
-  const [reviewTasks, setReviewTasks] = useState<TaskItem[]>([]);
-  const [todayTasks, setTodayTasks] = useState<TaskItem[]>([]);
 
-  // Month & Year state (mirroring MonthSelector in erp-UI)
+  // Month & Year state
   const now = new Date();
   const [selectedDate, setSelectedDate] = useState<{ month: number | null; year: number | null }>({
     month: now.getMonth() + 1,
     year: now.getFullYear(),
   });
   const [isPickerVisible, setIsPickerVisible] = useState(false);
+
+  // Check RBAC for review queue
+  const isLeadOrAdmin = Boolean(
+    user?.role === 'ADMIN' ||
+    user?.role === 'BOD' ||
+    user?.role === 'TEAM_LEAD' ||
+    user?.role === 'PM'
+  );
+
+  // TanStack Query Hooks
+  const {
+    data: dashboardData,
+    isLoading: isDashboardLoading,
+    isRefetching: isDashboardRefetching,
+    refetch: refetchDashboard,
+  } = useDashboardQuery({
+    month: selectedDate.month ?? undefined,
+    year: selectedDate.year ?? undefined,
+  });
+
+  const {
+    data: todayTasks = [],
+    refetch: refetchMyTasks,
+    isRefetching: isMyTasksRefetching,
+  } = useMyTasksQuery();
+
+  const {
+    data: reviewTasks = [],
+    refetch: refetchReviewTasks,
+    isRefetching: isReviewRefetching,
+  } = useAwaitingReviewTasksQuery(isLeadOrAdmin);
+
+  const isRefetching = isDashboardRefetching || isMyTasksRefetching || isReviewRefetching;
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -66,55 +100,12 @@ export default function HomeScreen() {
     }
   }, [isAuthenticated, isLoading]);
 
-  const loadData = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const [dashRes, tasksRes] = await Promise.all([
-        dashboardService.getDashboardData({
-          month: selectedDate.month ?? undefined,
-          year: selectedDate.year ?? undefined,
-        }),
-        dashboardService.getMyTasks(),
-      ]);
-
-      if (dashRes.data) {
-        setDashboardData(dashRes.data);
-      }
-
-      if (tasksRes.data && Array.isArray(tasksRes.data)) {
-        setTodayTasks(tasksRes.data);
-      }
-
-      // Check review queue for Leads or Admins
-      const isLeadOrAdmin =
-        user?.role === 'ADMIN' ||
-        user?.role === 'BOD' ||
-        user?.role === 'TEAM_LEAD' ||
-        user?.role === 'PM';
-
-      if (isLeadOrAdmin) {
-        const reviewRes = await dashboardService.getAwaitingReviewTasks();
-        if (reviewRes.data && Array.isArray(reviewRes.data)) {
-          setReviewTasks(reviewRes.data);
-        }
-      }
-    } catch {
-      // Graceful fallback to avoid breaking screen
-    } finally {
-      setIsDataLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [isAuthenticated, user?.role, selectedDate]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    }
-  }, [isAuthenticated, loadData]);
-
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadData();
+    refetchDashboard();
+    refetchMyTasks();
+    if (isLeadOrAdmin) {
+      refetchReviewTasks();
+    }
   };
 
   const handleLogout = () => {
@@ -224,7 +215,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
+            refreshing={isRefetching}
             onRefresh={handleRefresh}
             colors={[PRIMARY_COLOR]}
             tintColor={PRIMARY_COLOR}
@@ -313,7 +304,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {isDataLoading && !isRefreshing ? (
+        {isDashboardLoading && !isRefetching ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={PRIMARY_COLOR} />
             <Text style={styles.loadingDesc}>Đang đồng bộ dữ liệu Getvini...</Text>

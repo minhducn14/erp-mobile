@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
+import { useLoginMutation } from '@/hooks/queries';
 import { STORAGE_REMEMBER_KEY } from '@/services/api';
 import { privateStorage } from '@/services/secureStorage';
 
@@ -28,12 +29,13 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
-  const { login, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const loginMutation = useLoginMutation();
+  const isLoading = loginMutation.isPending;
 
-  // Load saved username and remember status on mount (matching LoginPage.jsx in erp-UI)
+  // Load saved username and remember status on mount
   useEffect(() => {
     const loadRememberedUsername = async () => {
       try {
@@ -66,24 +68,15 @@ export default function LoginScreen() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      const result = await login({
+      await loginMutation.mutateAsync({
         username: username.trim(),
         password,
         rememberMe,
       });
-
-      if (result.error) {
-        setError(result.error);
-      } else {
-        router.replace('/');
-      }
+      router.replace('/');
     } catch (err: any) {
       setError(err?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
