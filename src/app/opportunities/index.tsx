@@ -18,70 +18,63 @@ import { useAuth } from '@/context/AuthContext';
 import { canAccessOpportunities } from '@/utils/rbac';
 import { BrandColors } from '@/constants/colors';
 import { formatVND, formatVNDFull } from '@/utils/formatters';
-import {
-  opportunityService,
-  OpportunityItem,
-} from '@/services/opportunityService';
+import { OpportunityItem, OpportunityListFilters } from '@/services/opportunityService';
 import { PipelineTabs } from '@/components/opportunities/PipelineTabs';
 import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
 import BottomNavBar from '@/components/BottomNavBar';
 import { STORAGE_DRAFT_KEY } from './create';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
-
+import { useOpportunitiesQuery } from '@/hooks/queries/useOpportunities';
 export default function OpportunitiesScreen() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
 
   // Check RBAC permission
   const hasAccess = canAccessOpportunities(user?.role);
 
-  const fetchOpportunities = useCallback(async () => {
-    if (!isAuthenticated || !hasAccess) return;
-    try {
-      const filters: any = {
-        search: searchQuery.trim() || undefined,
-        limit: 50,
-      };
+  // Compute filters for TanStack Query
+  const filters = useMemo<OpportunityListFilters>(() => {
+    const f: OpportunityListFilters = {
+      search: searchQuery.trim() || undefined,
+      limit: 50,
+    };
 
-      if (activeTab !== 'ALL') {
-        if (activeTab === 'QUOTATION') {
-          // Quotation stage
-          filters.status = 'QUOTATION_DRAFTING';
-        } else if (activeTab === 'CONTRACT') {
-          // Contract stage
-          filters.status = 'CONTRACT_CREATED';
-        } else {
-          filters.status = activeTab;
-        }
+    if (activeTab !== 'ALL') {
+      if (activeTab === 'QUOTATION') {
+        f.status = 'QUOTATION_DRAFTING';
+      } else if (activeTab === 'CONTRACT') {
+        f.status = 'CONTRACT_CREATED';
+      } else {
+        f.status = activeTab;
       }
-
-      const res = await opportunityService.getOpportunities(filters);
-      if (res.data) {
-        const items = Array.isArray(res.data.data) ? res.data.data : [];
-        setOpportunities(items);
-        setTotalCount(res.data.meta?.total || items.length);
-      }
-    } catch {
-      // Graceful error handling
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
     }
-  }, [isAuthenticated, hasAccess, activeTab, searchQuery]);
+    return f;
+  }, [activeTab, searchQuery]);
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetchOpportunities();
-  }, [fetchOpportunities]);
+  // Query opportunities list via TanStack Query
+  const {
+    data: opportunityResponse,
+    isLoading: isQueryLoading,
+    isFetching: isRefreshing,
+    refetch,
+  } = useOpportunitiesQuery(filters);
 
-  useSSERefresh('invalidate_Opportunities', fetchOpportunities);
+  const opportunities: OpportunityItem[] = useMemo(() => {
+    if (!opportunityResponse) return [];
+    return Array.isArray(opportunityResponse.data) ? opportunityResponse.data : [];
+  }, [opportunityResponse]);
+
+  const totalCount = useMemo(() => {
+    if (!opportunityResponse) return 0;
+    return opportunityResponse.meta?.total ?? opportunities.length;
+  }, [opportunityResponse, opportunities]);
+
+  const isLoading = isQueryLoading && !opportunityResponse;
+
+  useSSERefresh('invalidate_Opportunities', refetch);
 
   // Draft Opportunity State & Detection
   const [draftOpportunity, setDraftOpportunity] = useState<any | null>(null);
@@ -127,8 +120,7 @@ export default function OpportunitiesScreen() {
   };
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    fetchOpportunities();
+    refetch();
     checkDraft();
   };
 

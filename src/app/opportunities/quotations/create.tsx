@@ -17,10 +17,20 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import {
-  quotationService,
+  useOpportunityDetailQuery,
+  useAvailableServicesQuery,
+  useServicePackagesQuery,
+} from '@/hooks/queries/useOpportunities';
+import {
+  useQuotationDetailQuery,
+  useOpportunityServicesQuery,
+  useCreateQuotationMutation,
+  useUpdateQuotationMutation,
+} from '@/hooks/queries/useQuotations';
+import {
   QuotationDetailResponse,
 } from '@/services/quotationService';
-import { opportunityService, OpportunityItem } from '@/services/opportunityService';
+import { OpportunityItem } from '@/services/opportunityService';
 import {
   formatNumber,
   formatNumberInput,
@@ -47,13 +57,23 @@ interface QuotationFormItem {
 export default function QuotationCreateEditScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ opportunityId: string; quotationId?: string }>();
-  const opportunityId = params.opportunityId;
+  const opportunityId = params.opportunityId || '';
   const quotationId = params.quotationId;
   const isEditMode = !!quotationId;
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [opportunity, setOpportunity] = useState<OpportunityItem | null>(null);
+  // TanStack Queries
+  const { data: oppData, isLoading: isLoadingOpp } = useOpportunityDetailQuery(opportunityId);
+  const { data: allServicesRes, isLoading: isLoadingServices } = useAvailableServicesQuery();
+  const { data: pkgTemplatesRes, isLoading: isLoadingPackages } = useServicePackagesQuery();
+  const { data: quoteData, isLoading: isLoadingQuote } = useQuotationDetailQuery(quotationId || '');
+  const { data: servicesRes } = useOpportunityServicesQuery(opportunityId);
+
+  // TanStack Mutations
+  const createQuotationMutation = useCreateQuotationMutation();
+  const updateQuotationMutation = useUpdateQuotationMutation();
+  const isSubmitting = createQuotationMutation.isPending || updateQuotationMutation.isPending;
+
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [editQuotation, setEditQuotation] = useState<QuotationDetailResponse | null>(null);
 
   const [items, setItems] = useState<QuotationFormItem[]>([]);
@@ -73,6 +93,8 @@ export default function QuotationCreateEditScreen() {
   const [packageTemplates, setPackageTemplates] = useState<any[]>([]);
   const [packageSearch, setPackageSearch] = useState('');
 
+  const opportunity: OpportunityItem | null = oppData || null;
+
   const roundToTenThousands = (value: number) => {
     return Math.ceil(value / 10000) * 10000;
   };
@@ -82,137 +104,112 @@ export default function QuotationCreateEditScreen() {
     return ((sellingPrice - costPrice) / sellingPrice) * 100;
   };
 
-  // Load Initial Data
-  const loadData = useCallback(async () => {
-    if (!opportunityId) return;
-    try {
-      setIsLoading(true);
-      const [oppRes, allServicesRes, pkgTemplatesRes] = await Promise.all([
-        opportunityService.getOpportunity(opportunityId),
-        quotationService.getAvailableServices(),
-        quotationService.getServicePackages(),
-      ]);
+  // Sync state from query responses
+  useEffect(() => {
+    if (hasInitialized || !oppData || !allServicesRes || !pkgTemplatesRes) return;
+    if (isEditMode && quotationId && !quoteData) return;
+    if (!isEditMode && !servicesRes) return;
 
-      const oppData = (oppRes as any)?.data || oppRes;
-      setOpportunity(oppData);
+    const srvList = Array.isArray(allServicesRes) ? allServicesRes : (allServicesRes as any)?.data || [];
+    setAvailableServices(srvList);
 
-      const rawServices = (allServicesRes as any)?.data || allServicesRes;
-      const srvList = Array.isArray(rawServices)
-        ? rawServices
-        : rawServices?.data || [];
-      setAvailableServices(srvList);
+    const pkgList = Array.isArray(pkgTemplatesRes) ? pkgTemplatesRes : (pkgTemplatesRes as any)?.data || [];
+    setPackageTemplates(pkgList);
 
-      const rawPackages = (pkgTemplatesRes as any)?.data || pkgTemplatesRes;
-      setPackageTemplates(Array.isArray(rawPackages) ? rawPackages : rawPackages?.data || []);
+    if (isEditMode && quoteData) {
+      setEditQuotation(quoteData);
+      setNotes(quoteData.note || '');
 
-      if (isEditMode && quotationId) {
-        // Load Edit Quotation
-        const quoteRes = await quotationService.getQuotation(quotationId);
-        const quoteData: QuotationDetailResponse = (quoteRes as any)?.data || quoteRes;
-        setEditQuotation(quoteData);
-        setNotes(quoteData.note || '');
+      const loadedItems: QuotationFormItem[] = (quoteData.details || []).map((detail: any) => {
+        const costPrice = parseFloat(String(detail.costAtSale || 0));
+        const sellingPrice = parseFloat(String(detail.sellingPrice || 0));
+        const minPrice = roundToTenThousands(costPrice / 0.8);
+        const recommendedPrice = roundToTenThousands(costPrice / 0.6);
 
-        const loadedItems: QuotationFormItem[] = (quoteData.details || []).map((detail) => {
-          const costPrice = parseFloat(String(detail.costAtSale || 0));
-          const sellingPrice = parseFloat(String(detail.sellingPrice || 0));
+        return {
+          serviceId: detail.service?.id || detail.serviceId,
+          serviceName: detail.service?.name || detail.name || 'Dịch vụ',
+          quantity: detail.quantity || 1,
+          costPrice,
+          minPrice,
+          recommendedPrice,
+          customPrice: sellingPrice,
+          selectedPrice: sellingPrice,
+          profitMargin: calculateProfitMargin(sellingPrice, costPrice),
+          packageName: detail.packageName || 'STANDALONE',
+          packageQuantity: detail.packageQuantity || 1,
+          norm: detail.packageQuantity ? (detail.quantity || 1) / detail.packageQuantity : 1,
+          servicePackageId: detail.servicePackageId,
+          unit: detail.service?.unit || '',
+        };
+      });
+
+      setItems(loadedItems);
+      const expandedMap: Record<string, boolean> = {};
+      loadedItems.forEach((item) => {
+        if (item.packageName && item.packageName !== 'STANDALONE') {
+          expandedMap[item.packageName] = true;
+        }
+      });
+      setExpandedPackages(expandedMap);
+      setPriceType('custom');
+    } else if (!isEditMode && servicesRes) {
+      const servicesData = Array.isArray(servicesRes) ? servicesRes : (servicesRes as any)?.data || [];
+      const standaloneItems: QuotationFormItem[] = (servicesData || [])
+        .filter((service: any) => !service.opportunityPackageId)
+        .map((service: any) => {
+          const costPrice = parseFloat(service.service?.costPrice || service.costPrice) || 0;
           const minPrice = roundToTenThousands(costPrice / 0.8);
           const recommendedPrice = roundToTenThousands(costPrice / 0.6);
 
           return {
-            serviceId: detail.service?.id || detail.serviceId,
-            serviceName: detail.service?.name || detail.name || 'Dịch vụ',
-            quantity: detail.quantity || 1,
+            serviceId: service.service?.id || service.serviceId || service.id,
+            serviceName: service.service?.name || service.serviceName || service.name || 'Dịch vụ',
+            quantity: service.quantity || 1,
             costPrice,
             minPrice,
             recommendedPrice,
-            customPrice: sellingPrice,
-            selectedPrice: sellingPrice,
-            profitMargin: calculateProfitMargin(sellingPrice, costPrice),
-            packageName: detail.packageName || 'STANDALONE',
-            packageQuantity: detail.packageQuantity || 1,
-            norm: detail.packageQuantity ? (detail.quantity || 1) / detail.packageQuantity : 1,
-            servicePackageId: detail.servicePackageId,
-            unit: detail.service?.unit || '',
+            customPrice: recommendedPrice,
+            selectedPrice: recommendedPrice,
+            profitMargin: calculateProfitMargin(recommendedPrice, costPrice),
+            packageName: 'STANDALONE',
+            unit: service.service?.unit || service.unit || '',
           };
         });
 
-        setItems(loadedItems);
-        const expandedMap: Record<string, boolean> = {};
-        loadedItems.forEach((item) => {
-          if (item.packageName && item.packageName !== 'STANDALONE') {
-            expandedMap[item.packageName] = true;
-          }
-        });
-        setExpandedPackages(expandedMap);
-        setPriceType('custom'); // Web default for edit mode
-      } else {
-        // Create Mode: fetch opportunity services
-        const servicesRes = await quotationService.getOpportunityServices(opportunityId);
-        const servicesData = (servicesRes as any)?.data || (Array.isArray(servicesRes) ? servicesRes : []);
+      const packageItems: QuotationFormItem[] = (oppData?.packages || []).flatMap((pkg: any) =>
+        (pkg.services || []).map((ps: any) => {
+          const costPrice = parseFloat(ps.service?.costPrice || ps.sellingPrice) || 0;
+          const minPrice = roundToTenThousands(costPrice / 0.8);
+          const recommendedPrice = roundToTenThousands(costPrice / 0.6);
 
-        // Standalone items
-        const standaloneItems: QuotationFormItem[] = (servicesData || [])
-          .filter((service: any) => !service.opportunityPackageId)
-          .map((service: any) => {
-            const costPrice = parseFloat(service.service?.costPrice || service.costPrice) || 0;
-            const minPrice = roundToTenThousands(costPrice / 0.8);
-            const recommendedPrice = roundToTenThousands(costPrice / 0.6);
+          return {
+            serviceId: ps.serviceId || ps.id,
+            serviceName: ps.service?.name || ps.name || 'Dịch vụ trong gói',
+            quantity: ps.quantity || 1,
+            costPrice,
+            minPrice,
+            recommendedPrice,
+            customPrice: recommendedPrice,
+            selectedPrice: recommendedPrice,
+            profitMargin: calculateProfitMargin(recommendedPrice, costPrice),
+            packageName: pkg.name || 'Gói dịch vụ',
+            packageQuantity: pkg.quantity || 1,
+            norm: pkg.quantity ? (ps.quantity || 1) / pkg.quantity : 1,
+            servicePackageId: pkg.servicePackageId,
+            unit: ps.service?.unit || ps.unit || '',
+          };
+        })
+      );
 
-            return {
-              serviceId: service.service?.id || service.serviceId || service.id,
-              serviceName: service.service?.name || service.serviceName || service.name || 'Dịch vụ',
-              quantity: service.quantity || 1,
-              costPrice,
-              minPrice,
-              recommendedPrice,
-              customPrice: recommendedPrice,
-              selectedPrice: recommendedPrice,
-              profitMargin: calculateProfitMargin(recommendedPrice, costPrice),
-              packageName: 'STANDALONE',
-              unit: service.service?.unit || service.unit || '',
-            };
-          });
-
-        // Package items from opportunity packages
-        const packageItems: QuotationFormItem[] = (oppData?.packages || []).flatMap((pkg: any) =>
-          (pkg.services || []).map((ps: any) => {
-            const costPrice = parseFloat(ps.service?.costPrice || ps.sellingPrice) || 0;
-            const minPrice = roundToTenThousands(costPrice / 0.8);
-            const recommendedPrice = roundToTenThousands(costPrice / 0.6);
-
-            return {
-              serviceId: ps.serviceId || ps.id,
-              serviceName: ps.service?.name || ps.name || 'Dịch vụ trong gói',
-              quantity: ps.quantity || 1,
-              costPrice,
-              minPrice,
-              recommendedPrice,
-              customPrice: recommendedPrice,
-              selectedPrice: recommendedPrice,
-              profitMargin: calculateProfitMargin(recommendedPrice, costPrice),
-              packageName: pkg.name || 'Gói dịch vụ',
-              packageQuantity: pkg.quantity || 1,
-              norm: pkg.quantity ? (ps.quantity || 1) / pkg.quantity : 1,
-              servicePackageId: pkg.servicePackageId,
-              unit: ps.service?.unit || ps.unit || '',
-            };
-          })
-        );
-
-        setItems([...standaloneItems, ...packageItems]);
-        setPriceType('recommended');
-      }
-    } catch (err: any) {
-      console.error('Error loading quotation form data:', err);
-      Alert.alert('Lỗi', err?.message || 'Không thể tải dữ liệu tạo báo giá');
-    } finally {
-      setIsLoading(false);
+      setItems([...standaloneItems, ...packageItems]);
+      setPriceType('recommended');
     }
-  }, [opportunityId, quotationId, isEditMode]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+    setHasInitialized(true);
+  }, [hasInitialized, oppData, allServicesRes, pkgTemplatesRes, quoteData, servicesRes, isEditMode, quotationId]);
+
+  const isLoading = isLoadingOpp || isLoadingServices || isLoadingPackages || (isEditMode && isLoadingQuote) || !hasInitialized;
 
   // Handle switching price type
   const handlePriceTypeChange = (type: 'minimum' | 'recommended' | 'custom') => {
@@ -508,7 +505,6 @@ export default function QuotationCreateEditScreen() {
     }
 
     try {
-      setIsSubmitting(true);
       const submitData: any = {
         opportunityId,
         note: notes,
@@ -525,20 +521,14 @@ export default function QuotationCreateEditScreen() {
         })),
       };
 
-      let res: any;
       if (isEditMode && quotationId) {
         if (editQuotation?.status === 'REJECTED') {
           submitData.status = 'DRAFT';
           submitData.description = '';
         }
-        res = await quotationService.updateQuotation(quotationId, submitData);
+        await updateQuotationMutation.mutateAsync({ id: quotationId, payload: submitData });
       } else {
-        res = await quotationService.createQuotation(submitData);
-      }
-
-      if (res?.error) {
-        Alert.alert('Lỗi', res.error);
-        return;
+        await createQuotationMutation.mutateAsync(submitData);
       }
 
       Alert.alert(
@@ -549,8 +539,6 @@ export default function QuotationCreateEditScreen() {
     } catch (err: any) {
       console.error('Error submitting quotation:', err);
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi lưu báo giá');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

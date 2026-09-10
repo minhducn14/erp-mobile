@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,12 +17,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import {
-  quotationService,
   QuotationItem,
   QuotationStatus,
 } from '@/services/quotationService';
-import { opportunityService, OpportunityItem } from '@/services/opportunityService';
 import { QuotationItemCard } from '@/components/opportunities/QuotationItemCard';
+import { useOpportunityDetailQuery } from '@/hooks/queries/useOpportunities';
+import {
+  useOpportunityQuotationsQuery,
+  useApproveQuotationMutation,
+  useRejectQuotationMutation,
+} from '@/hooks/queries/useQuotations';
 
 export default function QuotationsListScreen() {
   const router = useRouter();
@@ -32,53 +36,52 @@ export default function QuotationsListScreen() {
   const { user } = useAuth();
   const isAdminOrBod = user?.role === 'ADMIN' || user?.role === 'BOD';
 
-  const [quotations, setQuotations] = useState<QuotationItem[]>([]);
-  const [opportunity, setOpportunity] = useState<OpportunityItem | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const {
+    data: opportunity = null,
+    isLoading: isOppLoading,
+    isFetching: isOppFetching,
+    refetch: refetchOpp,
+  } = useOpportunityDetailQuery(opportunityId as string);
+
+  const {
+    data: rawQuotations = [],
+    isLoading: isQuoteLoading,
+    isFetching: isQuoteFetching,
+    refetch: refetchQuotes,
+  } = useOpportunityQuotationsQuery(opportunityId as string);
+
+  const quotations: QuotationItem[] = Array.isArray(rawQuotations) ? rawQuotations : [];
+
+  const approveQuotationMutation = useApproveQuotationMutation();
+  const rejectQuotationMutation = useRejectQuotationMutation();
+
+  const isLoading = (isOppLoading || isQuoteLoading) && !opportunity;
+  const isRefreshing = isOppFetching || isQuoteFetching;
 
   // Reject modal state
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [isSubmittingReject, setIsSubmittingReject] = useState(false);
+  const isSubmittingReject = rejectQuotationMutation.isPending;
 
-  const fetchData = useCallback(async () => {
-    if (!opportunityId) return;
-    try {
-      const [quotesRes, oppRes] = await Promise.all([
-        quotationService.getQuotationsByOpportunity(opportunityId),
-        opportunityService.getOpportunity(opportunityId),
-      ]);
-
-      const quotesData = (quotesRes as any)?.data || (Array.isArray(quotesRes) ? quotesRes : []);
-      const oppData = (oppRes as any)?.data || oppRes;
-
-      setQuotations(Array.isArray(quotesData) ? quotesData : []);
-      setOpportunity(oppData);
-    } catch (err: any) {
-      console.error('Error fetching quotations:', err);
-      Alert.alert('Lỗi', err?.message || 'Không thể tải danh sách báo giá');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [opportunityId]);
+  const refetchAll = useCallback(() => {
+    refetchOpp();
+    refetchQuotes();
+  }, [refetchOpp, refetchQuotes]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
-    }, [fetchData])
+      refetchAll();
+    }, [refetchAll])
   );
 
   useSSERefresh(
     'invalidate_Quotations',
-    fetchData
+    refetchAll
   );
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    fetchData();
+    refetchAll();
   };
 
   const hasCustomer = !!(
@@ -117,13 +120,8 @@ export default function QuotationsListScreen() {
         style: 'default',
         onPress: async () => {
           try {
-            const res = await quotationService.approveQuotation(id);
-            if ((res as any)?.error) {
-              Alert.alert('Lỗi', (res as any).error);
-              return;
-            }
+            await approveQuotationMutation.mutateAsync(id);
             Alert.alert('Thành công', 'Đã duyệt báo giá thành công');
-            fetchData();
           } catch (err: any) {
             Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi duyệt báo giá');
           }
@@ -146,19 +144,14 @@ export default function QuotationsListScreen() {
     }
 
     try {
-      setIsSubmittingReject(true);
-      const res = await quotationService.rejectQuotation(selectedQuoteId, rejectReason.trim());
-      if ((res as any)?.error) {
-        Alert.alert('Lỗi', (res as any).error);
-        return;
-      }
+      await rejectQuotationMutation.mutateAsync({
+        id: selectedQuoteId,
+        reason: rejectReason.trim(),
+      });
       setRejectModalVisible(false);
       Alert.alert('Thành công', 'Đã từ chối báo giá');
-      fetchData();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi từ chối báo giá');
-    } finally {
-      setIsSubmittingReject(false);
     }
   };
 

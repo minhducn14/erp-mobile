@@ -16,8 +16,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import {
-  quotationService,
-  QuotationDetailResponse,
+  useQuotationDetailQuery,
+  useOpportunityQuotationsQuery,
+  useApproveQuotationMutation,
+  useRejectQuotationMutation,
+} from '@/hooks/queries/useQuotations';
+import {
   QuotationStatus,
   QuotationItem,
 } from '@/services/quotationService';
@@ -27,15 +31,24 @@ import { useSSERefresh } from '@/hooks/useSSERefresh';
 export default function QuotationDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ quotId: string; opportunityId?: string }>();
-  const quotId = params.quotId;
+  const quotId = params.quotId || '';
   const opportunityId = params.opportunityId;
 
   const { user } = useAuth();
   const isAdminOrBod = user?.role === 'ADMIN' || user?.role === 'BOD';
 
-  const [quotation, setQuotation] = useState<QuotationDetailResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  // TanStack Query for quotation detail
+  const { data: quotation, isLoading, isFetching, refetch } = useQuotationDetailQuery(quotId);
+
+  // Derived opportunityId
+  const oppId = opportunityId || quotation?.opportunityId || (quotation?.opportunity as any)?.id || '';
+
+  // TanStack Query for sibling quotations
+  const { data: oppQuotesRes } = useOpportunityQuotationsQuery(oppId);
+
+  // Mutations
+  const approveMutation = useApproveQuotationMutation();
+  const rejectMutation = useRejectQuotationMutation();
 
   // Accordion state for packages
   const [expandedPackages, setExpandedPackages] = useState<Record<string, boolean>>({});
@@ -43,77 +56,40 @@ export default function QuotationDetailScreen() {
   // Reject modal state
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [isSubmittingReject, setIsSubmittingReject] = useState(false);
-  const [isSubmittingApprove, setIsSubmittingApprove] = useState(false);
 
-  // Expired / sibling approved state
-  const [hasApprovedSibling, setHasApprovedSibling] = useState(false);
-  const [approvedQuotationVersion, setApprovedQuotationVersion] = useState<number | null>(null);
-
-  const fetchQuotation = useCallback(async () => {
-    if (!quotId) return;
-    try {
-      const res = await quotationService.getQuotation(quotId);
-      if ((res as any)?.error) {
-        Alert.alert('Lỗi', (res as any).error);
-        return;
-      }
-      const data: QuotationDetailResponse = (res as any)?.data || res;
-      setQuotation(data);
-
-      // Check if any other quotation of this opportunity is already approved
-      const oppId =
-        opportunityId || (data as any)?.opportunityId || (data as any)?.opportunity?.id;
-      if (oppId) {
-        try {
-          const oppQuotesRes = await quotationService.getQuotationsByOpportunity(oppId);
-          const quotesList: QuotationItem[] =
-            (oppQuotesRes as any)?.data || (Array.isArray(oppQuotesRes) ? oppQuotesRes : []);
-          const approvedQ = quotesList.find(
-            (q) =>
-              (q.status === QuotationStatus.APPROVED || q.status === 'APPROVED') &&
-              q.id !== quotId
-          );
-          if (approvedQ) {
-            setHasApprovedSibling(true);
-            setApprovedQuotationVersion(approvedQ.version);
-          } else {
-            setHasApprovedSibling(false);
-            setApprovedQuotationVersion(null);
-          }
-        } catch (e) {
-          console.error('Error checking sibling quotations:', e);
-        }
-      }
-
-      // Expand all packages by default
-      if (data?.details) {
-        const initialExpanded: Record<string, boolean> = {};
-        data.details.forEach((d) => {
-          if (d.packageName && d.packageName !== 'STANDALONE') {
-            initialExpanded[d.packageName] = true;
-          }
-        });
-        setExpandedPackages(initialExpanded);
-      }
-    } catch (err: any) {
-      console.error('Error fetching quotation detail:', err);
-      Alert.alert('Lỗi', err?.message || 'Không thể tải chi tiết báo giá');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [quotId, opportunityId]);
-
+  // Expand packages by default when quotation detail loads
   useEffect(() => {
-    fetchQuotation();
-  }, [fetchQuotation]);
+    if (quotation?.details) {
+      const initialExpanded: Record<string, boolean> = {};
+      quotation.details.forEach((d: any) => {
+        if (d.packageName && d.packageName !== 'STANDALONE') {
+          initialExpanded[d.packageName] = true;
+        }
+      });
+      setExpandedPackages((prev) => ({ ...initialExpanded, ...prev }));
+    }
+  }, [quotation]);
 
-  useSSERefresh('invalidate_Quotations', fetchQuotation);
+  // Derived expired / sibling approved state
+  const { hasApprovedSibling, approvedQuotationVersion } = useMemo(() => {
+    const quotesList: QuotationItem[] = Array.isArray(oppQuotesRes)
+      ? oppQuotesRes
+      : (oppQuotesRes as any)?.data || [];
+    const approvedQ = quotesList.find(
+      (q) =>
+        (q.status === QuotationStatus.APPROVED || q.status === 'APPROVED') &&
+        q.id !== quotId
+    );
+    if (approvedQ) {
+      return { hasApprovedSibling: true, approvedQuotationVersion: approvedQ.version };
+    }
+    return { hasApprovedSibling: false, approvedQuotationVersion: null };
+  }, [oppQuotesRes, quotId]);
+
+  useSSERefresh('invalidate_Quotations', refetch);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    fetchQuotation();
+    refetch();
   };
 
   const togglePackage = (pkgName: string) => {
@@ -137,7 +113,7 @@ export default function QuotationDetailScreen() {
     let runningRevenue = 0;
     let runningCost = 0;
 
-    quotation.details.forEach((detail) => {
+    quotation.details.forEach((detail: any) => {
       const sellingPrice = parseFloat(String(detail.sellingPrice || 0));
       const costAtSale = parseFloat(String(detail.costAtSale || 0));
       const quantity = detail.quantity || 0;
@@ -267,7 +243,7 @@ export default function QuotationDetailScreen() {
     router.push({
       pathname: '/opportunities/quotations/create',
       params: {
-        opportunityId: opportunityId || quotation?.opportunityId,
+        opportunityId: oppId,
         quotationId: quotId,
       },
     });
@@ -281,18 +257,10 @@ export default function QuotationDetailScreen() {
         style: 'default',
         onPress: async () => {
           try {
-            setIsSubmittingApprove(true);
-            const res = await quotationService.approveQuotation(quotId);
-            if ((res as any)?.error) {
-              Alert.alert('Lỗi', (res as any).error);
-              return;
-            }
+            await approveMutation.mutateAsync(quotId);
             Alert.alert('Thành công', 'Đã duyệt báo giá và cập nhật cơ hội kinh doanh');
-            fetchQuotation();
           } catch (err: any) {
             Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi duyệt báo giá');
-          } finally {
-            setIsSubmittingApprove(false);
           }
         },
       },
@@ -306,19 +274,11 @@ export default function QuotationDetailScreen() {
     }
 
     try {
-      setIsSubmittingReject(true);
-      const res = await quotationService.rejectQuotation(quotId, rejectReason.trim());
-      if ((res as any)?.error) {
-        Alert.alert('Lỗi', (res as any).error);
-        return;
-      }
+      await rejectMutation.mutateAsync({ id: quotId, reason: rejectReason.trim() });
       setRejectModalVisible(false);
       Alert.alert('Thành công', 'Đã từ chối báo giá');
-      fetchQuotation();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi từ chối báo giá');
-    } finally {
-      setIsSubmittingReject(false);
     }
   };
 
@@ -380,7 +340,7 @@ export default function QuotationDetailScreen() {
         contentContainerStyle={styles.contentContainer}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
+            refreshing={isFetching}
             onRefresh={handleRefresh}
             colors={['#059669']}
           />
@@ -631,7 +591,7 @@ export default function QuotationDetailScreen() {
               setRejectReason('');
               setRejectModalVisible(true);
             }}
-            disabled={isSubmittingReject || isSubmittingApprove}
+            disabled={rejectMutation.isPending || approveMutation.isPending}
             activeOpacity={0.8}
           >
             <Feather name="x" size={18} color="#DC2626" />
@@ -641,13 +601,13 @@ export default function QuotationDetailScreen() {
           <TouchableOpacity
             style={[
               styles.approveActionBtn,
-              isSubmittingApprove && styles.approveActionBtnDisabled,
+              approveMutation.isPending && styles.approveActionBtnDisabled,
             ]}
             onPress={handleApprove}
-            disabled={isSubmittingReject || isSubmittingApprove}
+            disabled={rejectMutation.isPending || approveMutation.isPending}
             activeOpacity={0.85}
           >
-            {isSubmittingApprove ? (
+            {approveMutation.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
@@ -708,7 +668,7 @@ export default function QuotationDetailScreen() {
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setRejectModalVisible(false)}
-                disabled={isSubmittingReject}
+                disabled={rejectMutation.isPending}
               >
                 <Text style={styles.modalCancelText}>Hủy</Text>
               </TouchableOpacity>
@@ -716,12 +676,12 @@ export default function QuotationDetailScreen() {
               <TouchableOpacity
                 style={[
                   styles.modalConfirmBtn,
-                  isSubmittingReject && styles.modalConfirmBtnDisabled,
+                  rejectMutation.isPending && styles.modalConfirmBtnDisabled,
                 ]}
                 onPress={handleConfirmReject}
-                disabled={isSubmittingReject}
+                disabled={rejectMutation.isPending}
               >
-                {isSubmittingReject ? (
+                {rejectMutation.isPending ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Text style={styles.modalConfirmText}>Xác nhận từ chối</Text>

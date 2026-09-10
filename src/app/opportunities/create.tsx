@@ -22,10 +22,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Feather } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { BrandColors } from '@/constants/colors';
+import { CreateOpportunityPayload } from '@/services/opportunityService';
 import {
-  opportunityService,
-  CreateOpportunityPayload,
-} from '@/services/opportunityService';
+  useCreateOpportunityMutation,
+  useAvailableServicesQuery,
+  useServicePackagesQuery,
+} from '@/hooks/queries/useOpportunities';
 
 import {
   formatNumber,
@@ -632,10 +634,22 @@ export default function CreateOpportunityScreen() {
   const setSuccessChance = (val: number) => updateField('successChance', val);
   const setCustomerRequirements = (val: string) => updateField('customerRequirements', val);
 
-  // Metadata catalogs
-  const [availableServices, setAvailableServices] = useState<Array<{ id: string; name: string; costPrice?: number }>>([]);
-  const [availablePackages, setAvailablePackages] = useState<Array<any>>([]);
-  const [isLoadingMeta, setIsLoadingMeta] = useState(true);
+  // Metadata catalogs via TanStack Query
+  const { data: rawServ, isLoading: isLoadingServices } = useAvailableServicesQuery();
+  const { data: rawPkg, isLoading: isLoadingPackages } = useServicePackagesQuery();
+
+  const availableServices = useMemo<Array<{ id: string; name: string; costPrice?: number }>>(() => {
+    if (!rawServ) return [];
+    return Array.isArray(rawServ) ? rawServ : (rawServ as any)?.data && Array.isArray((rawServ as any).data) ? (rawServ as any).data : [];
+  }, [rawServ]);
+
+  const availablePackages = useMemo<Array<any>>(() => {
+    if (!rawPkg) return [];
+    return Array.isArray(rawPkg) ? rawPkg : (rawPkg as any)?.data && Array.isArray((rawPkg as any).data) ? (rawPkg as any).data : [];
+  }, [rawPkg]);
+
+  const isLoadingMeta = isLoadingServices || isLoadingPackages;
+  const createOpportunityMutation = useCreateOpportunityMutation();
 
   // UI Selection Modals State
   const [isFieldModalVisible, setIsFieldModalVisible] = useState(false);
@@ -708,40 +722,6 @@ export default function CreateOpportunityScreen() {
       }
     }
   }, [startDate, endDate]);
-
-  // Load Metadata (Services & Service Packages) & Check Draft
-  useEffect(() => {
-    const initData = async () => {
-      setIsLoadingMeta(true);
-      try {
-        // Fetch services
-        const servRes = await opportunityService.getAvailableServices();
-        const rawServ = servRes.data as any;
-        const servList = Array.isArray(rawServ)
-          ? rawServ
-          : rawServ?.data && Array.isArray(rawServ.data)
-          ? rawServ.data
-          : [];
-        setAvailableServices(servList);
-
-        // Fetch service packages
-        const pkgRes = await opportunityService.getServicePackages();
-        const rawPkg = pkgRes.data as any;
-        const pkgList = Array.isArray(rawPkg)
-          ? rawPkg
-          : rawPkg?.data && Array.isArray(rawPkg.data)
-          ? rawPkg.data
-          : [];
-        setAvailablePackages(pkgList);
-      } catch {
-        // Ignore initialization error
-      } finally {
-        setIsLoadingMeta(false);
-      }
-    };
-
-    initData();
-  }, []);
 
   // Reset form if opening clean (not in draft mode)
   useEffect(() => {
@@ -1045,32 +1025,27 @@ export default function CreateOpportunityScreen() {
         packages: validPackages.length > 0 ? validPackages : undefined,
       };
 
-      const res = await opportunityService.createOpportunity(payload);
+      const resData = await createOpportunityMutation.mutateAsync(payload);
+      await AsyncStorage.removeItem(STORAGE_DRAFT_KEY);
+      resetForm();
 
-      if (res.error) {
-        Alert.alert('Lỗi tạo cơ hội', res.error);
-      } else {
-        await AsyncStorage.removeItem(STORAGE_DRAFT_KEY);
-        resetForm();
-
-        Alert.alert('Thành công', 'Đã tạo cơ hội kinh doanh mới thành công!', [
-          {
-            text: 'Xem chi tiết',
-            onPress: () => {
-              if (res.data?.id) {
-                router.replace(`/opportunities/${res.data.id}`);
-              } else {
-                router.replace('/opportunities');
-              }
-            },
+      Alert.alert('Thành công', 'Đã tạo cơ hội kinh doanh mới thành công!', [
+        {
+          text: 'Xem chi tiết',
+          onPress: () => {
+            if (resData?.id) {
+              router.replace(`/opportunities/${resData.id}`);
+            } else {
+              router.replace('/opportunities');
+            }
           },
+        },
           {
             text: 'Về trang chủ',
             style: 'cancel',
             onPress: () => router.replace('/'),
           },
         ]);
-      }
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Không thể tạo cơ hội kinh doanh.');
     } finally {

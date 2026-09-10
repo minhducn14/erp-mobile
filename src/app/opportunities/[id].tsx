@@ -39,6 +39,16 @@ import {
   CustomerAssignData,
 } from '@/components/opportunities/CustomerAssignModal';
 import { formatVNDFull, formatNumber } from '@/utils/formatters';
+import {
+  useOpportunityDetailQuery,
+  useApproveOpportunityMutation,
+  useUpdateOpportunityMutation,
+} from '@/hooks/queries/useOpportunities';
+import {
+  useOpportunityQuotationsQuery,
+  useApproveQuotationMutation,
+  useRejectQuotationMutation,
+} from '@/hooks/queries/useQuotations';
 
 // Dictionary mapping for Region, Field and Priority
 const REGION_LABELS: Record<string, string> = {
@@ -101,12 +111,28 @@ export default function OpportunityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const {
+    data: opportunity = null,
+    isLoading: isOppLoading,
+    isFetching: isOppFetching,
+    refetch: refetchOpp,
+  } = useOpportunityDetailQuery(id as string);
 
-  const [opportunity, setOpportunity] = useState<OpportunityItem | null>(null);
-  const [quotations, setQuotations] = useState<QuotationItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
+  const {
+    data: rawQuotations = [],
+    isLoading: isQuoteLoading,
+    isFetching: isQuoteFetching,
+    refetch: refetchQuotes,
+  } = useOpportunityQuotationsQuery(id as string);
+
+  const quotations: QuotationItem[] = Array.isArray(rawQuotations) ? rawQuotations : [];
+
+  const updateOpportunityMutation = useUpdateOpportunityMutation();
+  const approveOpportunityMutation = useApproveOpportunityMutation();
+  const approveQuotationMutation = useApproveQuotationMutation();
+  const rejectQuotationMutation = useRejectQuotationMutation();
+
+  const isApproving = approveOpportunityMutation.isPending;
   const [isCreatingContract, setIsCreatingContract] = useState(false);
 
   // Customer Assign Modal State
@@ -150,10 +176,10 @@ export default function OpportunityDetailScreen() {
                   {
                     text: 'Đóng',
                     style: 'cancel',
-                    onPress: () => loadData(),
+                    onPress: () => refetchAll(),
                   },
                 ]);
-                await loadData();
+                await refetchAll();
               } else {
                 Alert.alert('Lỗi', res.error || 'Có lỗi xảy ra khi tạo hợp đồng');
               }
@@ -171,43 +197,27 @@ export default function OpportunityDetailScreen() {
   const isAdminOrBod = isManagementRole(user?.role);
   const hasAccess = canAccessOpportunities(user?.role);
 
-  const loadData = useCallback(async () => {
-    if (!id || !hasAccess) return;
-    try {
-      const [oppRes, quoteRes] = await Promise.all([
-        opportunityService.getOpportunity(id),
-        quotationService.getQuotationsByOpportunity(id),
-      ]);
-
-      if (oppRes.data) {
-        setOpportunity(oppRes.data);
-      }
-
-      if (quoteRes.data && Array.isArray(quoteRes.data)) {
-        setQuotations(quoteRes.data);
-      }
-    } catch {
-      // Graceful error handling
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [id, hasAccess]);
+  const refetchAll = useCallback(() => {
+    refetchOpp();
+    refetchQuotes();
+  }, [refetchOpp, refetchQuotes]);
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData])
+      refetchAll();
+    }, [refetchAll])
   );
 
   useSSERefresh(
     ['invalidate_Opportunities', 'invalidate_Tasks'],
-    loadData
+    refetchAll
   );
 
+  const isLoading = (isOppLoading || isQuoteLoading) && !opportunity;
+  const isRefreshing = isOppFetching || isQuoteFetching;
+
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadData();
+    refetchAll();
   };
 
   // Save Customer Handler (From CustomerAssignModal)
@@ -239,12 +249,8 @@ export default function OpportunityDetailScreen() {
         data.customerType === 'REFERRAL' ? data.selectedReferralPartnerId : null;
     }
 
-    const res = await opportunityService.updateOpportunity(id, updatePayload);
-    if (res.error) {
-      throw new Error(res.error);
-    }
+    await updateOpportunityMutation.mutateAsync({ id, payload: updatePayload });
     Alert.alert('Thành công', 'Thông tin khách hàng đã được lưu thành công!');
-    await loadData();
   };
 
   // Inline Edit Customer Handler (chuẩn Web CustomerInfo.jsx)
@@ -266,20 +272,22 @@ export default function OpportunityDetailScreen() {
         address: data.address,
       } as any);
       if (res.error) throw new Error(res.error);
+      refetchAll();
     } else {
       // Lead (tiềm năng): cập nhật qua opportunityService
-      const res = await opportunityService.updateOpportunity(id, {
-        leadName: data.name,
-        leadPhone: data.phone,
-        leadEmail: data.email,
-        leadTaxId: data.taxId,
-        leadAddress: data.address,
+      await updateOpportunityMutation.mutateAsync({
+        id,
+        payload: {
+          leadName: data.name,
+          leadPhone: data.phone,
+          leadEmail: data.email,
+          leadTaxId: data.taxId,
+          leadAddress: data.address,
+        },
       });
-      if (res.error) throw new Error(res.error);
     }
 
     Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
-    await loadData();
   };
 
   // BOD Approve Opportunity Action
@@ -294,19 +302,11 @@ export default function OpportunityDetailScreen() {
           style: 'default',
           onPress: async () => {
             if (!id) return;
-            setIsApproving(true);
             try {
-              const res = await opportunityService.approveOpportunity(id);
-              if (res.error) {
-                Alert.alert('Lỗi phê duyệt', res.error);
-              } else {
-                Alert.alert('Thành công', 'Cơ hội đã được phê duyệt thành công!');
-                loadData();
-              }
+              await approveOpportunityMutation.mutateAsync(id);
+              Alert.alert('Thành công', 'Cơ hội đã được phê duyệt thành công!');
             } catch (err: any) {
               Alert.alert('Lỗi', err?.message || 'Không thể phê duyệt cơ hội.');
-            } finally {
-              setIsApproving(false);
             }
           },
         },
@@ -322,13 +322,8 @@ export default function OpportunityDetailScreen() {
         text: 'Duyệt',
         onPress: async () => {
           try {
-            const res = await quotationService.approveQuotation(quoteId);
-            if (res.error) {
-              Alert.alert('Lỗi', res.error);
-            } else {
-              Alert.alert('Thành công', 'Báo giá đã được phê duyệt.');
-              loadData();
-            }
+            await approveQuotationMutation.mutateAsync(quoteId);
+            Alert.alert('Thành công', 'Báo giá đã được phê duyệt.');
           } catch {
             Alert.alert('Lỗi', 'Không thể duyệt báo giá.');
           }
@@ -346,13 +341,8 @@ export default function OpportunityDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const res = await quotationService.rejectQuotation(quoteId, 'BOD yêu cầu chỉnh sửa');
-            if (res.error) {
-              Alert.alert('Lỗi', res.error);
-            } else {
-              Alert.alert('Đã từ chối', 'Bản báo giá đã bị từ chối.');
-              loadData();
-            }
+            await rejectQuotationMutation.mutateAsync({ id: quoteId, reason: 'BOD yêu cầu chỉnh sửa' });
+            Alert.alert('Đã từ chối', 'Bản báo giá đã bị từ chối.');
           } catch {
             Alert.alert('Lỗi', 'Không thể từ chối báo giá.');
           }
@@ -480,7 +470,7 @@ export default function OpportunityDetailScreen() {
 
         <TouchableOpacity
           style={styles.headerIconBtn}
-          onPress={loadData}
+          onPress={handleRefresh}
           activeOpacity={0.7}
         >
           <Feather name="refresh-cw" size={18} color="#475569" />
