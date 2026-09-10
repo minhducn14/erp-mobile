@@ -121,7 +121,7 @@ class ApiService {
     );
   }
 
-  private getCookieHeader() {
+  getCookieHeader() {
     return AUTH_COOKIE_NAMES.map((name) => {
       const value = this.currentCookies[name];
       return value ? `${name}=${value}` : null;

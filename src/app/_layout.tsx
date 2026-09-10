@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider } from '@/context/AuthContext';
+import { useSSE } from '@/hooks/useSSE';
 
 // Polyfill for Hermes Symbol.description compatibility
 if (typeof Symbol !== 'undefined' && !('description' in Symbol.prototype)) {
@@ -24,6 +25,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <SSEManager />
         <AnimatedSplashOverlay />
         <Stack
           screenOptions={{
@@ -38,4 +40,9 @@ export default function RootLayout() {
       </ThemeProvider>
     </AuthProvider>
   );
+}
+
+function SSEManager() {
+  useSSE();
+  return null;
 }
