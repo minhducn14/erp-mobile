@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { taskService, TaskDetail } from '@/services/taskService';
-import { teamService, TEAM_MEMBER_ROLE_LABELS } from '@/services/teamService';
+import { TaskDetail } from '@/services/taskService';
+import { TEAM_MEMBER_ROLE_LABELS } from '@/services/teamService';
 import {
   useAssignTaskMutation,
   useBulkAssignTasksMutation,

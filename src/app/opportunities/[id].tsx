@@ -261,14 +261,16 @@ export default function OpportunityDetailScreen() {
     if (!id || !opportunity) return;
 
     if (opportunity.customer) {
-      // KH hiện hữu: cập nhật qua customerService (chuẩn Web)
-      const res = await customerService.updateCustomer(opportunity.customer.id, {
-        phoneNumber: data.phone,
-        email: data.email,
-        taxId: data.taxId,
-        address: data.address,
-      } as any);
-      if (res.error) throw new Error(res.error);
+      // KH hiện hữu: cập nhật qua TanStack Mutation
+      await updateCustomerMutation.mutateAsync({
+        id: opportunity.customer.id,
+        payload: {
+          phoneNumber: data.phone,
+          email: data.email,
+          taxId: data.taxId,
+          address: data.address,
+        } as any,
+      });
       refetchAll();
     } else {
       // Lead (tiềm năng): cập nhật qua opportunityService
