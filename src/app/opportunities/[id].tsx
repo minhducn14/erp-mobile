@@ -474,6 +474,7 @@ export default function OpportunityDetailScreen() {
       </View>
 
       <ScrollView
+        contentContainerClassName="p-4 pb-10"
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -486,7 +487,7 @@ export default function OpportunityDetailScreen() {
         }
       >
         {/* 2. STATUS & PROGRESS STEPPER CARD */}
-        <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
           <View className="flex-row justify-between items-center mb-2.5">
             <View className="px-2.5 py-1 rounded-lg" style={{ backgroundColor: statusMeta.bg }}>
               <Text className="text-xs font-bold" style={{ color: statusMeta.color }}>
@@ -570,7 +571,7 @@ export default function OpportunityDetailScreen() {
                     activeOpacity={0.8}
                   >
                     <Feather name="file-text" size={14} color="#FFFFFF" />
-                    <Text className="text-[13px] font-bold text-white" numberOfLines={1}>Xem báo giá</Text>
+                    <Text className="text-[13px] font-bold text-white" style={{ flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">Xem báo giá</Text>
                   </TouchableOpacity>
                   {showBadge && (
                     <View className="absolute -top-1.5 -right-1.5 bg-red-600 rounded-full min-w-[20px] h-5 items-center justify-center px-1 border-2 border-white">
@@ -594,7 +595,7 @@ export default function OpportunityDetailScreen() {
                   activeOpacity={0.8}
                 >
                   <Feather name="plus" size={14} color="#FFFFFF" />
-                  <Text className="text-[13px] font-bold text-white" numberOfLines={1}>Tạo báo giá</Text>
+                  <Text className="text-[13px] font-bold text-white" style={{ flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">Tạo báo giá</Text>
                 </TouchableOpacity>
               )}
 
@@ -610,7 +611,7 @@ export default function OpportunityDetailScreen() {
                   ) : (
                     <>
                       <Feather name="briefcase" size={14} color="#FFFFFF" />
-                      <Text className="text-[13px] font-bold text-white" numberOfLines={1}>Tạo hợp đồng</Text>
+                      <Text className="text-[13px] font-bold text-white" style={{ flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">Tạo hợp đồng</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -628,11 +629,16 @@ export default function OpportunityDetailScreen() {
                   activeOpacity={0.8}
                 >
                   <Feather name="file-text" size={14} color="#FFFFFF" />
-                  <Text className="text-[13px] font-bold text-white" numberOfLines={1}>
-                    {linkedContract.contractCode
-                      ? `HĐ: ${linkedContract.contractCode}`
-                      : 'Xem hợp đồng'}
-                  </Text>
+                    <Text
+                      className="text-[13px] font-bold text-white"
+                      style={{ flexShrink: 1 }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {linkedContract.contractCode
+                        ? `HĐ: ${linkedContract.contractCode}`
+                        : 'Xem hợp đồng'}
+                    </Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -649,7 +655,7 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 4. KHỐI THÔNG TIN TÀI CHÍNH & KỲ VỌNG */}
-        <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
           <View className="flex-row justify-between items-center mb-3.5">
             <View className="flex-row items-center gap-2">
               <View className="w-7 h-7 rounded-lg justify-center items-center bg-blue-50">
@@ -687,7 +693,7 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 5. KHỐI THỜI GIAN & ĐỊA ĐIỂM */}
-        <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
           <View className="flex-row justify-between items-center mb-3.5">
             <View className="flex-row items-center gap-2">
               <View className="w-7 h-7 rounded-lg justify-center items-center bg-purple-100">
@@ -729,7 +735,7 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 6. KHỐI ĐÁNH GIÁ CƠ HỘI */}
-        <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
           <View className="flex-row justify-between items-center mb-3.5">
             <View className="flex-row items-center gap-2">
               <View className="w-7 h-7 rounded-lg justify-center items-center bg-orange-100">
@@ -779,7 +785,7 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 7. KHỐI DỊCH VỤ & GÓI DỊCH VỤ */}
-        <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
           <View className="flex-row justify-between items-center mb-3.5">
             <View className="flex-row items-center gap-2">
               <View className="w-7 h-7 rounded-lg justify-center items-center bg-indigo-100">
@@ -871,7 +877,7 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 8. KHỐI YÊU CẦU KHÁCH HÀNG & TÀI LIỆU ĐÍNH KÈM */}
-        <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
           <View className="flex-row justify-between items-center mb-3.5">
             <View className="flex-row items-center gap-2">
               <View className="w-7 h-7 rounded-lg justify-center items-center bg-cyan-100">
@@ -943,7 +949,7 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 9. KHỐI THÔNG TIN BỔ SUNG */}
-        <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
           <View className="flex-row justify-between items-center mb-3.5">
             <View className="flex-row items-center gap-2">
               <View className="w-7 h-7 rounded-lg justify-center items-center bg-slate-100">
@@ -984,7 +990,7 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 10. KHỐI BÁO GIÁ */}
-        <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
           <View className="flex-row justify-between items-center mb-3.5">
             <View className="flex-row items-center gap-2">
               <View className="w-7 h-7 rounded-lg justify-center items-center bg-emerald-100">
@@ -1093,7 +1099,7 @@ export default function OpportunityDetailScreen() {
 
         {/* 11. KHỐI HỢP ĐỒNG KINH TẾ */}
         {hasContract && linkedContract && (
-          <View className="bg-white rounded-[18px] p-4.5 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
             <View className="flex-row justify-between items-center mb-3.5">
               <View className="flex-row items-center gap-2">
                 <View className="w-7 h-7 rounded-lg justify-center items-center bg-teal-50">

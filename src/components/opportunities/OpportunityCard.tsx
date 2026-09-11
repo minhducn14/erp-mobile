@@ -104,7 +104,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({ item, onPress 
       </View>
 
       {/* Opportunity Name */}
-      <Text className="text-base font-extrabold text-slate-800 leading-5.5 mb-1.5" numberOfLines={2}>
+      <Text className="text-base font-extrabold text-slate-800 leading-6 mb-1.5" numberOfLines={2}>
         {item.name}
       </Text>
 

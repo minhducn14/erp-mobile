@@ -151,7 +151,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           <View className="w-7 h-7 rounded-lg bg-blue-50 justify-center items-center mr-1.5">
             <Ionicons name="business-outline" size={18} color="#2563EB" />
           </View>
-          <Text className="text-[15px] font-bold text-text-primary">Khách hàng & Người liên hệ</Text>
+          <Text className="text-[15px] font-bold text-text-primary">Khách hàng</Text>
         </View>
 
         <View className="border-[1.5px] border-slate-300 border-dashed rounded-xl py-5 px-4 items-center bg-background">
@@ -166,7 +166,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           {opportunity.status === 'PENDING_OPP_APPROVAL' && (
             <View className="flex-row items-center bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 gap-1.5 mb-3.5">
               <Feather name="alert-circle" size={14} color="#D97706" />
-              <Text className="text-[11px] font-semibold text-amber-700 flex-1 leading-3.5">
+              <Text className="text-[11px] font-semibold text-amber-700 flex-1 leading-4">
                 Cần thêm thông tin khách hàng để Ban Giám Đốc phê duyệt cơ hội này.
               </Text>
             </View>
@@ -193,7 +193,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
           <View className="w-7 h-7 rounded-lg bg-blue-50 justify-center items-center mr-1.5">
             <Ionicons name={isLead ? 'person-outline' : 'business-outline'} size={18} color="#2563EB" />
           </View>
-          <Text className="text-[15px] font-bold text-text-primary">Khách hàng & Người liên hệ</Text>
+          <Text className="text-[15px] font-bold text-text-primary">Khách hàng</Text>
         </View>
 
         {isEditing ? (
@@ -374,7 +374,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
                 activeOpacity={0.8}
               >
                 <Feather name="phone-call" size={14} color="#059669" />
-                <Text className="text-xs font-bold text-emerald-600" numberOfLines={1}>
+                <Text className="text-xs font-bold text-emerald-600" style={{ flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">
                   {phoneNumber}
                 </Text>
               </TouchableOpacity>
@@ -392,7 +392,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
                 activeOpacity={0.8}
               >
                 <Feather name="mail" size={14} color="#2563EB" />
-                <Text className="text-xs font-bold text-blue-600" numberOfLines={1}>
+                <Text className="text-xs font-bold text-blue-600" style={{ flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">
                   {emailAddress}
                 </Text>
               </TouchableOpacity>
@@ -412,7 +412,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
                 </View>
                 <View className="flex-1">
                   <Text className="text-[11px] text-text-secondary mb-0.5">Mã số thuế</Text>
-                  <Text className="text-xs font-semibold text-slate-800 leading-4.5">{taxId}</Text>
+                  <Text className="text-xs font-semibold text-slate-800 leading-5">{taxId}</Text>
                 </View>
               </View>
             ) : null}
@@ -424,7 +424,7 @@ export const CustomerInfoCard: React.FC<CustomerInfoCardProps> = ({
                 </View>
                 <View className="flex-1">
                   <Text className="text-[11px] text-text-secondary mb-0.5">Địa chỉ</Text>
-                  <Text className="text-xs font-semibold text-slate-800 leading-4.5">{addressText}</Text>
+                  <Text className="text-xs font-semibold text-slate-800 leading-5">{addressText}</Text>
                 </View>
               </View>
             ) : null}
