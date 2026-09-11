@@ -48,7 +48,7 @@ export const ReviewQueueWidget: React.FC<ReviewQueueWidgetProps> = ({
                 </View>
                 {task.code && <Text className="text-[11px] font-semibold text-text-secondary">#{task.code}</Text>}
               </View>
-              <Text className="text-xs font-semibold text-text-primary leading-4.5 mb-1.5" numberOfLines={2}>
+              <Text className="text-xs font-semibold text-text-primary leading-5 mb-1.5" numberOfLines={2}>
                 {task.name}
               </Text>
               <View className="flex-row items-center flex-wrap gap-3">

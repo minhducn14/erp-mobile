@@ -52,20 +52,20 @@ export const HotProjectsWidget: React.FC<HotProjectsWidgetProps> = ({
               activeOpacity={0.7}
             >
               <View className="flex-row justify-between items-center mb-1">
-                <Text className="text-sm font-bold text-text-primary flex-1 mr-2.5" numberOfLines={1}>
+                <Text className="text-sm font-bold text-text-primary flex-1 mr-2.5" numberOfLines={1} ellipsizeMode="tail">
                   {p.name}
                 </Text>
                 <Text className="text-xs font-extrabold text-primary">{progress}%</Text>
               </View>
 
               {p.clientName && (
-                <Text className="text-[11px] text-text-secondary mb-2" numberOfLines={1}>
+                <Text className="text-[11px] text-text-secondary mb-2" numberOfLines={1} ellipsizeMode="tail">
                   Khách hàng: {p.clientName}
                 </Text>
               )}
 
               {/* Progress Bar */}
-              <View className="h-1.25 bg-slate-200 rounded-full overflow-hidden">
+              <View className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                 <View className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
               </View>
             </TouchableOpacity>

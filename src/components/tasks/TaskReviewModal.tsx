@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -40,13 +40,19 @@ export default function TaskReviewModal({
   const { data: reviewsData, isLoading: isLoadingReviews } = useTaskReviewsQuery(
     visible && task?.id ? task.id : ''
   );
-  const reviews = reviewsData || [];
+  const reviews = useMemo(() => (Array.isArray(reviewsData) ? reviewsData : []), [reviewsData]);
 
   useEffect(() => {
     if (visible && reviews.length > 0) {
-      setPassedIds(reviews.filter((r: any) => r.isPassed).map((r: any) => r.id));
+      const nextPassedIds = reviews.filter((r: any) => r.isPassed).map((r: any) => r.id);
+      setPassedIds((prev) => {
+        const isSame =
+          prev.length === nextPassedIds.length &&
+          prev.every((reviewId, index) => reviewId === nextPassedIds[index]);
+        return isSame ? prev : nextPassedIds;
+      });
     } else if (!visible) {
-      setPassedIds([]);
+      setPassedIds((prev) => (prev.length === 0 ? prev : []));
       setNote('');
     }
   }, [visible, reviews]);

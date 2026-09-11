@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,7 @@ export default function TaskReviewScreen() {
 
   const { data: task, isLoading: isLoadingTask } = useTaskDetailQuery(String(id || ''));
   const { data: reviewsData, isLoading: isLoadingReviews } = useTaskReviewsQuery(String(id || ''));
-  const reviews = reviewsData || [];
+  const reviews = useMemo(() => (Array.isArray(reviewsData) ? reviewsData : []), [reviewsData]);
 
   const [passedIds, setPassedIds] = useState<string[]>([]);
   const [note, setNote] = useState('');
@@ -40,9 +40,13 @@ export default function TaskReviewScreen() {
   const isRejecting = rejectTaskMutation.isPending;
 
   useEffect(() => {
-    if (reviews.length > 0) {
-      setPassedIds(reviews.filter((r: any) => r.isPassed).map((r: any) => r.id));
-    }
+    const nextPassedIds = reviews.filter((r: any) => r.isPassed).map((r: any) => r.id);
+    setPassedIds((prev) => {
+      const isSame =
+        prev.length === nextPassedIds.length &&
+        prev.every((reviewId, index) => reviewId === nextPassedIds[index]);
+      return isSame ? prev : nextPassedIds;
+    });
   }, [reviews]);
 
   const leadReviews = reviews.filter((r) => r.reviewerType === 'TEAM_LEAD');

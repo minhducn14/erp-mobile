@@ -35,7 +35,7 @@ export default function AppTabs() {
 
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
-    <Pressable {...props} className={({ pressed }: { pressed: boolean }) => (pressed ? 'opacity-70' : '')}>
+    <Pressable {...props} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
         className="py-1 px-3 rounded-xl">

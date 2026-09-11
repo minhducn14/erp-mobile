@@ -74,7 +74,7 @@ export const TodayTasksWidget: React.FC<TodayTasksWidgetProps> = ({
                     )}
                   </View>
 
-                  <Text className="text-xs font-semibold text-text-primary leading-4.5 mb-1" numberOfLines={2}>
+                  <Text className="text-xs font-semibold text-text-primary leading-5 mb-1" numberOfLines={2}>
                     {task.name}
                   </Text>
 

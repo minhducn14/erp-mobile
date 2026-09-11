@@ -236,6 +236,7 @@ export default function ContractsScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.key}
+          contentContainerClassName="px-4 gap-2"
           contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
           renderItem={({ item }) => {
             const isActive = activeTab === item.key;
@@ -278,6 +279,7 @@ export default function ContractsScreen() {
           data={contracts}
           keyExtractor={(item) => item.id}
           renderItem={renderContractCard}
+          contentContainerClassName="p-4 pb-8"
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           refreshControl={
             <RefreshControl

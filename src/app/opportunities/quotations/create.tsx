@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -568,45 +567,45 @@ export default function QuotationCreateEditScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <SafeAreaView className="flex-1 bg-slate-50" edges={['top', 'left', 'right']}>
+        <View className="flex-row items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+          <TouchableOpacity className="rounded-lg bg-slate-100 p-1.5" onPress={() => router.back()}>
             <Feather name="arrow-left" size={22} color="#1E293B" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
+          <Text className="text-base font-bold text-slate-900">
             {isEditMode ? 'Chỉnh sửa báo giá' : 'Tạo mới báo giá'}
           </Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.loadingContainer}>
+        <View className="flex-1 items-center justify-center gap-3">
           <ActivityIndicator size="large" color="#059669" />
-          <Text style={styles.loadingText}>Đang tải dữ liệu báo giá...</Text>
+          <Text className="text-sm text-slate-500">Đang tải dữ liệu báo giá...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View className="flex-row items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
           <TouchableOpacity
-            style={styles.backButton}
+            className="rounded-lg bg-slate-100 p-1.5"
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
             <Feather name="arrow-left" size={22} color="#1E293B" />
           </TouchableOpacity>
 
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>
+          <View className="mx-3 flex-1">
+            <Text className="text-base font-bold text-slate-900">
               {isEditMode ? 'Chỉnh sửa báo giá' : 'Tạo mới báo giá'}
             </Text>
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
+            <Text className="mt-px text-xs text-slate-500" numberOfLines={1}>
               {opportunity?.name || 'Cơ hội kinh doanh'}
             </Text>
           </View>
@@ -615,69 +614,57 @@ export default function QuotationCreateEditScreen() {
         </View>
 
         <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
+          className="flex-1"
+          contentContainerClassName="p-4"
           keyboardShouldPersistTaps="handled"
         >
           {/* Segmented Pricing Mode Selector */}
-          <View style={styles.pricingModeSection}>
-            <Text style={styles.sectionLabel}>Lựa chọn mức giá áp dụng:</Text>
-            <View style={styles.segmentedControl}>
+          <View className="mb-4">
+            <Text className="mb-2 text-[13px] font-bold text-slate-700">Lựa chọn mức giá áp dụng:</Text>
+            <View className="flex-row gap-1 rounded-xl bg-slate-200 p-1">
               <TouchableOpacity
-                style={[
-                  styles.segmentBtn,
-                  priceType === 'minimum' && styles.segmentBtnActive,
-                ]}
+                className={`flex-1 items-center justify-center rounded-lg py-2 ${
+                  priceType === 'minimum' ? 'bg-white shadow-sm' : ''
+                }`}
                 onPress={() => handlePriceTypeChange('minimum')}
                 activeOpacity={0.8}
               >
                 <Text
-                  style={[
-                    styles.segmentText,
-                    priceType === 'minimum' && styles.segmentTextActive,
-                  ]}
+                  className={`text-[13px] font-semibold ${priceType === 'minimum' ? 'font-bold text-emerald-600' : 'text-slate-500'}`}
                 >
                   Giá tối thiểu
                 </Text>
-                <Text style={styles.segmentSubText}>Cost / 0.8</Text>
+                <Text className="mt-0.5 text-[10px] text-slate-400">Cost / 0.8</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.segmentBtn,
-                  priceType === 'recommended' && styles.segmentBtnActive,
-                ]}
+                className={`flex-1 items-center justify-center rounded-lg py-2 ${
+                  priceType === 'recommended' ? 'bg-white shadow-sm' : ''
+                }`}
                 onPress={() => handlePriceTypeChange('recommended')}
                 activeOpacity={0.8}
               >
                 <Text
-                  style={[
-                    styles.segmentText,
-                    priceType === 'recommended' && styles.segmentTextActive,
-                  ]}
+                  className={`text-[13px] font-semibold ${priceType === 'recommended' ? 'font-bold text-emerald-600' : 'text-slate-500'}`}
                 >
                   Giá đề xuất
                 </Text>
-                <Text style={styles.segmentSubText}>Cost / 0.6</Text>
+                <Text className="mt-0.5 text-[10px] text-slate-400">Cost / 0.6</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.segmentBtn,
-                  priceType === 'custom' && styles.segmentBtnActive,
-                ]}
+                className={`flex-1 items-center justify-center rounded-lg py-2 ${
+                  priceType === 'custom' ? 'bg-white shadow-sm' : ''
+                }`}
                 onPress={() => handlePriceTypeChange('custom')}
                 activeOpacity={0.8}
               >
                 <Text
-                  style={[
-                    styles.segmentText,
-                    priceType === 'custom' && styles.segmentTextActive,
-                  ]}
+                  className={`text-[13px] font-semibold ${priceType === 'custom' ? 'font-bold text-emerald-600' : 'text-slate-500'}`}
                 >
                   Tùy chỉnh
                 </Text>
-                <Text style={styles.segmentSubText}>Nhập tay</Text>
+                <Text className="mt-0.5 text-[10px] text-slate-400">Nhập tay</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -686,15 +673,15 @@ export default function QuotationCreateEditScreen() {
           {displayGroups.packages.map((pkg) => {
             const isExpanded = !!expandedPackages[pkg.name];
             return (
-              <View key={pkg.name} style={styles.card}>
-                <View style={styles.packageCardHeader}>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.packageTagRow}>
-                      <View style={styles.packageBadge}>
+              <View key={pkg.name} className="mb-3 rounded-[14px] border border-slate-200 bg-white p-3.5">
+                <View className="mb-2.5 flex-row items-start justify-between">
+                  <View className="flex-1">
+                    <View className="gap-1">
+                      <View className="self-start flex-row items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5">
                         <Feather name="package" size={12} color="#2563EB" />
-                        <Text style={styles.packageBadgeText}>GÓI DỊCH VỤ</Text>
+                        <Text className="text-[10px] font-extrabold text-blue-600">GÓI DỊCH VỤ</Text>
                       </View>
-                      <Text style={styles.packageNameTitle}>{pkg.name}</Text>
+                      <Text className="text-[15px] font-bold text-slate-900">{pkg.name}</Text>
                     </View>
                   </View>
 
@@ -707,19 +694,19 @@ export default function QuotationCreateEditScreen() {
                 </View>
 
                 {/* Package Quantity Stepper */}
-                <View style={styles.rowItem}>
-                  <Text style={styles.itemLabel}>Số lượng gói:</Text>
-                  <View style={styles.stepperContainer}>
+                <View className="flex-row items-center justify-between border-t border-slate-100 py-2">
+                  <Text className="text-[13px] font-semibold text-slate-600">Số lượng gói:</Text>
+                  <View className="flex-row items-center rounded-lg border border-slate-300 bg-slate-50">
                     <TouchableOpacity
-                      style={styles.stepperBtn}
+                      className="px-3 py-1.5"
                       onPress={() => handlePackageQuantityChange(pkg.name, -1)}
                       activeOpacity={0.7}
                     >
                       <Feather name="minus" size={16} color="#334155" />
                     </TouchableOpacity>
-                    <Text style={styles.stepperValue}>{formatNumber(pkg.quantity)}</Text>
+                    <Text className="min-w-7 text-center text-sm font-bold text-slate-900">{formatNumber(pkg.quantity)}</Text>
                     <TouchableOpacity
-                      style={styles.stepperBtn}
+                      className="px-3 py-1.5"
                       onPress={() => handlePackageQuantityChange(pkg.name, 1)}
                       activeOpacity={0.7}
                     >
@@ -729,36 +716,35 @@ export default function QuotationCreateEditScreen() {
                 </View>
 
                 {/* Package Unit Price */}
-                <View style={styles.rowItem}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.itemLabel}>Đơn giá gói (VNĐ):</Text>
+                <View className="flex-row items-center justify-between border-t border-slate-100 py-2">
+                  <View className="flex-row items-center gap-1.5">
+                    <Text className="text-[13px] font-semibold text-slate-600">Đơn giá gói (VNĐ):</Text>
                     {priceType === 'custom' && (
-                      <View style={styles.lockedTag}>
+                      <View className="flex-row items-center gap-[3px] rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5">
                         <Feather name="lock" size={11} color="#64748B" />
-                        <Text style={styles.lockedTagText}>Khóa</Text>
+                        <Text className="text-[10px] font-semibold text-slate-500">Khóa</Text>
                       </View>
                     )}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.fixedPriceText}>
+                    <Text className="text-sm font-bold text-slate-900">
                       {formatNumber(pkg.selectedPrice)} ₫
                     </Text>
                     {priceType === 'custom' && (
-                      <Text style={styles.autoSumHintText}>Tự cộng từ dịch vụ con</Text>
+                      <Text className="mt-0.5 text-[11px] font-medium text-emerald-600">Tự cộng từ dịch vụ con</Text>
                     )}
                   </View>
                 </View>
 
                 {/* Total and Margin row */}
-                <View style={styles.packageSummaryRow}>
-                  <Text style={styles.packageTotalText}>
+                <View className="mt-1 flex-row items-center justify-between border-t border-slate-100 pt-2">
+                  <Text className="text-[13px] font-bold text-blue-600">
                     Thành tiền: {formatNumber(pkg.selectedPrice * pkg.quantity)} ₫
                   </Text>
                   <Text
-                    style={[
-                      styles.marginBadgeSmall,
-                      pkg.profitMargin >= 20 ? styles.marginGood : styles.marginWarning,
-                    ]}
+                    className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                      pkg.profitMargin >= 20 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}
                   >
                     Margin: {pkg.profitMargin.toFixed(0)}%
                   </Text>
@@ -766,7 +752,7 @@ export default function QuotationCreateEditScreen() {
 
                 {/* Toggle Accordion Sub-items */}
                 <TouchableOpacity
-                  style={styles.toggleSubItemsBtn}
+                  className="mt-1.5 flex-row items-center justify-center gap-1 rounded-lg bg-slate-50 py-2"
                   onPress={() =>
                     setExpandedPackages((prev) => ({
                       ...prev,
@@ -775,7 +761,7 @@ export default function QuotationCreateEditScreen() {
                   }
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.toggleSubItemsText}>
+                  <Text className="text-xs font-semibold text-emerald-600">
                     {isExpanded ? 'Thu gọn dịch vụ con' : `Xem ${pkg.items.length} dịch vụ con`}
                   </Text>
                   <Feather
@@ -786,32 +772,31 @@ export default function QuotationCreateEditScreen() {
                 </TouchableOpacity>
 
                 {isExpanded && (
-                  <View style={styles.subItemsContainer}>
+                  <View className="mt-2 gap-1.5 rounded-lg bg-slate-50 p-2">
                     {pkg.items.map((sub: any, sIdx: number) => (
-                      <View key={sub.serviceId || sIdx} style={styles.subItemBox}>
-                        <View style={styles.subItemHeaderRow}>
-                          <Text style={styles.subItemTitle}>{sub.serviceName}</Text>
+                      <View key={sub.serviceId || sIdx} className="rounded-md border border-slate-200 bg-white p-2">
+                        <View className="flex-row items-center justify-between gap-2">
+                          <Text className="text-xs font-bold text-slate-800">{sub.serviceName}</Text>
                           <Text
-                            style={[
-                              styles.marginBadgeSmall,
-                              sub.profitMargin >= 20 ? styles.marginGood : styles.marginWarning,
-                            ]}
+                            className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                              sub.profitMargin >= 20 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                            }`}
                           >
                             Margin: {sub.profitMargin.toFixed(0)}%
                           </Text>
                         </View>
-                        <Text style={styles.subItemDesc}>
+                        <Text className="mt-0.5 text-[11px] text-slate-500">
                           Định mức: {formatNumber(sub.norm)} {sub.unit || 'lần'} / gói | Số lượng tổng: {formatNumber(sub.quantity)}
                         </Text>
                         {priceType === 'custom' ? (
-                          <View style={styles.subItemInputRow}>
-                            <Text style={styles.subItemCostText}>
+                          <View className="mt-2 flex-row items-center justify-between border-t border-slate-100 pt-2">
+                            <Text className="text-[11px] text-slate-400">
                               Giá vốn: {formatNumber(sub.costPrice)} ₫
                             </Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={styles.subItemInputLabel}>Đơn giá con:</Text>
+                              <Text className="text-xs font-semibold text-slate-600">Đơn giá con:</Text>
                               <TextInput
-                                style={styles.subItemPriceInput}
+                                className="w-[140px] rounded-md border border-emerald-600 bg-slate-50 px-2 py-[5px] text-right text-[13px] font-bold text-slate-900"
                                 keyboardType="numeric"
                                 value={formatNumberInput(sub.customPrice)}
                                 onChangeText={(val) =>
@@ -823,11 +808,11 @@ export default function QuotationCreateEditScreen() {
                             </View>
                           </View>
                         ) : (
-                          <View style={styles.subItemPriceRow}>
-                            <Text style={styles.subItemCostText}>
+                          <View className="mt-1 flex-row justify-between border-t border-slate-100 pt-1">
+                            <Text className="text-[11px] text-slate-400">
                               Giá vốn: {formatNumber(sub.costPrice)} ₫
                             </Text>
-                            <Text style={styles.subItemPriceText}>
+                            <Text className="text-[11px] font-bold text-slate-900">
                               Đơn giá con: {formatNumber(sub.selectedPrice)} ₫
                             </Text>
                           </View>
@@ -842,11 +827,11 @@ export default function QuotationCreateEditScreen() {
 
           {/* Standalone Services Section */}
           {displayGroups.standalone.map((item) => (
-            <View key={item.originalIndex} style={styles.card}>
-              <View style={styles.standaloneCardHeader}>
+            <View key={item.originalIndex} className="mb-3 rounded-[14px] border border-slate-200 bg-white p-3.5">
+              <View className="mb-2.5 flex-row items-start justify-between">
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.standaloneNameTitle}>{item.serviceName}</Text>
-                  <Text style={styles.unitText}>Đơn vị: {item.unit || 'gói'}</Text>
+                  <Text className="text-[15px] font-bold text-slate-900">{item.serviceName}</Text>
+                  <Text className="mt-0.5 text-xs text-slate-500">Đơn vị: {item.unit || 'gói'}</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => handleDeleteStandaloneItem(item.originalIndex)}
@@ -857,19 +842,19 @@ export default function QuotationCreateEditScreen() {
               </View>
 
               {/* Quantity Stepper */}
-              <View style={styles.rowItem}>
-                <Text style={styles.itemLabel}>Số lượng:</Text>
-                <View style={styles.stepperContainer}>
+              <View className="flex-row items-center justify-between border-t border-slate-100 py-2">
+                <Text className="text-[13px] font-semibold text-slate-600">Số lượng:</Text>
+                <View className="flex-row items-center rounded-lg border border-slate-300 bg-slate-50">
                   <TouchableOpacity
-                    style={styles.stepperBtn}
+                    className="px-3 py-1.5"
                     onPress={() => handleStandaloneQuantityChange(item.originalIndex, -1)}
                     activeOpacity={0.7}
                   >
                     <Feather name="minus" size={16} color="#334155" />
                   </TouchableOpacity>
-                  <Text style={styles.stepperValue}>{formatNumber(item.quantity)}</Text>
+                  <Text className="min-w-7 text-center text-sm font-bold text-slate-900">{formatNumber(item.quantity)}</Text>
                   <TouchableOpacity
-                    style={styles.stepperBtn}
+                    className="px-3 py-1.5"
                     onPress={() => handleStandaloneQuantityChange(item.originalIndex, 1)}
                     activeOpacity={0.7}
                   >
@@ -879,11 +864,11 @@ export default function QuotationCreateEditScreen() {
               </View>
 
               {/* Price input */}
-              <View style={styles.rowItem}>
-                <Text style={styles.itemLabel}>Đơn giá (VNĐ):</Text>
+              <View className="flex-row items-center justify-between border-t border-slate-100 py-2">
+                <Text className="text-[13px] font-semibold text-slate-600">Đơn giá (VNĐ):</Text>
                 {priceType === 'custom' ? (
                   <TextInput
-                    style={styles.priceInput}
+                    className="min-w-[130px] rounded-lg border border-emerald-600 bg-emerald-50 px-2.5 py-1.5 text-right text-sm font-bold text-slate-900"
                     keyboardType="numeric"
                     value={formatNumberInput(item.customPrice)}
                     onChangeText={(val) =>
@@ -891,25 +876,24 @@ export default function QuotationCreateEditScreen() {
                     }
                   />
                 ) : (
-                  <Text style={styles.fixedPriceText}>
+                  <Text className="text-sm font-bold text-slate-900">
                     {formatNumber(item.selectedPrice)} ₫
                   </Text>
                 )}
               </View>
 
               {/* Standalone Financial info */}
-              <View style={styles.standaloneSummaryRow}>
-                <Text style={styles.costNoteText}>
+              <View className="mt-1 flex-row items-center justify-between border-t border-slate-100 pt-2">
+                <Text className="text-[11px] text-slate-400">
                   Giá vốn: {formatNumber(item.costPrice)} ₫
                 </Text>
-                <Text style={styles.packageTotalText}>
+                <Text className="text-[13px] font-bold text-blue-600">
                   Thành tiền: {formatNumber(item.selectedPrice * item.quantity)} ₫
                 </Text>
                 <Text
-                  style={[
-                    styles.marginBadgeSmall,
-                    item.profitMargin >= 20 ? styles.marginGood : styles.marginWarning,
-                  ]}
+                  className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                    item.profitMargin >= 20 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                  }`}
                 >
                   Margin: {item.profitMargin.toFixed(0)}%
                 </Text>
@@ -918,31 +902,31 @@ export default function QuotationCreateEditScreen() {
           ))}
 
           {/* Action Buttons to Add Service / Package */}
-          <View style={styles.addButtonsRow}>
+          <View className="mb-3.5 flex-row gap-2.5">
             <TouchableOpacity
-              style={styles.addServiceBtn}
+              className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-emerald-200 bg-emerald-50 py-3"
               onPress={() => setShowAddServiceModal(true)}
               activeOpacity={0.8}
             >
               <Feather name="plus-circle" size={16} color="#059669" />
-              <Text style={styles.addServiceText}>Thêm dịch vụ lẻ</Text>
+              <Text className="text-[13px] font-bold text-emerald-600">Thêm dịch vụ lẻ</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.addPackageBtn}
+              className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[10px] border border-blue-200 bg-blue-50 py-3"
               onPress={() => setShowAddPackageModal(true)}
               activeOpacity={0.8}
             >
               <Feather name="package" size={16} color="#2563EB" />
-              <Text style={styles.addPackageText}>Thêm gói dịch vụ</Text>
+              <Text className="text-[13px] font-bold text-blue-600">Thêm gói dịch vụ</Text>
             </TouchableOpacity>
           </View>
 
           {/* Notes Section */}
-          <View style={styles.card}>
-            <Text style={styles.notesSectionTitle}>Ghi chú báo giá:</Text>
+          <View className="mb-3 rounded-[14px] border border-slate-200 bg-white p-3.5">
+            <Text className="mb-2 text-sm font-bold text-slate-800">Ghi chú báo giá:</Text>
             <TextInput
-              style={styles.notesInput}
+              className="min-h-[70px] rounded-[10px] border border-slate-300 bg-slate-50 p-2.5 text-[13px] text-slate-900"
               placeholder="Nhập ghi chú cho bản báo giá này (điều kiện thanh toán, bảo hành...)..."
               placeholderTextColor="#94A3B8"
               multiline
@@ -953,38 +937,40 @@ export default function QuotationCreateEditScreen() {
             />
           </View>
 
-          <View style={{ height: 120 }} />
+          <View className="h-[120px]" />
         </ScrollView>
 
         {/* Sticky Bottom Financial Summary Bar */}
-        <View style={styles.bottomSummaryBar}>
-          <View style={styles.summaryTopRow}>
+        <View className="absolute inset-x-0 bottom-0 border-t border-slate-200 bg-white px-4 pb-4 pt-2.5 shadow-lg">
+          <View className="mb-2 flex-row items-center justify-between">
             <View>
-              <Text style={styles.summarySubLabel}>
-                Tổng trước thuế: <Text style={{ fontWeight: '700' }}>{formatNumber(totals.revenue)} ₫</Text>
+              <Text className="text-[11px] text-slate-500">
+                Tổng trước thuế: <Text className="font-bold">{formatNumber(totals.revenue)} ₫</Text>
               </Text>
-              <Text style={styles.summarySubLabel}>
-                Thuế VAT (8%): <Text style={{ fontWeight: '700' }}>{formatNumber(totals.vat)} ₫</Text>
+              <Text className="text-[11px] text-slate-500">
+                Thuế VAT (8%): <Text className="font-bold">{formatNumber(totals.vat)} ₫</Text>
               </Text>
             </View>
 
-            <View style={styles.marginTag}>
-              <Text style={styles.marginTagText}>
+            <View className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-[3px]">
+              <Text className="text-xs font-extrabold text-emerald-800">
                 Margin: {totals.margin.toFixed(0)}%
               </Text>
             </View>
           </View>
 
-          <View style={styles.summaryBottomRow}>
+          <View className="flex-row items-center justify-between">
             <View>
-              <Text style={styles.summaryTotalLabel}>Tổng thanh toán:</Text>
-              <Text style={styles.summaryTotalValue}>
+              <Text className="text-xs font-semibold text-slate-500">Tổng thanh toán:</Text>
+              <Text className="text-lg font-extrabold text-emerald-600">
                 {formatNumber(totals.totalWithVat)} ₫
               </Text>
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+              className={`flex-row items-center gap-1.5 rounded-[10px] bg-emerald-600 px-[18px] py-[11px] ${
+                isSubmitting ? 'opacity-60' : ''
+              }`}
               onPress={handleSubmit}
               disabled={isSubmitting}
               activeOpacity={0.85}
@@ -994,7 +980,7 @@ export default function QuotationCreateEditScreen() {
               ) : (
                 <>
                   <Feather name="check" size={18} color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>
+                  <Text className="text-sm font-bold text-white">
                     {isEditMode ? 'Cập nhật báo giá' : 'Lưu báo giá'}
                   </Text>
                 </>
@@ -1011,10 +997,10 @@ export default function QuotationCreateEditScreen() {
         transparent
         onRequestClose={() => setShowAddServiceModal(false)}
       >
-        <View style={styles.pickerModalBackdrop}>
-          <View style={styles.pickerModalContent}>
-            <View style={styles.pickerModalHeader}>
-              <Text style={styles.pickerModalTitle}>Chọn dịch vụ lẻ thêm vào</Text>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="max-h-[80%] rounded-t-[20px] bg-white p-4">
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="text-base font-bold text-slate-900">Chọn dịch vụ lẻ thêm vào</Text>
               <TouchableOpacity
                 onPress={() => setShowAddServiceModal(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1024,10 +1010,10 @@ export default function QuotationCreateEditScreen() {
             </View>
 
             {/* Search Box */}
-            <View style={styles.searchBox}>
+            <View className="mb-3 flex-row items-center gap-2 rounded-[10px] bg-slate-100 px-3 py-2">
               <Feather name="search" size={16} color="#94A3B8" />
               <TextInput
-                style={styles.searchInput}
+                className="flex-1 p-0 text-sm text-slate-900"
                 placeholder="Tìm kiếm dịch vụ..."
                 placeholderTextColor="#94A3B8"
                 value={serviceSearch}
@@ -1040,13 +1026,13 @@ export default function QuotationCreateEditScreen() {
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.pickerItemRow}
+                  className="flex-row items-center justify-between border-b border-slate-100 py-3"
                   onPress={() => handleSelectServiceToAdd(item)}
                   activeOpacity={0.7}
                 >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.pickerItemName}>{item.name}</Text>
-                    <Text style={styles.pickerItemSub}>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-slate-900">{item.name}</Text>
+                    <Text className="mt-0.5 text-xs text-slate-500">
                       Đơn vị: {item.unit || 'gói'} | Giá vốn:{' '}
                       {formatNumber(item.costPrice || 0)} ₫
                     </Text>
@@ -1055,8 +1041,8 @@ export default function QuotationCreateEditScreen() {
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <View style={styles.pickerEmpty}>
-                  <Text style={styles.pickerEmptyText}>Không có dịch vụ phù hợp</Text>
+                <View className="items-center justify-center py-8">
+                  <Text className="text-[13px] text-slate-400">Không có dịch vụ phù hợp</Text>
                 </View>
               }
             />
@@ -1071,10 +1057,10 @@ export default function QuotationCreateEditScreen() {
         transparent
         onRequestClose={() => setShowAddPackageModal(false)}
       >
-        <View style={styles.pickerModalBackdrop}>
-          <View style={styles.pickerModalContent}>
-            <View style={styles.pickerModalHeader}>
-              <Text style={styles.pickerModalTitle}>Chọn gói mẫu thêm vào</Text>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="max-h-[80%] rounded-t-[20px] bg-white p-4">
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="text-base font-bold text-slate-900">Chọn gói mẫu thêm vào</Text>
               <TouchableOpacity
                 onPress={() => setShowAddPackageModal(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1084,10 +1070,10 @@ export default function QuotationCreateEditScreen() {
             </View>
 
             {/* Search Box */}
-            <View style={styles.searchBox}>
+            <View className="mb-3 flex-row items-center gap-2 rounded-[10px] bg-slate-100 px-3 py-2">
               <Feather name="search" size={16} color="#94A3B8" />
               <TextInput
-                style={styles.searchInput}
+                className="flex-1 p-0 text-sm text-slate-900"
                 placeholder="Tìm kiếm gói dịch vụ..."
                 placeholderTextColor="#94A3B8"
                 value={packageSearch}
@@ -1100,13 +1086,13 @@ export default function QuotationCreateEditScreen() {
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.pickerItemRow}
+                  className="flex-row items-center justify-between border-b border-slate-100 py-3"
                   onPress={() => handleSelectPackageToAdd(item)}
                   activeOpacity={0.7}
                 >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.pickerItemName}>{item.name}</Text>
-                    <Text style={styles.pickerItemSub}>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-slate-900">{item.name}</Text>
+                    <Text className="mt-0.5 text-xs text-slate-500">
                       Gồm {(item.items || []).length} dịch vụ con
                     </Text>
                   </View>
@@ -1114,8 +1100,8 @@ export default function QuotationCreateEditScreen() {
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <View style={styles.pickerEmpty}>
-                  <Text style={styles.pickerEmptyText}>Không có gói dịch vụ phù hợp</Text>
+                <View className="items-center justify-center py-8">
+                  <Text className="text-[13px] text-slate-400">Không có gói dịch vụ phù hợp</Text>
                 </View>
               }
             />
@@ -1125,548 +1111,3 @@ export default function QuotationCreateEditScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  backButton: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  headerTitleContainer: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: 16,
-  },
-  pricingModeSection: {
-    marginBottom: 16,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 4,
-    gap: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  segmentBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  segmentTextActive: {
-    fontWeight: '700',
-    color: '#059669',
-  },
-  segmentSubText: {
-    fontSize: 10,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  packageCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  packageTagRow: {
-    gap: 4,
-  },
-  packageBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  packageBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#2563EB',
-  },
-  packageNameTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  standaloneCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  standaloneNameTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  unitText: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  rowItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  itemLabel: {
-    fontSize: 13,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  stepperContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-  },
-  stepperBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  stepperValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    minWidth: 28,
-    textAlign: 'center',
-  },
-  priceInput: {
-    borderWidth: 1,
-    borderColor: '#059669',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    backgroundColor: '#F0FDF4',
-    minWidth: 130,
-    textAlign: 'right',
-  },
-  fixedPriceText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  packageSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  packageTotalText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  marginBadgeSmall: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  marginGood: {
-    backgroundColor: '#DCFCE7',
-    color: '#15803D',
-  },
-  marginWarning: {
-    backgroundColor: '#FEF3C7',
-    color: '#B45309',
-  },
-  toggleSubItemsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    marginTop: 6,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-  },
-  toggleSubItemsText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  subItemsContainer: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    gap: 6,
-  },
-  subItemBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 6,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  subItemTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  subItemDesc: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  subItemPriceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  subItemCostText: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  subItemPriceText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  lockedTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  lockedTagText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  autoSumHintText: {
-    fontSize: 11,
-    color: '#059669',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  subItemHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  subItemInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  subItemInputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  subItemPriceInput: {
-    width: 140,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#059669',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    textAlign: 'right',
-  },
-  standaloneSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  costNoteText: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  addButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
-  },
-  addServiceBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  addServiceText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  addPackageBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  addPackageText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  notesSectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 8,
-  },
-  notesInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    padding: 10,
-    fontSize: 13,
-    color: '#0F172A',
-    minHeight: 70,
-  },
-  bottomSummaryBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  summaryTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  summarySubLabel: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  marginTag: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  marginTagText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#065F46',
-  },
-  summaryBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryTotalLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  summaryTotalValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#059669',
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 10,
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  submitBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  pickerModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  pickerModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    maxHeight: '80%',
-  },
-  pickerModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  pickerModalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
-    padding: 0,
-  },
-  pickerItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  pickerItemName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  pickerItemSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  pickerEmpty: {
-    paddingVertical: 30,
-    alignItems: 'center',
-  },
-  pickerEmptyText: {
-    fontSize: 14,
-    color: '#94A3B8',
-  },
-});

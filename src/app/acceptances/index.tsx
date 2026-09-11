@@ -214,6 +214,7 @@ export default function AcceptancesScreen() {
           data={filteredRequests}
           keyExtractor={(item) => item.id}
           renderItem={renderAcceptanceCard}
+          contentContainerClassName="p-4 pb-24 gap-3"
           contentContainerStyle={{ padding: 16, paddingBottom: 90, gap: 12 }}
           showsVerticalScrollIndicator={false}
           refreshControl={

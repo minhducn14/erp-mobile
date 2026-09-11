@@ -221,6 +221,7 @@ export default function QuotationsListScreen() {
           data={quotations}
           keyExtractor={(item) => item.id}
           renderItem={renderQuotationItem}
+          contentContainerClassName="p-4 pb-8"
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           refreshControl={
             <RefreshControl

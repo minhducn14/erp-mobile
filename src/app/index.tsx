@@ -175,6 +175,7 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView
+        contentContainerClassName="px-4 pt-4 pb-6"
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -187,7 +188,7 @@ export default function HomeScreen() {
         }
       >
         {/* Quick Search Bar */}
-        <View className="flex-row items-center bg-surface rounded-xl border border-border px-3.5 h-11.5 mb-4 shadow-xs">
+        <View className="flex-row items-center bg-surface rounded-xl border border-border px-3.5 h-11 mb-4 shadow-xs">
           <Feather name="search" size={18} color="#94A3B8" />
           <TextInput
             className="flex-1 ml-2.5 text-sm text-text-primary"
