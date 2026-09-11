@@ -22,6 +22,7 @@ import { teamService } from '@/services/teamService';
 import ProjectOverviewTab from '@/components/projects/ProjectOverviewTab';
 import ProjectTasksTab from '@/components/projects/ProjectTasksTab';
 import ProjectAcceptanceTab from '@/components/projects/ProjectAcceptanceTab';
+import { ProductDescriptionSection } from '@/components/projects/ProductDescriptionSection';
 
 import AssignPmModal from '@/components/projects/AssignPmModal';
 import TaskUpdateModal from '@/components/projects/TaskUpdateModal';
@@ -40,7 +41,7 @@ import {
 import { useTasksByProjectQuery } from '@/hooks/queries/useTasks';
 import { useAcceptancesQuery } from '@/hooks/queries/useAcceptances';
 
-type TabKey = 'OVERVIEW' | 'TASKS' | 'ACCEPTANCE';
+type TabKey = 'OVERVIEW' | 'PRODUCT_DESC' | 'TASKS' | 'ACCEPTANCE';
 
 export default function ProjectDetailScreen() {
   const router = useRouter();
@@ -275,14 +276,24 @@ export default function ProjectDetailScreen() {
       </View>
 
       {/* Tab Switcher */}
-      <View className="flex-row bg-white border-b border-slate-200 px-2">
+      <View className="flex-row bg-white border-b border-slate-200 px-1">
         <TouchableOpacity
           className={`flex-1 items-center py-3 border-b-2 ${activeTab === 'OVERVIEW' ? 'border-primary' : 'border-transparent'}`}
           onPress={() => setActiveTab('OVERVIEW')}
           activeOpacity={0.7}
         >
-          <Text className={`text-[13px] ${activeTab === 'OVERVIEW' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
+          <Text className={`text-[12px] sm:text-[13px] ${activeTab === 'OVERVIEW' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
             Tổng quan
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          className={`flex-1 items-center py-3 border-b-2 ${activeTab === 'PRODUCT_DESC' ? 'border-primary' : 'border-transparent'}`}
+          onPress={() => setActiveTab('PRODUCT_DESC')}
+          activeOpacity={0.7}
+        >
+          <Text className={`text-[12px] sm:text-[13px] ${activeTab === 'PRODUCT_DESC' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
+            Thông tin chuẩn
           </Text>
         </TouchableOpacity>
 
@@ -291,7 +302,7 @@ export default function ProjectDetailScreen() {
           onPress={() => setActiveTab('TASKS')}
           activeOpacity={0.7}
         >
-          <Text className={`text-[13px] ${activeTab === 'TASKS' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
+          <Text className={`text-[12px] sm:text-[13px] ${activeTab === 'TASKS' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
             Công việc ({tasks.length})
           </Text>
         </TouchableOpacity>
@@ -301,7 +312,7 @@ export default function ProjectDetailScreen() {
           onPress={() => setActiveTab('ACCEPTANCE')}
           activeOpacity={0.7}
         >
-          <Text className={`text-[13px] ${activeTab === 'ACCEPTANCE' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
+          <Text className={`text-[12px] sm:text-[13px] ${activeTab === 'ACCEPTANCE' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
             Nghiệm thu ({acceptances.length})
           </Text>
         </TouchableOpacity>
@@ -339,6 +350,17 @@ export default function ProjectDetailScreen() {
             canManageTeam={canManageTeam}
           />
         )}
+
+        {activeTab === 'PRODUCT_DESC' && project && (
+          <View className="p-4">
+            <ProductDescriptionSection
+              projectId={project.id}
+              user={user}
+              project={project}
+            />
+          </View>
+        )}
+
 
         {activeTab === 'TASKS' && (
           <ProjectTasksTab

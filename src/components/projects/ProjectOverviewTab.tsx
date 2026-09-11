@@ -4,9 +4,9 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ProjectDetailItem } from '@/services/projectService';
 import { TEAM_MEMBER_ROLE_LABELS, USER_ROLE } from '@/services/teamService';
-import { ProductDescriptionSection } from './ProductDescriptionSection';
 import { BrandColors } from '@/constants/colors';
 import { formatNumber } from '@/utils/formatters';
+
 
 interface ProjectOverviewTabProps {
   project: ProjectDetailItem;
@@ -193,11 +193,6 @@ export default function ProjectOverviewTab({
         </View>
       </View>
 
-      <ProductDescriptionSection
-        projectId={project.id}
-        user={user}
-        project={project}
-      />
 
       {/* Task Progress Stat Card */}
       <View className="bg-surface rounded-2xl p-4 border border-border gap-3">

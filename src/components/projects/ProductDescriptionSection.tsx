@@ -8,6 +8,7 @@ import {
   Alert,
   Linking,
   Modal,
+  ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -21,6 +22,7 @@ import { isValidUrl, normalizeUrl } from '@/utils/validators';
 import {
   useProductDescriptionsQuery,
   useCreateProductDescriptionMutation,
+  useUpdateProductDescriptionMutation,
   useSubmitProductDescriptionMutation,
   useApproveProductDescriptionMutation,
   useRejectProductDescriptionMutation,
@@ -40,7 +42,21 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
   REJECTED: { bg: '#FFE4E6', text: '#BE123C', border: '#FECDD3' },
 };
 
+const MAIN_STATUSES = ['APPROVED', 'PENDING_REVIEW', 'DRAFT'];
+
+const formatDateTime = (value?: string) => {
+  if (!value) return 'Chưa có';
+  return new Date(value).toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 interface FormProductItem {
+  id?: string | null;
   productName: string;
   sourceType: 'LINK' | 'FILE';
   link: string;
@@ -49,6 +65,7 @@ interface FormProductItem {
 }
 
 const emptyProduct = (): FormProductItem => ({
+  id: null,
   productName: '',
   sourceType: 'LINK',
   link: '',
@@ -57,6 +74,7 @@ const emptyProduct = (): FormProductItem => ({
 });
 
 const toEditableProduct = (item: ProductDescriptionItem): FormProductItem => ({
+  id: item.id || null,
   productName: item.productName || '',
   sourceType: item.sourceType || 'LINK',
   link: item.sourceType === 'LINK' ? item.sourceUrl || '' : '',
@@ -71,6 +89,139 @@ const toEditableProduct = (item: ProductDescriptionItem): FormProductItem => ({
         }
       : null,
 });
+
+interface ProductDescriptionHistoryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  submissions: ProductDescriptionSubmission[];
+  canEditSubmission: boolean;
+  onEdit: (submission: ProductDescriptionSubmission) => void;
+  onOpenSourceLink: (url?: string) => void;
+}
+
+const ProductDescriptionHistoryModal: React.FC<ProductDescriptionHistoryModalProps> = ({
+  isOpen,
+  onClose,
+  submissions,
+  canEditSubmission,
+  onEdit,
+  onOpenSourceLink,
+}) => {
+  const sortedSubmissions = useMemo(() => {
+    return [...submissions]
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }, [submissions]);
+
+  return (
+    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-slate-900/65 justify-end sm:justify-center items-center p-0 sm:p-4">
+        <View className="w-full max-w-[500px] h-[80%] bg-surface rounded-t-3xl sm:rounded-2xl p-4 gap-3 shadow-lg flex-col">
+          <View className="flex-row items-center justify-between border-b border-border pb-3">
+            <View className="flex-row items-center gap-2">
+              <Feather name="clock" size={18} color={BrandColors.primary} />
+              <Text className="text-base font-bold text-text-primary">Lịch sử mô tả sản phẩm</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={20} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <View className="gap-3 py-1">
+              {sortedSubmissions.length > 0 ? (
+                sortedSubmissions.map((sub) => {
+                  const statusConfig = STATUS_COLORS[sub.status] || STATUS_COLORS.DRAFT;
+                  return (
+                    <View key={sub.id} className="bg-background rounded-xl p-3.5 border border-border gap-2.5">
+                      <View className="flex-row justify-between items-start">
+                        <View className="flex-1">
+                          <View className="flex-row items-center gap-2 flex-wrap">
+                            <Text className="text-sm font-bold text-text-primary">
+                              {sub.versionNumber ? `Version ${sub.versionNumber}` : 'Bản gửi'}
+                            </Text>
+                            <View
+                              className="px-2 py-0.5 rounded-md border"
+                              style={{ backgroundColor: statusConfig.bg, borderColor: statusConfig.border }}
+                            >
+                              <Text className="text-[11px] font-bold" style={{ color: statusConfig.text }}>
+                                {STATUS_LABELS[sub.status] || sub.status}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View className="mt-2 gap-1">
+                            <Text className="text-[11px] text-text-secondary">
+                              Người tạo: <Text className="font-bold text-text-primary">{sub.createdBy?.fullName || 'Không xác định'}</Text>
+                            </Text>
+                            <Text className="text-[11px] text-text-secondary">
+                              Thời điểm tạo: <Text className="font-bold text-text-primary">{formatDateTime(sub.createdAt)}</Text>
+                            </Text>
+                            <Text className="text-[11px] text-text-secondary">
+                              Người duyệt: <Text className="font-bold text-text-primary">{sub.reviewedBy?.fullName || 'Chưa có'}</Text>
+                            </Text>
+                            <Text className="text-[11px] text-text-secondary">
+                              Thời điểm duyệt: <Text className="font-bold text-text-primary">{formatDateTime(sub.reviewedAt)}</Text>
+                            </Text>
+                          </View>
+
+                          {sub.reviewNote ? (
+                            <Text className="text-xs italic text-rose-600 mt-1.5">Lý do từ chối: {sub.reviewNote}</Text>
+                          ) : null}
+                        </View>
+
+                        {canEditSubmission && sub.status === 'REJECTED' && (
+                          <TouchableOpacity
+                            className="flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50"
+                            onPress={() => {
+                              onClose();
+                              onEdit(sub);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Feather name="edit-3" size={13} color="#2563EB" />
+                            <Text className="text-xs font-bold text-blue-600">Sửa</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {/* Items */}
+                      <View className="gap-1.5 mt-1">
+                        {sub.items?.map((item) => (
+                          <View key={item.id} className="bg-surface px-3 py-2 rounded-lg border border-border gap-1">
+                            <Text className="text-xs font-bold text-text-primary">{item.productName}</Text>
+                            <TouchableOpacity
+                              className="flex-row items-center gap-1.5 self-start bg-blue-50 px-2 py-1 rounded-md max-w-full"
+                              onPress={() => onOpenSourceLink(item.sourceUrl)}
+                              activeOpacity={0.7}
+                            >
+                              <Feather
+                                name={item.sourceType === 'LINK' ? 'link-2' : 'paperclip'}
+                                size={12}
+                                color="#2563EB"
+                              />
+                              <Text className="text-[11px] font-semibold text-blue-600 shrink" numberOfLines={1}>
+                                {item.sourceName || item.sourceUrl}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
+                <View className="py-8 items-center justify-center border border-dashed border-slate-300 rounded-xl">
+                  <Text className="text-xs text-text-muted italic">Chưa có lịch sử mô tả sản phẩm</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 interface ProductDescriptionSectionProps {
   projectId: string;
@@ -90,6 +241,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
   }, [submissionsRes]);
 
   const createSubmissionMutation = useCreateProductDescriptionMutation();
+  const updateSubmissionMutation = useUpdateProductDescriptionMutation();
   const submitSubmissionMutation = useSubmitProductDescriptionMutation();
   const approveSubmissionMutation = useApproveProductDescriptionMutation();
   const rejectSubmissionMutation = useRejectProductDescriptionMutation();
@@ -101,6 +253,8 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
 
   const [products, setProducts] = useState<FormProductItem[]>([emptyProduct()]);
   const [loadedSubmissionId, setLoadedSubmissionId] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Reject Modal State
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
@@ -111,11 +265,13 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
     refetchSubmissions();
   };
 
-  const editableSubmission = useMemo(() => {
-    return submissions.find(
-      (sub) => sub.status === 'DRAFT' && sub.createdBy?.id === user?.id
-    );
-  }, [submissions, user?.id]);
+  const activeSubmission = useMemo(() => {
+    return submissions.find((sub) => sub.id === loadedSubmissionId) || null;
+  }, [loadedSubmissionId, submissions]);
+
+  const visibleSubmissions = useMemo(() => {
+    return submissions.filter((sub) => sub.status && MAIN_STATUSES.includes(sub.status));
+  }, [submissions]);
 
   const hasPendingSubmission = submissions.some((sub) => sub.status === 'PENDING_REVIEW');
   const isAssignedPm =
@@ -126,19 +282,16 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
     );
   const isProjectLead = project?.team?.teamLead?.id === user?.id;
   const canManageSubmission = user?.role === 'BD' || isAssignedPm || isProjectLead;
-  const canEdit = canManageSubmission && !hasPendingSubmission;
+  const canEdit = canManageSubmission && isFormOpen && !hasPendingSubmission;
   const canReview = Boolean(isAssignedPm);
 
   useEffect(() => {
-    if (editableSubmission && editableSubmission.id !== loadedSubmissionId) {
-      setProducts(
-        editableSubmission.items?.length
-          ? editableSubmission.items.map(toEditableProduct)
-          : [emptyProduct()]
-      );
-      setLoadedSubmissionId(editableSubmission.id);
+    if (loadedSubmissionId && !activeSubmission) {
+      setProducts([emptyProduct()]);
+      setLoadedSubmissionId(null);
+      setIsFormOpen(false);
     }
-  }, [editableSubmission, loadedSubmissionId]);
+  }, [activeSubmission, loadedSubmissionId]);
 
   const updateProduct = (index: number, patch: Partial<FormProductItem>) => {
     setProducts((prev) => prev.map((item, idx) => (idx === index ? { ...item, ...patch } : item)));
@@ -245,21 +398,36 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
         };
       }
 
-      normalized.push({ productName, ...source });
+      if (!source?.sourceUrl) {
+        throw new Error(`Vui lòng chọn file hoặc nhập link cho sản phẩm ${productName}`);
+      }
+
+      normalized.push({ id: product.id, productName, ...source });
     }
 
     return { items: normalized };
   };
 
-  const handleCopySubmissionToForm = (sub: ProductDescriptionSubmission) => {
-    if (!sub.items?.length) return;
-    setProducts(sub.items.map(toEditableProduct));
-    Alert.alert('Đã tải dữ liệu', `Đã điền thông tin từ bản ${sub.versionNumber ? 'Version ' + sub.versionNumber : 'gửi'} vào form. Bạn có thể chỉnh sửa và nhấn Gửi duyệt để tạo bản mới.`);
+  const openCreateForm = () => {
+    setProducts([emptyProduct()]);
+    setLoadedSubmissionId(null);
+    setUploadProgress({});
+    setIsFormOpen(true);
   };
 
-  const resetForm = () => {
-    setProducts([emptyProduct()]);
+  const openEditForm = (submission: ProductDescriptionSubmission) => {
+    const editableItems = Array.isArray(submission.items) ? submission.items : [];
+    setProducts(editableItems.length ? editableItems.map(toEditableProduct) : [emptyProduct()]);
+    setLoadedSubmissionId(submission.id);
     setUploadProgress({});
+    setIsFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setProducts([emptyProduct()]);
+    setLoadedSubmissionId(null);
+    setUploadProgress({});
+    setIsFormOpen(false);
   };
 
   const saveDraft = async () => {
@@ -268,9 +436,23 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
       setUploadProgress({});
       const payload = await buildPayload();
 
-      await createSubmissionMutation.mutateAsync({ projectId, payload });
-      Alert.alert('Thành công', 'Đã tạo bản mô tả sản phẩm mới (DRAFT)');
-      resetForm();
+      if (activeSubmission?.status === 'REJECTED') {
+        const created = await createSubmissionMutation.mutateAsync({ projectId, payload });
+        setLoadedSubmissionId(created?.id || null);
+        Alert.alert('Thành công', 'Đã tạo bản nháp mới từ bản không duyệt');
+      } else if (activeSubmission) {
+        await updateSubmissionMutation.mutateAsync({
+          projectId,
+          submissionId: activeSubmission.id,
+          payload,
+        });
+        Alert.alert('Thành công', 'Đã cập nhật bản mô tả sản phẩm');
+      } else {
+        const created = await createSubmissionMutation.mutateAsync({ projectId, payload });
+        setLoadedSubmissionId(created?.id || null);
+        Alert.alert('Thành công', 'Đã tạo bản mô tả sản phẩm mới (DRAFT)');
+      }
+      closeForm();
       loadSubmissions();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi lưu bản mô tả sản phẩm');
@@ -286,14 +468,29 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
       setUploadProgress({});
       const payload = await buildPayload();
 
-      const createRes = await createSubmissionMutation.mutateAsync({ projectId, payload });
-      const savedId = createRes?.id;
-
-      if (savedId) {
-        await submitSubmissionMutation.mutateAsync({ projectId, submissionId: savedId });
-        Alert.alert('Thành công', 'Đã tạo bản mới và gửi PM duyệt thông tin chuẩn sản phẩm');
+      if (activeSubmission?.status === 'REJECTED') {
+        const saved = await createSubmissionMutation.mutateAsync({ projectId, payload });
+        if (saved?.id) {
+          await submitSubmissionMutation.mutateAsync({ projectId, submissionId: saved.id });
+        }
+      } else if (activeSubmission) {
+        await updateSubmissionMutation.mutateAsync({
+          projectId,
+          submissionId: activeSubmission.id,
+          payload,
+        });
+        await submitSubmissionMutation.mutateAsync({
+          projectId,
+          submissionId: activeSubmission.id,
+        });
+      } else {
+        const saved = await createSubmissionMutation.mutateAsync({ projectId, payload });
+        if (saved?.id) {
+          await submitSubmissionMutation.mutateAsync({ projectId, submissionId: saved.id });
+        }
       }
-      resetForm();
+      Alert.alert('Thành công', 'Đã gửi PM duyệt thông tin chuẩn sản phẩm');
+      closeForm();
       loadSubmissions();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi gửi duyệt');
@@ -363,19 +560,40 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
 
   return (
     <View className="bg-surface rounded-2xl p-4 border border-border gap-3.5">
-      {/* Title Header */}
-      <View className="flex-row justify-between items-center">
+      {/* Title Header & Actions */}
+      <View className="flex-row justify-between items-center flex-wrap gap-2">
         <View className="flex-row items-center gap-2">
           <Feather name="package" size={18} color="#059669" />
           <Text className="text-[15px] font-bold text-text-primary">Mô tả sản phẩm (Thông tin chuẩn)</Text>
         </View>
-        {isLoading && <ActivityIndicator size="small" color={BrandColors.primary} />}
+        <View className="flex-row items-center gap-2">
+          {isLoading && <ActivityIndicator size="small" color={BrandColors.primary} />}
+          <TouchableOpacity
+            className="flex-row items-center gap-1 bg-surface border border-slate-200 px-2.5 py-1.5 rounded-lg"
+            onPress={() => setIsHistoryOpen(true)}
+            activeOpacity={0.7}
+          >
+            <Feather name="clock" size={13} color="#475569" />
+            <Text className="text-xs font-bold text-slate-700">Lịch sử</Text>
+          </TouchableOpacity>
+
+          {canManageSubmission && !hasPendingSubmission && !isFormOpen && (
+            <TouchableOpacity
+              className="flex-row items-center gap-1 bg-blue-600 px-2.5 py-1.5 rounded-lg"
+              onPress={openCreateForm}
+              activeOpacity={0.8}
+            >
+              <Feather name="plus" size={14} color="#FFFFFF" />
+              <Text className="text-xs font-bold text-white">Tạo bản gửi</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
-      {/* Version History List */}
+      {/* Main Visible Versions List */}
       <View className="gap-3">
-        {submissions.length > 0 ? (
-          submissions.map((sub) => {
+        {visibleSubmissions.length > 0 ? (
+          visibleSubmissions.map((sub) => {
             const statusConfig = STATUS_COLORS[sub.status] || STATUS_COLORS.DRAFT;
             return (
               <View key={sub.id} className="bg-background rounded-xl p-3 border border-border gap-2.5">
@@ -428,14 +646,14 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
 
                 {/* Version Card Actions */}
                 <View className="flex-row justify-end gap-2 mt-1">
-                  {canManageSubmission && !hasPendingSubmission && (
+                  {canManageSubmission && !hasPendingSubmission && ['DRAFT', 'REJECTED'].includes(sub.status) && (
                     <TouchableOpacity
                       className="flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50"
-                      onPress={() => handleCopySubmissionToForm(sub)}
+                      onPress={() => openEditForm(sub)}
                       activeOpacity={0.7}
                     >
                       <Feather name="edit-3" size={13} color="#2563EB" />
-                      <Text className="text-xs font-semibold text-blue-600">Sửa / Tạo bản mới từ bản này</Text>
+                      <Text className="text-xs font-semibold text-blue-600">Sửa</Text>
                     </TouchableOpacity>
                   )}
 
@@ -473,169 +691,214 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
         )}
       </View>
 
-      {/* Edit / New Submission Form */}
-      {canManageSubmission && (
-        <View className="bg-background rounded-xl p-3 border border-border gap-2.5 mt-1">
-          <View className="flex-row justify-between items-start">
-            <View className="flex-1">
-              <Text className="text-xs font-bold text-text-primary">Tạo bản gửi mới</Text>
-              {hasPendingSubmission && (
-                <Text className="text-[11px] text-amber-600 mt-0.5">
-                  Đang có bản chờ PM duyệt, bạn có thể chỉnh tiếp sau khi PM phản hồi.
+      {/* Edit / New Submission Form Modal Popup */}
+      <Modal
+        visible={canManageSubmission && isFormOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closeForm}
+      >
+        <View className="flex-1 bg-slate-900/65 justify-end sm:justify-center items-center p-0 sm:p-4">
+          <View className="w-full max-w-[500px] h-[85%] bg-surface rounded-t-3xl sm:rounded-2xl p-4 gap-3 shadow-lg flex-col">
+            {/* Modal Form Header */}
+            <View className="flex-row items-center justify-between border-b border-border pb-3">
+              <View className="flex-1 pr-2">
+                <Text className="text-base font-bold text-text-primary">
+                  {activeSubmission?.status === 'REJECTED'
+                    ? 'Chỉnh sửa bản không duyệt'
+                    : activeSubmission
+                    ? 'Chỉnh sửa bản nháp'
+                    : 'Tạo bản gửi mới'}
                 </Text>
-              )}
-            </View>
-
-            <TouchableOpacity
-              className={`flex-row items-center gap-1 bg-surface border border-blue-200 px-2.5 py-[5px] rounded-lg ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
-              onPress={addProduct}
-              disabled={!canEdit || isWorking}
-              activeOpacity={0.7}
-            >
-              <Feather name="plus" size={14} color="#2563EB" />
-              <Text className="text-xs font-bold text-blue-600">Thêm sản phẩm</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Form Products List */}
-          <View className="gap-2.5">
-            {products.map((prod, idx) => (
-              <View key={idx} className="bg-surface rounded-xl p-2.5 border border-border gap-2">
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-xs font-bold text-text-secondary">Sản phẩm {idx + 1}</Text>
-                  {products.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => removeProduct(idx)}
-                      disabled={!canEdit || isWorking}
-                    >
-                      <Feather name="trash-2" size={16} color="#EF4444" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Product Name Input */}
-                <TextInput
-                  className="bg-background border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-text-primary"
-                  placeholder="Nhập tên sản phẩm"
-                  placeholderTextColor="#94A3B8"
-                  value={prod.productName}
-                  onChangeText={(val) => updateProduct(idx, { productName: val })}
-                  editable={canEdit && !isWorking}
-                />
-
-                {/* Source Type Selector */}
-                <View className="flex-row gap-2">
-                  <TouchableOpacity
-                    className={`flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-lg border bg-background ${prod.sourceType === 'LINK' ? 'border-blue-300 bg-blue-50' : 'border-border'}`}
-                    onPress={() =>
-                      updateProduct(idx, {
-                        sourceType: 'LINK',
-                        link: '',
-                        file: null,
-                        existingFile: null,
-                      })
-                    }
-                    disabled={!canEdit || isWorking}
-                  >
-                    <Feather
-                      name="link-2"
-                      size={13}
-                      color={prod.sourceType === 'LINK' ? '#2563EB' : '#64748B'}
-                    />
-                    <Text className={`text-xs ${prod.sourceType === 'LINK' ? 'text-blue-600 font-bold' : 'font-semibold text-text-secondary'}`}>
-                      Link tham khảo
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className={`flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-lg border bg-background ${prod.sourceType === 'FILE' ? 'border-blue-300 bg-blue-50' : 'border-border'}`}
-                    onPress={() =>
-                      updateProduct(idx, {
-                        sourceType: 'FILE',
-                        link: '',
-                        file: null,
-                        existingFile: null,
-                      })
-                    }
-                    disabled={!canEdit || isWorking}
-                  >
-                    <Feather
-                      name="paperclip"
-                      size={13}
-                      color={prod.sourceType === 'FILE' ? '#2563EB' : '#64748B'}
-                    />
-                    <Text className={`text-xs ${prod.sourceType === 'FILE' ? 'text-blue-600 font-bold' : 'font-semibold text-text-secondary'}`}>
-                      File đính kèm
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Source Input details */}
-                {prod.sourceType === 'LINK' ? (
-                  <TextInput
-                    className="bg-background border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-text-primary"
-                    placeholder="https://... (Nhập liên kết tài liệu)"
-                    placeholderTextColor="#94A3B8"
-                    value={prod.link}
-                    onChangeText={(val) => updateProduct(idx, { link: val })}
-                    autoCapitalize="none"
-                    editable={canEdit && !isWorking}
-                  />
-                ) : (
-                  <View className="flex-row items-center gap-2">
-                    <TouchableOpacity
-                      className="flex-row items-center gap-1 bg-slate-100 border border-slate-300 px-2.5 py-[7px] rounded-lg"
-                      onPress={() => handlePickFile(idx)}
-                      disabled={!canEdit || isWorking}
-                      activeOpacity={0.8}
-                    >
-                      <Feather name="upload" size={14} color="#475569" />
-                      <Text className="text-xs font-semibold text-slate-700">Chọn file</Text>
-                    </TouchableOpacity>
-
-                    <Text className="flex-1 text-xs text-text-secondary" numberOfLines={1}>
-                      {prod.file?.name || prod.existingFile?.name || 'Chưa chọn file'}
-                    </Text>
-
-                    {isUploading && uploadProgress[idx] !== undefined && (
-                      <Text className="text-[11px] font-bold text-blue-600">{uploadProgress[idx]}%</Text>
-                    )}
-                  </View>
+                {hasPendingSubmission && (
+                  <Text className="text-[11px] text-amber-600 font-medium mt-0.5">
+                    Đang có bản chờ PM duyệt, bạn có thể chỉnh tiếp sau khi PM phản hồi.
+                  </Text>
                 )}
               </View>
-            ))}
-          </View>
 
-          {/* Save / Submit Footer */}
-          <View className="flex-row justify-end gap-2 mt-1">
-            <TouchableOpacity
-              className={`flex-row items-center gap-1 px-3.5 py-2 rounded-lg border border-slate-300 bg-surface ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
-              onPress={saveDraft}
-              disabled={!canEdit || isWorking}
-              activeOpacity={0.8}
-            >
-              <Feather name="save" size={15} color="#334155" />
-              <Text className="text-xs font-semibold text-slate-700">Lưu nháp</Text>
-            </TouchableOpacity>
+              <View className="flex-row items-center gap-2">
+                <TouchableOpacity
+                  className={`flex-row items-center gap-1 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-lg ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
+                  onPress={addProduct}
+                  disabled={!canEdit || isWorking}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="plus" size={14} color="#2563EB" />
+                  <Text className="text-xs font-bold text-blue-600">Thêm SP</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              className={`flex-row items-center gap-1 px-3.5 py-2 rounded-lg bg-blue-600 ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
-              onPress={submitForReview}
-              disabled={!canEdit || isWorking}
-              activeOpacity={0.85}
-            >
-              {isWorking ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Feather name="send" size={15} color="#FFFFFF" />
-                  <Text className="text-xs font-bold text-white">Gửi PM duyệt</Text>
-                </>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={closeForm}
+                  disabled={isWorking}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="x" size={20} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Modal Form Body (Scrollable Products List) */}
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+              <View className="gap-3 py-1">
+                {products.map((prod, idx) => (
+                  <View key={idx} className="bg-background rounded-xl p-3 border border-border gap-2.5">
+                    <View className="flex-row justify-between items-center">
+                      <Text className="text-xs font-bold text-text-secondary">Sản phẩm {idx + 1}</Text>
+                      {products.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => removeProduct(idx)}
+                          disabled={!canEdit || isWorking}
+                        >
+                          <Feather name="trash-2" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Product Name Input */}
+                    <TextInput
+                      className="bg-surface border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-text-primary"
+                      placeholder="Nhập tên sản phẩm"
+                      placeholderTextColor="#94A3B8"
+                      value={prod.productName}
+                      onChangeText={(val) => updateProduct(idx, { productName: val })}
+                      editable={canEdit && !isWorking}
+                    />
+
+                    {/* Source Type Selector */}
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity
+                        className={`flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-lg border bg-surface ${prod.sourceType === 'LINK' ? 'border-blue-300 bg-blue-50' : 'border-border'}`}
+                        onPress={() =>
+                          updateProduct(idx, {
+                            sourceType: 'LINK',
+                            link: '',
+                            file: null,
+                            existingFile: null,
+                          })
+                        }
+                        disabled={!canEdit || isWorking}
+                      >
+                        <Feather
+                          name="link-2"
+                          size={13}
+                          color={prod.sourceType === 'LINK' ? '#2563EB' : '#64748B'}
+                        />
+                        <Text className={`text-xs ${prod.sourceType === 'LINK' ? 'text-blue-600 font-bold' : 'font-semibold text-text-secondary'}`}>
+                          Link tham khảo
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        className={`flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-lg border bg-surface ${prod.sourceType === 'FILE' ? 'border-blue-300 bg-blue-50' : 'border-border'}`}
+                        onPress={() =>
+                          updateProduct(idx, {
+                            sourceType: 'FILE',
+                            link: '',
+                            file: null,
+                            existingFile: null,
+                          })
+                        }
+                        disabled={!canEdit || isWorking}
+                      >
+                        <Feather
+                          name="paperclip"
+                          size={13}
+                          color={prod.sourceType === 'FILE' ? '#2563EB' : '#64748B'}
+                        />
+                        <Text className={`text-xs ${prod.sourceType === 'FILE' ? 'text-blue-600 font-bold' : 'font-semibold text-text-secondary'}`}>
+                          File đính kèm
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Source Input details */}
+                    {prod.sourceType === 'LINK' ? (
+                      <TextInput
+                        className="bg-surface border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-text-primary"
+                        placeholder="https://... (Nhập liên kết tài liệu)"
+                        placeholderTextColor="#94A3B8"
+                        value={prod.link}
+                        onChangeText={(val) => updateProduct(idx, { link: val })}
+                        autoCapitalize="none"
+                        editable={canEdit && !isWorking}
+                      />
+                    ) : (
+                      <View className="flex-row items-center gap-2">
+                        <TouchableOpacity
+                          className="flex-row items-center gap-1 bg-slate-100 border border-slate-300 px-2.5 py-[7px] rounded-lg"
+                          onPress={() => handlePickFile(idx)}
+                          disabled={!canEdit || isWorking}
+                          activeOpacity={0.8}
+                        >
+                          <Feather name="upload" size={14} color="#475569" />
+                          <Text className="text-xs font-semibold text-slate-700">Chọn file</Text>
+                        </TouchableOpacity>
+
+                        <Text className="flex-1 text-xs text-text-secondary" numberOfLines={1}>
+                          {prod.file?.name || prod.existingFile?.name || 'Chưa chọn file'}
+                        </Text>
+
+                        {isUploading && uploadProgress[idx] !== undefined && (
+                          <Text className="text-[11px] font-bold text-blue-600">{uploadProgress[idx]}%</Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+
+            {/* Modal Form Sticky Footer */}
+            <View className="flex-row justify-end items-center gap-2 border-t border-border pt-3">
+              <TouchableOpacity
+                className="px-3.5 py-2 rounded-lg bg-slate-100"
+                onPress={closeForm}
+                disabled={isWorking}
+                activeOpacity={0.8}
+              >
+                <Text className="text-xs font-semibold text-slate-600">Hủy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className={`flex-row items-center gap-1 px-3.5 py-2 rounded-lg border border-slate-300 bg-surface ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
+                onPress={saveDraft}
+                disabled={!canEdit || isWorking}
+                activeOpacity={0.8}
+              >
+                <Feather name="save" size={15} color="#334155" />
+                <Text className="text-xs font-semibold text-slate-700">Lưu nháp</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className={`flex-row items-center gap-1 px-3.5 py-2 rounded-lg bg-blue-600 ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
+                onPress={submitForReview}
+                disabled={!canEdit || isWorking}
+                activeOpacity={0.85}
+              >
+                {isWorking ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Feather name="send" size={15} color="#FFFFFF" />
+                    <Text className="text-xs font-bold text-white">Gửi PM duyệt</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      )}
+      </Modal>
+
+      {/* Modal Lịch sử mô tả sản phẩm */}
+      <ProductDescriptionHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        submissions={submissions}
+        canEditSubmission={canManageSubmission && !hasPendingSubmission}
+        onEdit={openEditForm}
+        onOpenSourceLink={handleOpenSourceLink}
+      />
 
       {/* Modal nhập lý do không duyệt */}
       <Modal
