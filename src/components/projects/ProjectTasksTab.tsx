@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -176,9 +175,9 @@ export default function ProjectTasksTab({
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="items-center gap-3 py-10">
         <ActivityIndicator size="large" color={BrandColors.primary} />
-        <Text style={styles.loadingText}>Đang tải danh sách công việc...</Text>
+        <Text className="text-[13px] text-slate-500">Đang tải danh sách công việc...</Text>
       </View>
     );
   }
@@ -195,11 +194,9 @@ export default function ProjectTasksTab({
     return (
       <TouchableOpacity
         key={item.id}
-        style={[
-          styles.taskCard,
-          isSelected && styles.taskCardSelected,
-          isSelectMode && !canAssign && { opacity: 0.55 },
-        ]}
+        className={`gap-2 rounded-xl border bg-white p-3 ${
+          isSelected ? 'border-primary bg-emerald-50' : 'border-slate-200'
+        } ${isSelectMode && !canAssign ? 'opacity-55' : ''}`}
         onPress={() => {
           if (isSelectMode) {
             if (canAssign) toggleSelectTask(item.id);
@@ -209,13 +206,13 @@ export default function ProjectTasksTab({
         }}
         activeOpacity={0.85}
       >
-        <View style={styles.cardHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-1.5">
             {isSelectMode && (
               <TouchableOpacity
                 disabled={!canAssign}
                 onPress={() => canAssign && toggleSelectTask(item.id)}
-                style={{ paddingRight: 2 }}
+                className="pr-0.5"
               >
                 <Feather
                   name={isSelected ? 'check-square' : canAssign ? 'square' : 'minus-square'}
@@ -225,60 +222,58 @@ export default function ProjectTasksTab({
               </TouchableOpacity>
             )}
             {item.code ? (
-              <View style={styles.codeBadge}>
-                <Text style={styles.codeBadgeText}>{item.code}</Text>
+              <View className="rounded bg-blue-50 px-1.5 py-0.5">
+                <Text className="text-[11px] font-bold text-primary">{item.code}</Text>
               </View>
             ) : null}
-            <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
-              <Text style={[styles.statusText, { color: statusInfo.color }]}>
+            <View className="rounded-md px-2 py-[3px]" style={{ backgroundColor: statusInfo.bg }}>
+              <Text className="text-[10px] font-bold" style={{ color: statusInfo.color }}>
                 {statusInfo.label}
               </Text>
             </View>
           </View>
 
           {item.isExtraTask && (
-            <View style={styles.extraTag}>
-              <Text style={styles.extraTagText}>Phát sinh</Text>
+            <View className="rounded bg-amber-100 px-1.5 py-0.5">
+              <Text className="text-[10px] font-bold text-amber-600">Phát sinh</Text>
             </View>
           )}
         </View>
 
-        <Text style={styles.taskName}>{item.name}</Text>
+        <Text className="text-[13px] font-bold text-slate-950">{item.name}</Text>
         {item.description ? (
-          <Text style={styles.taskDesc} numberOfLines={2}>
+          <Text className="text-xs leading-4 text-slate-500" numberOfLines={2}>
             {item.description}
           </Text>
         ) : null}
 
         {/* Assignee & Due Date */}
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
+        <View className="mt-0.5 flex-row items-center gap-4">
+          <View className="flex-row items-center gap-1">
             <Feather name="user" size={12} color={isUnassigned ? '#D97706' : '#64748B'} />
-            <Text style={[styles.metaText, isUnassigned && { color: '#D97706', fontWeight: '700' }]}>
+            <Text className={`text-[11px] ${isUnassigned ? 'font-bold text-amber-600' : 'text-slate-500'}`}>
               {item.assignee?.fullName || 'Chưa phân công'}
             </Text>
           </View>
           {item.dueDate && (
-            <View style={styles.metaItem}>
+            <View className="flex-row items-center gap-1">
               <Feather name="calendar" size={12} color="#64748B" />
-              <Text style={styles.metaText}>{item.dueDate}</Text>
+              <Text className="text-[11px] text-slate-500">{item.dueDate}</Text>
             </View>
           )}
         </View>
 
         {/* Progress Bar & Actions */}
-        <View style={styles.cardFooter}>
-          <View style={styles.progressBox}>
-            <View style={styles.progressLabelRow}>
-              <Text style={styles.progressLabel}>Tiến độ</Text>
-              <Text style={styles.progressVal}>{progress}%</Text>
+        <View className="mt-1.5 flex-row items-center justify-between gap-2.5 border-t border-slate-100 pt-2">
+          <View className="flex-1 gap-0.5">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-[10px] text-slate-400">Tiến độ</Text>
+              <Text className="text-[10px] font-bold text-slate-600">{progress}%</Text>
             </View>
-            <View style={styles.progressBarBg}>
+            <View className="h-1 overflow-hidden rounded-sm bg-slate-100">
               <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${Math.min(100, Math.max(0, progress))}%` },
-                ]}
+                className="h-full rounded-sm bg-primary"
+                style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
               />
             </View>
           </View>
@@ -286,7 +281,7 @@ export default function ProjectTasksTab({
           {!isPendingConfirmation && isPmOrAdmin && (
             isUnassigned ? (
               <TouchableOpacity
-                style={styles.assignBtn}
+                className="flex-row items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5"
                 onPress={() => {
                   if (selectedTaskIds.includes(item.id)) {
                     toggleSelectTask(item.id);
@@ -296,11 +291,11 @@ export default function ProjectTasksTab({
                 activeOpacity={0.7}
               >
                 <Feather name="user-plus" size={13} color="#FFFFFF" />
-                <Text style={styles.assignBtnText}>Phân công</Text>
+                <Text className="text-[11px] font-bold text-white">Phân công</Text>
               </TouchableOpacity>
             ) : isAssigned ? (
               <TouchableOpacity
-                style={styles.reassignBtn}
+                className="flex-row items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5"
                 onPress={() => {
                   if (selectedTaskIds.includes(item.id)) {
                     toggleSelectTask(item.id);
@@ -310,7 +305,7 @@ export default function ProjectTasksTab({
                 activeOpacity={0.7}
               >
                 <Feather name="user-check" size={13} color="#D97706" />
-                <Text style={styles.reassignBtnText}>Đổi người</Text>
+                <Text className="text-[11px] font-bold text-amber-600">Đổi người</Text>
               </TouchableOpacity>
             ) : null
           )}
@@ -320,14 +315,14 @@ export default function ProjectTasksTab({
   };
 
   return (
-    <View style={styles.container}>
+    <View className="relative gap-3 p-4 pb-[90px]">
       {/* Pending Confirmation Warning Banner */}
       {isPendingConfirmation && (
-        <View style={styles.lockBanner}>
+        <View className="flex-row items-start gap-2.5 rounded-xl border border-orange-100 bg-orange-50 p-3">
           <Feather name="lock" size={18} color="#C2410C" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.lockBannerTitle}>Dự án chưa được Lead chấp nhận</Text>
-            <Text style={styles.lockBannerDesc}>
+          <View className="flex-1">
+            <Text className="text-[13px] font-bold text-orange-700">Dự án chưa được Lead chấp nhận</Text>
+            <Text className="mt-0.5 text-[11px] leading-4 text-orange-800">
               Tất cả các tính năng phân công, tạo việc phát sinh và cập nhật tiến độ đều bị tạm khóa cho đến khi Lead chấp nhận dự án.
             </Text>
           </View>
@@ -335,12 +330,14 @@ export default function ProjectTasksTab({
       )}
 
       {/* Top Action Bar */}
-      <View style={styles.topBar}>
-        <Text style={styles.sectionHeaderTitle}>Hạng mục công việc ({tasks.length})</Text>
+      <View className="flex-row items-center justify-between">
+        <Text className="text-[15px] font-bold text-slate-950">Hạng mục công việc ({tasks.length})</Text>
         {!isPendingConfirmation && isPmOrAdmin && (
-          <View style={{ flexDirection: 'row', gap: 6 }}>
+          <View className="flex-row gap-1.5">
             <TouchableOpacity
-              style={[styles.multiSelectBtn, isSelectMode && styles.multiSelectBtnActive]}
+              className={`flex-row items-center gap-1 rounded-lg border px-2 py-1.5 ${
+                isSelectMode ? 'border-primary bg-blue-50' : 'border-slate-200 bg-slate-100'
+              }`}
               onPress={() => {
                 if (onToggleSelectMode) {
                   onToggleSelectMode();
@@ -356,58 +353,58 @@ export default function ProjectTasksTab({
                 size={13}
                 color={isSelectMode ? BrandColors.primary : '#475569'}
               />
-              <Text style={[styles.multiSelectBtnText, isSelectMode && styles.multiSelectBtnTextActive]}>
+              <Text className={`text-[11px] ${isSelectMode ? 'font-bold text-primary' : 'font-semibold text-slate-600'}`}>
                 {isSelectMode ? 'Hủy chọn' : 'Chọn nhiều'}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.addExtraBtn}
+              className="flex-row items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5"
               onPress={onOpenAddExtraTask}
               activeOpacity={0.8}
             >
               <Feather name="plus" size={14} color="#FFFFFF" />
-              <Text style={styles.addExtraBtnText}>Thêm việc</Text>
+              <Text className="text-[11px] font-bold text-white">Thêm việc</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
 
       {tasks.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <View className="items-center justify-center gap-2 py-10">
           <Feather name="check-square" size={40} color="#CBD5E1" />
-          <Text style={styles.emptyTitle}>Chưa có công việc nào</Text>
-          <Text style={styles.emptyDesc}>
+          <Text className="text-[15px] font-bold text-slate-600">Chưa có công việc nào</Text>
+          <Text className="max-w-[260px] text-center text-[13px] text-slate-400">
             Dự án này hiện chưa có công việc triển khai. Bấm "Thêm việc phát sinh" để tạo mới.
           </Text>
         </View>
       ) : (
-        <View style={styles.listSection}>
+        <View className="gap-2.5">
           {groupedTasks.map((group) => {
             const isCollapsed = collapsedGroups[group.id];
             return (
-              <View key={group.id} style={styles.jobAccordionCard}>
+              <View key={group.id} className="overflow-hidden rounded-[14px] border border-slate-200 bg-white">
                 <TouchableOpacity
-                  style={styles.jobAccordionHeader}
+                  className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50 px-3.5 py-3"
                   onPress={() => toggleGroup(group.id)}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.jobAccordionHeaderLeft}>
+                  <View className="flex-1 flex-row items-center gap-2">
                     <Feather
                       name={isCollapsed ? 'chevron-right' : 'chevron-down'}
                       size={18}
                       color="#475569"
                     />
-                    <Text style={styles.jobAccordionTitle} numberOfLines={1}>
+                    <Text className="flex-1 text-[13px] font-bold text-slate-800" numberOfLines={1}>
                       {group.jobName}
                     </Text>
                   </View>
 
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View className="flex-row items-center gap-2">
                     {isSelectMode && group.tasks.filter(isTaskAssignable).length > 0 && (
                       <TouchableOpacity
                         onPress={() => toggleSelectGroup(group.tasks)}
-                        style={styles.groupCheckboxBtn}
+                        className="flex-row items-center gap-1 rounded-md border border-blue-100 bg-blue-50 px-2 py-[3px]"
                         activeOpacity={0.7}
                       >
                         <Feather
@@ -419,18 +416,18 @@ export default function ProjectTasksTab({
                           size={14}
                           color={BrandColors.primary}
                         />
-                        <Text style={styles.groupCheckboxText}>Chọn nhóm</Text>
+                        <Text className="text-[11px] font-bold text-primary">Chọn nhóm</Text>
                       </TouchableOpacity>
                     )}
 
-                    <View style={styles.jobCountBadge}>
-                      <Text style={styles.jobCountBadgeText}>{group.tasks.length} việc</Text>
+                    <View className="rounded-[10px] bg-slate-200 px-2 py-0.5">
+                      <Text className="text-[11px] font-bold text-slate-600">{group.tasks.length} việc</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
 
                 {!isCollapsed && (
-                  <View style={styles.jobAccordionBody}>
+                  <View className="gap-2.5 p-2.5">
                     {group.tasks.map(renderTaskItem)}
                   </View>
                 )}
@@ -443,365 +440,3 @@ export default function ProjectTasksTab({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    paddingBottom: 90,
-    gap: 12,
-    position: 'relative',
-  },
-  groupCheckboxBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-  },
-  groupCheckboxText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  bulkActionBarFloating: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 10,
-    zIndex: 9999,
-  },
-  multiSelectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  multiSelectBtnActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: BrandColors.primary,
-  },
-  multiSelectBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  multiSelectBtnTextActive: {
-    color: BrandColors.primary,
-    fontWeight: '700',
-  },
-  taskCardSelected: {
-    borderColor: BrandColors.primary,
-    backgroundColor: '#F0FDFA',
-  },
-  bulkActionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    marginTop: 12,
-  },
-  selectAllBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-  },
-  selectAllText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  bulkAssignBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: BrandColors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  bulkAssignBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#64748B',
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionHeaderTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  addExtraBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: BrandColors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  addExtraBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  listSection: {
-    gap: 10,
-  },
-  jobAccordionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
-  },
-  jobAccordionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  jobAccordionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  jobAccordionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1E293B',
-    flex: 1,
-  },
-  jobCountBadge: {
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  jobCountBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  jobAccordionBody: {
-    padding: 10,
-    gap: 10,
-  },
-  taskCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 8,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  codeBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  codeBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  extraTag: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 0,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  extraTagText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#D97706',
-  },
-  taskName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  taskDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 16,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 2,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 6,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  progressBox: {
-    flex: 1,
-    gap: 2,
-  },
-  progressLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressLabel: {
-    fontSize: 10,
-    color: '#94A3B8',
-  },
-  progressVal: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  progressBarBg: {
-    height: 4,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: BrandColors.primary,
-    borderRadius: 2,
-  },
-  assignBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: BrandColors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  assignBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  reassignBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFBEB',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  reassignBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#D97706',
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  emptyDesc: {
-    fontSize: 13,
-    color: '#94A3B8',
-    textAlign: 'center',
-    maxWidth: 260,
-  },
-  lockBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1,
-    borderColor: '#FFEDD5',
-    padding: 12,
-    borderRadius: 12,
-  },
-  lockBannerTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#C2410C',
-  },
-  lockBannerDesc: {
-    fontSize: 11,
-    color: '#9A3412',
-    lineHeight: 16,
-    marginTop: 2,
-  },
-});

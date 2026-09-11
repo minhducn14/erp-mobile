@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,6 @@ export default function BottomNavBar() {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, user } = useAuth();
 
-  // Auto-hide BottomNavBar on any detail screen or sub-flow route (e.g. /projects/123)
   const isDetailPage =
     pathname.includes('/[') ||
     pathname.includes('/projects/') ||
@@ -43,10 +42,13 @@ export default function BottomNavBar() {
   const hasCustomerAccess = canAccessCustomers(user?.role);
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View
+      className="flex-row bg-surface border-t border-border pt-2 items-center justify-around shadow-sm"
+      style={{ paddingBottom: Math.max(insets.bottom, 10) }}
+    >
       {/* 1. Home / Dashboard */}
       <TouchableOpacity
-        style={styles.tabItem}
+        className="items-center justify-center flex-1 py-0.5"
         onPress={() => navigateTo('/')}
         activeOpacity={0.7}
       >
@@ -55,12 +57,14 @@ export default function BottomNavBar() {
           size={21}
           color={isHome ? BrandColors.primary : BrandColors.slate400}
         />
-        <Text style={[styles.tabLabel, isHome && styles.tabLabelActive]}>Tổng quan</Text>
+        <Text className={`text-[10px] mt-[3px] ${isHome ? 'font-bold text-primary' : 'font-medium text-text-secondary'}`}>
+          Tổng quan
+        </Text>
       </TouchableOpacity>
 
       {/* 2. Tasks */}
       <TouchableOpacity
-        style={styles.tabItem}
+        className="items-center justify-center flex-1 py-0.5"
         onPress={() => navigateTo('/tasks')}
         activeOpacity={0.7}
       >
@@ -69,12 +73,14 @@ export default function BottomNavBar() {
           size={21}
           color={isTasks ? BrandColors.primary : BrandColors.slate400}
         />
-        <Text style={[styles.tabLabel, isTasks && styles.tabLabelActive]}>Nhiệm vụ</Text>
+        <Text className={`text-[10px] mt-[3px] ${isTasks ? 'font-bold text-primary' : 'font-medium text-text-secondary'}`}>
+          Nhiệm vụ
+        </Text>
       </TouchableOpacity>
 
       {/* 3. Projects */}
       <TouchableOpacity
-        style={styles.tabItem}
+        className="items-center justify-center flex-1 py-0.5"
         onPress={() => navigateTo('/projects')}
         activeOpacity={0.7}
       >
@@ -83,13 +89,15 @@ export default function BottomNavBar() {
           size={21}
           color={isProjects ? BrandColors.primary : BrandColors.slate400}
         />
-        <Text style={[styles.tabLabel, isProjects && styles.tabLabelActive]}>Dự án</Text>
+        <Text className={`text-[10px] mt-[3px] ${isProjects ? 'font-bold text-primary' : 'font-medium text-text-secondary'}`}>
+          Dự án
+        </Text>
       </TouchableOpacity>
 
-      {/* 4. Customers (Role-guarded: Only for ADMIN, BOD, BD, ADMIN_SALE) */}
+      {/* 4. Customers */}
       {hasCustomerAccess && (
         <TouchableOpacity
-          style={styles.tabItem}
+          className="items-center justify-center flex-1 py-0.5"
           onPress={() => navigateTo('/customers')}
           activeOpacity={0.7}
         >
@@ -98,13 +106,15 @@ export default function BottomNavBar() {
             size={21}
             color={isCustomers ? BrandColors.primary : BrandColors.slate400}
           />
-          <Text style={[styles.tabLabel, isCustomers && styles.tabLabelActive]}>Khách hàng</Text>
+          <Text className={`text-[10px] mt-[3px] ${isCustomers ? 'font-bold text-primary' : 'font-medium text-text-secondary'}`}>
+            Khách hàng
+          </Text>
         </TouchableOpacity>
       )}
 
       {/* 5. Profile */}
       <TouchableOpacity
-        style={styles.tabItem}
+        className="items-center justify-center flex-1 py-0.5"
         onPress={() => navigateTo('/profile')}
         activeOpacity={0.7}
       >
@@ -113,41 +123,10 @@ export default function BottomNavBar() {
           size={21}
           color={isProfile ? BrandColors.primary : BrandColors.slate400}
         />
-        <Text style={[styles.tabLabel, isProfile && styles.tabLabelActive]}>Cá nhân</Text>
+        <Text className={`text-[10px] mt-[3px] ${isProfile ? 'font-bold text-primary' : 'font-medium text-text-secondary'}`}>
+          Cá nhân
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 8,
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 8,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingVertical: 2,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#64748B',
-    marginTop: 3,
-  },
-  tabLabelActive: {
-    color: BrandColors.primary,
-    fontWeight: '700',
-  },
-});

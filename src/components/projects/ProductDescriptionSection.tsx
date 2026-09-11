@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   TextInput,
   Alert,
@@ -13,7 +12,6 @@ import {
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import {
-  productDescriptionService,
   ProductDescriptionSubmission,
   ProductDescriptionItem,
 } from '@/services/productDescriptionService';
@@ -288,7 +286,6 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
       setUploadProgress({});
       const payload = await buildPayload();
 
-      // Mỗi lần gửi duyệt sẽ tạo 1 bản submission mới
       const createRes = await createSubmissionMutation.mutateAsync({ projectId, payload });
       const savedId = createRes?.id;
 
@@ -365,54 +362,54 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
   const isWorking = isSaving || isUploading;
 
   return (
-    <View style={styles.card}>
+    <View className="bg-surface rounded-2xl p-4 border border-border gap-3.5">
       {/* Title Header */}
-      <View style={styles.cardHeaderBetween}>
-        <View style={styles.cardHeader}>
+      <View className="flex-row justify-between items-center">
+        <View className="flex-row items-center gap-2">
           <Feather name="package" size={18} color="#059669" />
-          <Text style={styles.cardTitle}>Mô tả sản phẩm (Thông tin chuẩn)</Text>
+          <Text className="text-[15px] font-bold text-text-primary">Mô tả sản phẩm (Thông tin chuẩn)</Text>
         </View>
         {isLoading && <ActivityIndicator size="small" color={BrandColors.primary} />}
       </View>
 
       {/* Version History List */}
-      <View style={styles.submissionsList}>
+      <View className="gap-3">
         {submissions.length > 0 ? (
           submissions.map((sub) => {
             const statusConfig = STATUS_COLORS[sub.status] || STATUS_COLORS.DRAFT;
             return (
-              <View key={sub.id} style={styles.versionCard}>
-                <View style={styles.versionHeaderRow}>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.versionTitleRow}>
-                      <Text style={styles.versionTitle}>
+              <View key={sub.id} className="bg-background rounded-xl p-3 border border-border gap-2.5">
+                <View className="flex-row justify-between items-start">
+                  <View className="flex-1">
+                    <View className="flex-row items-center gap-2 flex-wrap">
+                      <Text className="text-sm font-bold text-text-primary">
                         {sub.versionNumber ? `Version ${sub.versionNumber}` : 'Bản gửi chờ duyệt'}
                       </Text>
-                      <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg, borderColor: statusConfig.border }]}>
-                        <Text style={[styles.statusBadgeText, { color: statusConfig.text }]}>
+                      <View className="px-2 py-0.5 rounded-md border" style={{ backgroundColor: statusConfig.bg, borderColor: statusConfig.border }}>
+                        <Text className="text-[11px] font-bold" style={{ color: statusConfig.text }}>
                           {STATUS_LABELS[sub.status] || sub.status}
                         </Text>
                       </View>
                     </View>
-                    <Text style={styles.versionMetaText}>
+                    <Text className="text-[11px] text-text-secondary mt-0.5">
                       Người tạo: {sub.createdBy?.fullName || 'Không xác định'}
                       {sub.reviewedBy?.fullName ? ` - Người duyệt: ${sub.reviewedBy.fullName}` : ''}
                     </Text>
                     {sub.reviewNote ? (
-                      <Text style={styles.reviewNoteText}>Lý do: {sub.reviewNote}</Text>
+                      <Text className="text-xs italic text-rose-600 mt-1">Lý do: {sub.reviewNote}</Text>
                     ) : null}
                   </View>
                 </View>
 
                 {/* Items in Version */}
-                <View style={styles.itemsContainer}>
+                <View className="gap-1.5">
                   {sub.items?.map((item) => (
-                    <View key={item.id} style={styles.itemRow}>
-                      <Text style={styles.itemProductName}>
+                    <View key={item.id} className="bg-surface px-3 py-2.5 rounded-lg border border-border gap-1.5">
+                      <Text className="text-xs font-bold text-text-primary">
                         {item.productName}
                       </Text>
                       <TouchableOpacity
-                        style={styles.itemSourceLinkBtn}
+                        className="flex-row items-center gap-1.5 self-start bg-blue-50 px-2 py-1 rounded-md max-w-full"
                         onPress={() => handleOpenSourceLink(item.sourceUrl)}
                         activeOpacity={0.7}
                       >
@@ -421,7 +418,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
                           size={13}
                           color="#2563EB"
                         />
-                        <Text style={styles.itemSourceLinkText} numberOfLines={1}>
+                        <Text className="text-xs font-semibold text-blue-600 shrink" numberOfLines={1}>
                           {item.sourceName || item.sourceUrl}
                         </Text>
                       </TouchableOpacity>
@@ -430,38 +427,38 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
                 </View>
 
                 {/* Version Card Actions */}
-                <View style={styles.reviewActionsRow}>
+                <View className="flex-row justify-end gap-2 mt-1">
                   {canManageSubmission && !hasPendingSubmission && (
                     <TouchableOpacity
-                      style={styles.copyFormBtn}
+                      className="flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50"
                       onPress={() => handleCopySubmissionToForm(sub)}
                       activeOpacity={0.7}
                     >
                       <Feather name="edit-3" size={13} color="#2563EB" />
-                      <Text style={styles.copyFormBtnText}>Sửa / Tạo bản mới từ bản này</Text>
+                      <Text className="text-xs font-semibold text-blue-600">Sửa / Tạo bản mới từ bản này</Text>
                     </TouchableOpacity>
                   )}
 
                   {canReview && sub.status === 'PENDING_REVIEW' && (
                     <>
                       <TouchableOpacity
-                        style={styles.rejectBtn}
+                        className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50"
                         onPress={() => handleOpenRejectModal(sub.id)}
                         disabled={isReviewing}
                         activeOpacity={0.8}
                       >
                         <Feather name="x-circle" size={14} color="#DC2626" />
-                        <Text style={styles.rejectBtnText}>Không duyệt</Text>
+                        <Text className="text-xs font-bold text-rose-600">Không duyệt</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.approveBtn}
+                        className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600"
                         onPress={() => handleApprove(sub.id)}
                         disabled={isReviewing}
                         activeOpacity={0.85}
                       >
                         <Feather name="check-circle" size={14} color="#FFFFFF" />
-                        <Text style={styles.approveBtnText}>Duyệt</Text>
+                        <Text className="text-xs font-bold text-white">Duyệt</Text>
                       </TouchableOpacity>
                     </>
                   )}
@@ -470,42 +467,42 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
             );
           })
         ) : (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>Chưa có thông tin chuẩn sản phẩm</Text>
+          <View className="py-4 items-center border border-dashed border-slate-300 rounded-xl">
+            <Text className="text-xs text-text-muted italic">Chưa có thông tin chuẩn sản phẩm</Text>
           </View>
         )}
       </View>
 
       {/* Edit / New Submission Form */}
       {canManageSubmission && (
-        <View style={styles.formContainer}>
-          <View style={styles.formHeaderRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.formTitle}>Tạo bản gửi mới</Text>
+        <View className="bg-background rounded-xl p-3 border border-border gap-2.5 mt-1">
+          <View className="flex-row justify-between items-start">
+            <View className="flex-1">
+              <Text className="text-xs font-bold text-text-primary">Tạo bản gửi mới</Text>
               {hasPendingSubmission && (
-                <Text style={styles.pendingWarningText}>
+                <Text className="text-[11px] text-amber-600 mt-0.5">
                   Đang có bản chờ PM duyệt, bạn có thể chỉnh tiếp sau khi PM phản hồi.
                 </Text>
               )}
             </View>
 
             <TouchableOpacity
-              style={[styles.addProductBtn, (!canEdit || isWorking) && styles.btnDisabled]}
+              className={`flex-row items-center gap-1 bg-surface border border-blue-200 px-2.5 py-[5px] rounded-lg ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
               onPress={addProduct}
               disabled={!canEdit || isWorking}
               activeOpacity={0.7}
             >
               <Feather name="plus" size={14} color="#2563EB" />
-              <Text style={styles.addProductBtnText}>Thêm sản phẩm</Text>
+              <Text className="text-xs font-bold text-blue-600">Thêm sản phẩm</Text>
             </TouchableOpacity>
           </View>
 
           {/* Form Products List */}
-          <View style={styles.productsFormList}>
+          <View className="gap-2.5">
             {products.map((prod, idx) => (
-              <View key={idx} style={styles.productFormCard}>
-                <View style={styles.productFormHeaderRow}>
-                  <Text style={styles.productNumberTitle}>Sản phẩm {idx + 1}</Text>
+              <View key={idx} className="bg-surface rounded-xl p-2.5 border border-border gap-2">
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-xs font-bold text-text-secondary">Sản phẩm {idx + 1}</Text>
                   {products.length > 1 && (
                     <TouchableOpacity
                       onPress={() => removeProduct(idx)}
@@ -518,7 +515,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
 
                 {/* Product Name Input */}
                 <TextInput
-                  style={styles.textInput}
+                  className="bg-background border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-text-primary"
                   placeholder="Nhập tên sản phẩm"
                   placeholderTextColor="#94A3B8"
                   value={prod.productName}
@@ -527,12 +524,9 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
                 />
 
                 {/* Source Type Selector */}
-                <View style={styles.sourceTypeRow}>
+                <View className="flex-row gap-2">
                   <TouchableOpacity
-                    style={[
-                      styles.sourceTypeBtn,
-                      prod.sourceType === 'LINK' && styles.sourceTypeBtnActive,
-                    ]}
+                    className={`flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-lg border bg-background ${prod.sourceType === 'LINK' ? 'border-blue-300 bg-blue-50' : 'border-border'}`}
                     onPress={() =>
                       updateProduct(idx, {
                         sourceType: 'LINK',
@@ -548,21 +542,13 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
                       size={13}
                       color={prod.sourceType === 'LINK' ? '#2563EB' : '#64748B'}
                     />
-                    <Text
-                      style={[
-                        styles.sourceTypeBtnText,
-                        prod.sourceType === 'LINK' && styles.sourceTypeBtnTextActive,
-                      ]}
-                    >
+                    <Text className={`text-xs ${prod.sourceType === 'LINK' ? 'text-blue-600 font-bold' : 'font-semibold text-text-secondary'}`}>
                       Link tham khảo
                     </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[
-                      styles.sourceTypeBtn,
-                      prod.sourceType === 'FILE' && styles.sourceTypeBtnActive,
-                    ]}
+                    className={`flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-lg border bg-background ${prod.sourceType === 'FILE' ? 'border-blue-300 bg-blue-50' : 'border-border'}`}
                     onPress={() =>
                       updateProduct(idx, {
                         sourceType: 'FILE',
@@ -578,12 +564,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
                       size={13}
                       color={prod.sourceType === 'FILE' ? '#2563EB' : '#64748B'}
                     />
-                    <Text
-                      style={[
-                        styles.sourceTypeBtnText,
-                        prod.sourceType === 'FILE' && styles.sourceTypeBtnTextActive,
-                      ]}
-                    >
+                    <Text className={`text-xs ${prod.sourceType === 'FILE' ? 'text-blue-600 font-bold' : 'font-semibold text-text-secondary'}`}>
                       File đính kèm
                     </Text>
                   </TouchableOpacity>
@@ -592,7 +573,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
                 {/* Source Input details */}
                 {prod.sourceType === 'LINK' ? (
                   <TextInput
-                    style={styles.textInput}
+                    className="bg-background border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-text-primary"
                     placeholder="https://... (Nhập liên kết tài liệu)"
                     placeholderTextColor="#94A3B8"
                     value={prod.link}
@@ -601,23 +582,23 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
                     editable={canEdit && !isWorking}
                   />
                 ) : (
-                  <View style={styles.filePickerBox}>
+                  <View className="flex-row items-center gap-2">
                     <TouchableOpacity
-                      style={styles.pickFileBtn}
+                      className="flex-row items-center gap-1 bg-slate-100 border border-slate-300 px-2.5 py-[7px] rounded-lg"
                       onPress={() => handlePickFile(idx)}
                       disabled={!canEdit || isWorking}
                       activeOpacity={0.8}
                     >
                       <Feather name="upload" size={14} color="#475569" />
-                      <Text style={styles.pickFileBtnText}>Chọn file</Text>
+                      <Text className="text-xs font-semibold text-slate-700">Chọn file</Text>
                     </TouchableOpacity>
 
-                    <Text style={styles.fileNameDisplay} numberOfLines={1}>
+                    <Text className="flex-1 text-xs text-text-secondary" numberOfLines={1}>
                       {prod.file?.name || prod.existingFile?.name || 'Chưa chọn file'}
                     </Text>
 
                     {isUploading && uploadProgress[idx] !== undefined && (
-                      <Text style={styles.uploadPercentText}>{uploadProgress[idx]}%</Text>
+                      <Text className="text-[11px] font-bold text-blue-600">{uploadProgress[idx]}%</Text>
                     )}
                   </View>
                 )}
@@ -626,19 +607,19 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
           </View>
 
           {/* Save / Submit Footer */}
-          <View style={styles.formFooterActions}>
+          <View className="flex-row justify-end gap-2 mt-1">
             <TouchableOpacity
-              style={[styles.saveDraftBtn, (!canEdit || isWorking) && styles.btnDisabled]}
+              className={`flex-row items-center gap-1 px-3.5 py-2 rounded-lg border border-slate-300 bg-surface ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
               onPress={saveDraft}
               disabled={!canEdit || isWorking}
               activeOpacity={0.8}
             >
               <Feather name="save" size={15} color="#334155" />
-              <Text style={styles.saveDraftBtnText}>Lưu nháp</Text>
+              <Text className="text-xs font-semibold text-slate-700">Lưu nháp</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.submitReviewBtn, (!canEdit || isWorking) && styles.btnDisabled]}
+              className={`flex-row items-center gap-1 px-3.5 py-2 rounded-lg bg-blue-600 ${(!canEdit || isWorking) ? 'opacity-50' : ''}`}
               onPress={submitForReview}
               disabled={!canEdit || isWorking}
               activeOpacity={0.85}
@@ -648,7 +629,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
               ) : (
                 <>
                   <Feather name="send" size={15} color="#FFFFFF" />
-                  <Text style={styles.submitReviewBtnText}>Gửi PM duyệt</Text>
+                  <Text className="text-xs font-bold text-white">Gửi PM duyệt</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -656,19 +637,19 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
         </View>
       )}
 
-      {/* Modal nhập lý do không duyệt (Tương tự Web prompt) */}
+      {/* Modal nhập lý do không duyệt */}
       <Modal
         visible={rejectModalVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setRejectModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContentCard}>
-            <View style={styles.modalHeaderRow}>
-              <View style={styles.modalHeaderTitleRow}>
+        <View className="flex-1 bg-slate-900/65 justify-center items-center p-5">
+          <View className="w-full max-w-[420px] bg-surface rounded-2xl p-[18px] gap-3 shadow-lg">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
                 <Feather name="x-circle" size={18} color="#DC2626" />
-                <Text style={styles.modalHeaderTitle}>Lý do không duyệt</Text>
+                <Text className="text-base font-bold text-text-primary">Lý do không duyệt</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setRejectModalVisible(false)}
@@ -678,12 +659,12 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalDescriptionText}>
+            <Text className="text-xs text-text-secondary leading-4.5">
               Nhập thông tin phản hồi hoặc lý do từ chối bản mô tả sản phẩm này (có thể bỏ trống):
             </Text>
 
             <TextInput
-              style={styles.modalTextArea}
+              className="bg-background border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-text-primary min-h-[80px]"
               placeholder="VD: Thiếu link tài liệu chuẩn kỹ thuật..."
               placeholderTextColor="#94A3B8"
               value={rejectReason}
@@ -693,18 +674,18 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
               textAlignVertical="top"
             />
 
-            <View style={styles.modalFooterRow}>
+            <View className="flex-row justify-end items-center gap-2.5 mt-1">
               <TouchableOpacity
-                style={styles.modalCancelBtn}
+                className="px-3.5 py-2 rounded-lg bg-slate-100"
                 onPress={() => setRejectModalVisible(false)}
                 disabled={isReviewing}
                 activeOpacity={0.8}
               >
-                <Text style={styles.modalCancelBtnText}>Hủy</Text>
+                <Text className="text-xs font-semibold text-slate-600">Hủy</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.modalConfirmRejectBtn}
+                className="px-3.5 py-2 rounded-lg bg-rose-600"
                 onPress={handleConfirmReject}
                 disabled={isReviewing}
                 activeOpacity={0.85}
@@ -712,7 +693,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
                 {isReviewing ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.modalConfirmRejectBtnText}>Xác nhận không duyệt</Text>
+                  <Text className="text-xs font-bold text-white">Xác nhận không duyệt</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -722,426 +703,3 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 14,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardHeaderBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  submissionsList: {
-    gap: 12,
-  },
-  versionCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 10,
-  },
-  versionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  versionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  versionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  versionMetaText: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  reviewNoteText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: '#DC2626',
-    marginTop: 4,
-  },
-  itemsContainer: {
-    gap: 6,
-  },
-  itemRow: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 6,
-  },
-  itemProductName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  itemSourceLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    maxWidth: '100%',
-  },
-  itemSourceLinkText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2563EB',
-    flexShrink: 1,
-  },
-  reviewActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 4,
-  },
-  copyFormBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    backgroundColor: '#EFF6FF',
-  },
-  copyFormBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2563EB',
-  },
-  rejectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FECDD3',
-    backgroundColor: '#FFF1F2',
-  },
-  rejectBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-  approveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#059669',
-  },
-  approveBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  emptyBox: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-  },
-  emptyText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  formContainer: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 10,
-    marginTop: 4,
-  },
-  formHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  formTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  pendingWarningText: {
-    fontSize: 11,
-    color: '#D97706',
-    marginTop: 2,
-  },
-  addProductBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  addProductBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  productsFormList: {
-    gap: 10,
-  },
-  productFormCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 8,
-  },
-  productFormHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  productNumberTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  textInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  sourceTypeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  sourceTypeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-  },
-  sourceTypeBtnActive: {
-    borderColor: '#93C5FD',
-    backgroundColor: '#EFF6FF',
-  },
-  sourceTypeBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  sourceTypeBtnTextActive: {
-    color: '#2563EB',
-    fontWeight: '700',
-  },
-  filePickerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pickFileBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  pickFileBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  fileNameDisplay: {
-    flex: 1,
-    fontSize: 12,
-    color: '#64748B',
-  },
-  uploadPercentText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  formFooterActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 4,
-  },
-  saveDraftBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFFFFF',
-  },
-  saveDraftBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  submitReviewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#2563EB',
-  },
-  submitReviewBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  btnDisabled: {
-    opacity: 0.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContentCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
-    gap: 12,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalHeaderTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  modalHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  modalDescriptionText: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 18,
-  },
-  modalTextArea: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#0F172A',
-    minHeight: 80,
-  },
-  modalFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 4,
-  },
-  modalCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  modalCancelBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  modalConfirmRejectBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 8,
-    backgroundColor: '#DC2626',
-  },
-  modalConfirmRejectBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

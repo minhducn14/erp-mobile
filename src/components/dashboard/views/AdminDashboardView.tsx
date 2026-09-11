@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatCard } from '../StatCard';
 import { ReviewQueueWidget } from '../ReviewQueueWidget';
@@ -39,9 +39,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     adminMetrics?.currentProjects?.length ?? adminMetrics?.activeProjects ?? teamLeadProjects.length ?? 0;
 
   return (
-    <View style={styles.container}>
+    <View className="gap-4">
       {/* 4 Core Admin Executive Metrics */}
-      <View style={styles.statsGrid}>
+      <View className="flex-row flex-wrap justify-between gap-2.5">
         <StatCard
           title="Doanh thu ký"
           value={formatMoney(adminMetrics?.totalRevenue)}
@@ -94,15 +94,3 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-});

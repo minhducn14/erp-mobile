@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { OpportunityItem } from '@/services/opportunityService';
-import { BrandColors } from '@/constants/colors';
 import { formatVND } from '@/utils/formatters';
 
 interface OpportunityCardProps {
@@ -80,101 +79,99 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({ item, onPress 
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      className="bg-surface rounded-[18px] p-4 mx-4 mb-3 border border-border shadow-xs"
       onPress={onPress}
       activeOpacity={0.85}
     >
       {/* Top Header Row: Code, Priority, Status */}
-      <View style={styles.headerRow}>
-        <View style={styles.codeRow}>
-          <Text style={styles.codeText}>{item.opportunityCode || 'OPP'}</Text>
+      <View className="flex-row justify-between items-center mb-2">
+        <View className="flex-row items-center gap-1.5">
+          <Text className="text-xs font-extrabold text-text-primary tracking-wider">{item.opportunityCode || 'OPP'}</Text>
           {priorityMeta && (
-            <View style={[styles.priorityBadge, { borderColor: priorityMeta.color }]}>
-              <Text style={[styles.priorityText, { color: priorityMeta.color }]}>
+            <View className="px-1.5 py-0.5 rounded-md border" style={{ borderColor: priorityMeta.color }}>
+              <Text className="text-[10px] font-bold" style={{ color: priorityMeta.color }}>
                 {priorityMeta.label}
               </Text>
             </View>
           )}
         </View>
 
-        <View style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}>
-          <Text style={[styles.statusText, { color: statusMeta.color }]}>
+        <View className="px-2 py-0.5 rounded-lg" style={{ backgroundColor: statusMeta.bg }}>
+          <Text className="text-[11px] font-bold" style={{ color: statusMeta.color }}>
             {statusMeta.label}
           </Text>
         </View>
       </View>
 
       {/* Opportunity Name */}
-      <Text style={styles.title} numberOfLines={2}>
+      <Text className="text-base font-extrabold text-slate-800 leading-5.5 mb-1.5" numberOfLines={2}>
         {item.name}
       </Text>
 
       {/* Customer / Lead Info */}
-      <View style={styles.customerRow}>
+      <View className="flex-row items-center gap-1.5 mb-3.5">
         <Ionicons
           name={isLead ? 'person-outline' : 'business-outline'}
           size={15}
           color="#64748B"
         />
-        <Text style={styles.customerName} numberOfLines={1}>
+        <Text className="text-xs text-text-secondary font-semibold flex-1" numberOfLines={1}>
           {customerName}
         </Text>
         {isLead && (
-          <View style={styles.leadTag}>
-            <Text style={styles.leadTagText}>Lead</Text>
+          <View className="bg-amber-100 px-1.5 py-0.5 rounded-md">
+            <Text className="text-[10px] font-bold text-amber-700">Lead</Text>
           </View>
         )}
       </View>
 
       {/* Financials & Chance Metrics */}
-      <View style={styles.metricContainer}>
-        <View style={styles.metricColumn}>
-          <Text style={styles.metricLabel}>Doanh thu kỳ vọng</Text>
-          <Text style={styles.revenueValue}>{formatMoney(item.expectedRevenue)}</Text>
+      <View className="flex-row bg-background rounded-xl p-3 gap-3 mb-3">
+        <View className="flex-1">
+          <Text className="text-[11px] text-text-muted font-semibold mb-0.5">Doanh thu kỳ vọng</Text>
+          <Text className="text-[15px] font-extrabold text-primary">{formatMoney(item.expectedRevenue)}</Text>
         </View>
 
-        <View style={styles.chanceColumn}>
-          <View style={styles.chanceTextRow}>
-            <Text style={styles.metricLabel}>Khả năng thành công</Text>
-            <Text style={styles.chanceNumber}>{chance}%</Text>
+        <View className="flex-1">
+          <View className="flex-row justify-between items-center">
+            <Text className="text-[11px] text-text-muted font-semibold">Khả năng thành công</Text>
+            <Text className="text-xs font-extrabold text-slate-700">{chance}%</Text>
           </View>
-          <View style={styles.progressBarBg}>
+          <View className="h-1.5 bg-slate-200 rounded-full mt-1 overflow-hidden">
             <View
-              style={[
-                styles.progressBarFill,
-                {
-                  width: `${Math.min(100, Math.max(0, chance))}%`,
-                  backgroundColor:
-                    chance >= 70 ? '#10B981' : chance >= 40 ? '#F59E0B' : '#94A3B8',
-                },
-              ]}
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.min(100, Math.max(0, chance))}%`,
+                backgroundColor:
+                  chance >= 70 ? '#10B981' : chance >= 40 ? '#F59E0B' : '#94A3B8',
+              }}
             />
           </View>
         </View>
       </View>
 
       {/* Card Footer: Date & Quick Actions */}
-      <View style={styles.footerRow}>
-        <View style={styles.dateRow}>
+      <View className="flex-row justify-between items-center pt-1">
+        <View className="flex-row items-center gap-1">
           <Feather name="clock" size={13} color="#94A3B8" />
-          <Text style={styles.dateText}>
+          <Text className="text-[11px] text-text-muted font-medium">
             {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : 'Mới'}
           </Text>
         </View>
 
-        <View style={styles.actionIconsRow}>
+        <View className="flex-row items-center gap-2.5">
           {phoneNumber ? (
             <TouchableOpacity
-              style={styles.callBtn}
+              className="flex-row items-center gap-1 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200"
               onPress={handleCall}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Feather name="phone-call" size={14} color="#10B981" />
-              <Text style={styles.callText}>Gọi</Text>
+              <Text className="text-[11px] font-bold text-emerald-600">Gọi</Text>
             </TouchableOpacity>
           ) : null}
 
-          <View style={styles.arrowBox}>
+          <View className="w-[26px] h-[26px] rounded-full bg-slate-100 justify-center items-center">
             <Feather name="chevron-right" size={16} color="#94A3B8" />
           </View>
         </View>
@@ -182,177 +179,3 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({ item, onPress 
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1.5,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  codeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  codeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: 0.5,
-  },
-  priorityBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  priorityText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1E293B',
-    lineHeight: 22,
-    marginBottom: 6,
-  },
-  customerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 14,
-  },
-  customerName: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '600',
-    flex: 1,
-  },
-  leadTag: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-  },
-  leadTagText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#D97706',
-  },
-  metricContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-    marginBottom: 12,
-  },
-  metricColumn: {
-    flex: 1,
-  },
-  metricLabel: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  revenueValue: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: BrandColors.primary,
-  },
-  chanceColumn: {
-    flex: 1,
-  },
-  chanceTextRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  chanceNumber: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#334155',
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 4,
-    marginTop: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 4,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  dateText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '500',
-  },
-  actionIconsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  callBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  callText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  arrowBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});

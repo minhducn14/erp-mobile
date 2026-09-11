@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Alert,
 } from 'react-native';
@@ -191,12 +190,12 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
+      <ScrollView contentContainerClassName="px-[18px] pb-6" showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Hệ sinh thái ERP</Text>
-          <Text style={styles.headerSubtitle}>
+        <View className="py-[18px]">
+          <Text className="text-[22px] font-extrabold text-slate-900">Hệ sinh thái ERP</Text>
+          <Text className="mt-1.5 text-[13px] leading-[19px] text-slate-500">
             Toàn bộ các phân hệ chức năng chuyên sâu phục vụ chuyển đổi số doanh nghiệp
           </Text>
         </View>
@@ -204,15 +203,15 @@ export default function ExploreScreen() {
         {/* Auth prompt if not logged in */}
         {!isAuthenticated && (
           <TouchableOpacity
-            style={styles.authBanner}
+            className="mb-4 flex-row items-center justify-between rounded-2xl border-[1.5px] border-orange-200 bg-orange-50 p-3.5"
             onPress={() => router.push('/(auth)/login')}
             activeOpacity={0.85}
           >
-            <View style={styles.authBannerContent}>
+            <View className="flex-1 flex-row items-center gap-3">
               <Ionicons name="lock-closed" size={20} color={BrandColors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.authBannerTitle}>Yêu cầu đăng nhập</Text>
-                <Text style={styles.authBannerText}>
+              <View className="flex-1">
+                <Text className="text-sm font-bold text-primary-dark">Yêu cầu đăng nhập</Text>
+                <Text className="mt-0.5 text-xs text-slate-600">
                   Đăng nhập để xem và thao tác trên dữ liệu doanh nghiệp thực tế.
                 </Text>
               </View>
@@ -222,36 +221,41 @@ export default function ExploreScreen() {
         )}
 
         {/* Modules List */}
-        <View style={styles.moduleList}>
+        <View className="gap-3">
           {MODULES.map((item) => {
             const locked = isModuleLocked(item.id);
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.card, locked && styles.cardLocked]}
+                className={`rounded-[18px] border p-4 ${
+                  locked ? 'border-slate-200 bg-slate-50 opacity-75' : 'border-slate-200 bg-white'
+                }`}
                 onPress={() => handleModulePress(item.id)}
                 activeOpacity={0.75}
               >
-                <View style={styles.cardHeader}>
-                  <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
+                <View className="flex-row items-start gap-3.5">
+                  <View
+                    className="h-12 w-12 items-center justify-center rounded-[14px]"
+                    style={{ backgroundColor: item.color + '15' }}
+                  >
                     <Ionicons name={item.icon} size={24} color={item.color} />
                   </View>
-                  <View style={styles.headerText}>
-                    <View style={styles.titleRow}>
-                      <Text style={styles.cardTitle}>{item.title}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View className="flex-1">
+                    <View className="mb-1 flex-row items-center justify-between">
+                      <Text className="flex-1 text-[15px] font-bold text-slate-900">{item.title}</Text>
+                      <View className="flex-row items-center gap-1">
                         {locked && (
-                          <View style={styles.lockBadge}>
+                          <View className="flex-row items-center gap-[3px] rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5">
                             <Ionicons name="lock-closed" size={10} color="#94A3B8" />
-                            <Text style={styles.lockBadgeText}>Giới hạn</Text>
+                            <Text className="text-[10px] font-semibold text-slate-500">Giới hạn</Text>
                           </View>
                         )}
-                        <View style={[styles.badge, { backgroundColor: item.color + '20' }]}>
-                          <Text style={[styles.badgeText, { color: item.color }]}>{item.badge}</Text>
+                        <View className="ml-1.5 rounded-md px-2 py-0.5" style={{ backgroundColor: item.color + '20' }}>
+                          <Text className="text-[11px] font-bold" style={{ color: item.color }}>{item.badge}</Text>
                         </View>
                       </View>
                     </View>
-                    <Text style={styles.cardDesc}>{item.desc}</Text>
+                    <Text className="mt-0.5 text-xs leading-[18px] text-slate-500">{item.desc}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -265,129 +269,3 @@ export default function ExploreScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingBottom: 24,
-  },
-  header: {
-    paddingVertical: 18,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: BrandColors.slate900,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: BrandColors.slate500,
-    marginTop: 6,
-    lineHeight: 19,
-  },
-  authBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: BrandColors.primaryLight,
-    borderWidth: 1.5,
-    borderColor: BrandColors.primaryBorder,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 16,
-  },
-  authBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  authBannerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: BrandColors.primaryDark,
-  },
-  authBannerText: {
-    fontSize: 12,
-    color: BrandColors.slate600,
-    marginTop: 2,
-  },
-  moduleList: {
-    gap: 12,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: BrandColors.slate200,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerText: {
-    flex: 1,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: BrandColors.slate900,
-    flex: 1,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginLeft: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  cardDesc: {
-    fontSize: 12,
-    color: BrandColors.slate500,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-  cardLocked: {
-    opacity: 0.75,
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-  },
-  lockBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  lockBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-});

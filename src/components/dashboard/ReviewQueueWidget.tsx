@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { TaskItem } from '@/services/dashboardService';
 import { BrandColors } from '@/constants/colors';
@@ -20,57 +20,57 @@ export const ReviewQueueWidget: React.FC<ReviewQueueWidgetProps> = ({
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <View style={styles.badgeIndicator} />
-          <Text style={styles.title}>Hàng đợi xét duyệt ({tasks.length})</Text>
+    <View className="bg-surface rounded-[18px] p-4 border border-border mb-4">
+      <View className="flex-row justify-between items-center mb-3.5">
+        <View className="flex-row items-center gap-2">
+          <View className="w-2 h-2 rounded-full bg-amber-500" />
+          <Text className="text-[15px] font-bold text-text-primary">Hàng đợi xét duyệt ({tasks.length})</Text>
         </View>
         {onViewAll && (
           <TouchableOpacity onPress={onViewAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.viewAllText}>Xem tất cả</Text>
+            <Text className="text-xs font-semibold text-primary">Xem tất cả</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <View style={styles.list}>
+      <View className="gap-2.5">
         {tasks.slice(0, 4).map((task) => (
           <TouchableOpacity
             key={task.id}
-            style={styles.taskCard}
+            className="flex-row items-center p-3 rounded-xl bg-background border border-slate-100"
             onPress={() => onTaskPress && onTaskPress(task)}
             activeOpacity={0.7}
           >
-            <View style={styles.taskContent}>
-              <View style={styles.tagRow}>
-                <View style={styles.reviewBadge}>
-                  <Text style={styles.reviewBadgeText}>Chờ duyệt</Text>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5 mb-1">
+                <View className="bg-amber-100 px-1.5 py-0.5 rounded-sm">
+                  <Text className="text-[10px] font-bold text-amber-700">Chờ duyệt</Text>
                 </View>
-                {task.code && <Text style={styles.codeText}>#{task.code}</Text>}
+                {task.code && <Text className="text-[11px] font-semibold text-text-secondary">#{task.code}</Text>}
               </View>
-              <Text style={styles.taskName} numberOfLines={2}>
+              <Text className="text-xs font-semibold text-text-primary leading-4.5 mb-1.5" numberOfLines={2}>
                 {task.name}
               </Text>
-              <View style={styles.metaRow}>
+              <View className="flex-row items-center flex-wrap gap-3">
                 {task.project?.name && (
-                  <View style={styles.metaItem}>
+                  <View className="flex-row items-center gap-1">
                     <Feather name="folder" size={12} color="#64748B" />
-                    <Text style={styles.metaText} numberOfLines={1}>
+                    <Text className="text-[11px] text-text-secondary max-w-[140px]" numberOfLines={1}>
                       {task.project.name}
                     </Text>
                   </View>
                 )}
                 {task.assignee?.fullName && (
-                  <View style={styles.metaItem}>
+                  <View className="flex-row items-center gap-1">
                     <Feather name="user" size={12} color="#64748B" />
-                    <Text style={styles.metaText} numberOfLines={1}>
+                    <Text className="text-[11px] text-text-secondary max-w-[140px]" numberOfLines={1}>
                       {task.assignee.fullName}
                     </Text>
                   </View>
                 )}
               </View>
             </View>
-            <View style={styles.arrowBox}>
+            <View className="ml-2">
               <Feather name="chevron-right" size={18} color="#94A3B8" />
             </View>
           </TouchableOpacity>
@@ -79,104 +79,3 @@ export const ReviewQueueWidget: React.FC<ReviewQueueWidgetProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  badgeIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F59E0B',
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  viewAllText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: BrandColors.primary,
-  },
-  list: {
-    gap: 10,
-  },
-  taskCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  taskContent: {
-    flex: 1,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  reviewBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  reviewBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#B45309',
-  },
-  codeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  taskName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0F172A',
-    lineHeight: 18,
-    marginBottom: 6,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 11,
-    color: '#64748B',
-    maxWidth: 140,
-  },
-  arrowBox: {
-    marginLeft: 8,
-  },
-});

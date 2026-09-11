@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   ScrollView,
   RefreshControl,
@@ -14,7 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { isManagementRole } from '@/utils/rbac';
-import { ProjectDetailItem, PROJECT_STATUS_CONFIG,} from '@/services/projectService';
+import { ProjectDetailItem, PROJECT_STATUS_CONFIG } from '@/services/projectService';
 import { taskService, TaskDetail } from '@/services/taskService';
 import { acceptanceService, AcceptanceItem } from '@/services/acceptanceService';
 import { BrandColors } from '@/constants/colors';
@@ -235,17 +234,17 @@ export default function ProjectDetailScreen() {
 
   if (isLoading && !isRefreshing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+      <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
+        <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200 gap-2">
+          <TouchableOpacity className="w-[38px] h-[38px] rounded-xl bg-slate-100 items-center justify-center" onPress={() => router.back()}>
             <Feather name="arrow-left" size={20} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Chi tiết dự án</Text>
-          <View style={{ width: 40 }} />
+          <Text className="text-base font-bold text-slate-900">Chi tiết dự án</Text>
+          <View className="w-10" />
         </View>
-        <View style={styles.loadingContainer}>
+        <View className="flex-1 justify-center items-center gap-2.5">
           <ActivityIndicator size="large" color={BrandColors.primary} />
-          <Text style={styles.loadingText}>Đang tải chi tiết dự án...</Text>
+          <Text className="text-[13px] text-slate-400">Đang tải chi tiết dự án...</Text>
         </View>
       </SafeAreaView>
     );
@@ -254,55 +253,55 @@ export default function ProjectDetailScreen() {
   const statusInfo = getStatusBadge(project?.status);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200 gap-2">
+        <TouchableOpacity className="w-[38px] h-[38px] rounded-xl bg-slate-100 items-center justify-center" onPress={() => router.back()} activeOpacity={0.7}>
           <Feather name="arrow-left" size={20} color="#0F172A" />
         </TouchableOpacity>
 
-        <View style={styles.headerTitleBox}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
+        <View className="flex-1">
+          <Text className="text-base font-bold text-slate-900" numberOfLines={1}>
             {project?.name || 'Chi tiết Dự án'}
           </Text>
-          {project?.code && <Text style={styles.headerSubTitle}>#{project.code}</Text>}
+          {project?.code && <Text className="text-[11px] text-slate-500 font-semibold">#{project.code}</Text>}
         </View>
 
-        <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
-          <Text style={[styles.statusText, { color: statusInfo.color }]}>
+        <View className="px-2 py-1 rounded-md" style={{ backgroundColor: statusInfo.bg }}>
+          <Text className="text-[11px] font-bold" style={{ color: statusInfo.color }}>
             {statusInfo.label}
           </Text>
         </View>
       </View>
 
       {/* Tab Switcher */}
-      <View style={styles.tabBar}>
+      <View className="flex-row bg-white border-b border-slate-200 px-2">
         <TouchableOpacity
-          style={[styles.tabItem, activeTab === 'OVERVIEW' && styles.tabItemActive]}
+          className={`flex-1 items-center py-3 border-b-2 ${activeTab === 'OVERVIEW' ? 'border-primary' : 'border-transparent'}`}
           onPress={() => setActiveTab('OVERVIEW')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.tabText, activeTab === 'OVERVIEW' && styles.tabTextActive]}>
+          <Text className={`text-[13px] ${activeTab === 'OVERVIEW' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
             Tổng quan
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabItem, activeTab === 'TASKS' && styles.tabItemActive]}
+          className={`flex-1 items-center py-3 border-b-2 ${activeTab === 'TASKS' ? 'border-primary' : 'border-transparent'}`}
           onPress={() => setActiveTab('TASKS')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.tabText, activeTab === 'TASKS' && styles.tabTextActive]}>
+          <Text className={`text-[13px] ${activeTab === 'TASKS' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
             Công việc ({tasks.length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabItem, activeTab === 'ACCEPTANCE' && styles.tabItemActive]}
+          className={`flex-1 items-center py-3 border-b-2 ${activeTab === 'ACCEPTANCE' ? 'border-primary' : 'border-transparent'}`}
           onPress={() => setActiveTab('ACCEPTANCE')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.tabText, activeTab === 'ACCEPTANCE' && styles.tabTextActive]}>
+          <Text className={`text-[13px] ${activeTab === 'ACCEPTANCE' ? 'text-primary font-bold' : 'text-slate-500 font-semibold'}`}>
             Nghiệm thu ({acceptances.length})
           </Text>
         </TouchableOpacity>
@@ -311,10 +310,7 @@ export default function ProjectDetailScreen() {
       {/* Main Content Area */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scrollContent,
-          activeTab === 'TASKS' && isSelectMode && { paddingBottom: 90 },
-        ]}
+        contentContainerStyle={{ paddingBottom: activeTab === 'TASKS' && isSelectMode ? 90 : 30 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -390,13 +386,13 @@ export default function ProjectDetailScreen() {
 
       {/* Floating Bulk Action Bar - Fixed at screen bottom */}
       {activeTab === 'TASKS' && isSelectMode && (
-        <View style={styles.floatingBulkActionBar}>
+        <View className="absolute bottom-5 left-4 right-4 flex-row justify-between items-center bg-slate-900 px-4 py-3 rounded-2xl z-50">
           <TouchableOpacity
-            style={styles.selectAllBtn}
+            className="py-1.5 px-2"
             onPress={handleSelectAllTasks}
             activeOpacity={0.7}
           >
-            <Text style={styles.selectAllText}>
+            <Text className="text-[13px] font-semibold text-slate-400">
               {selectedTaskIds.length > 0 && selectedTaskIds.length === assignableTasks.length
                 ? 'Bỏ chọn tất cả'
                 : 'Chọn tất cả'}
@@ -404,10 +400,7 @@ export default function ProjectDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              styles.bulkAssignBtn,
-              selectedTaskIds.length === 0 && { opacity: 0.5 },
-            ]}
+            className={`flex-row items-center gap-2 bg-primary px-4 py-2.5 rounded-xl ${selectedTaskIds.length === 0 ? 'opacity-50' : ''}`}
             disabled={selectedTaskIds.length === 0}
             onPress={() => {
               const selectedList = tasks.filter((t) => selectedTaskIds.includes(t.id));
@@ -419,7 +412,7 @@ export default function ProjectDetailScreen() {
             activeOpacity={0.8}
           >
             <Feather name="users" size={15} color="#FFFFFF" />
-            <Text style={styles.bulkAssignBtnText}>
+            <Text className="text-[13px] font-bold text-white">
               Phân công {selectedTaskIds.length > 0 ? `(${selectedTaskIds.length}) ` : ''}công việc
             </Text>
           </TouchableOpacity>
@@ -544,132 +537,3 @@ export default function ProjectDetailScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    gap: 8,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitleBox: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  headerSubTitle: {
-    fontSize: 11,
-    color: '#64748B',
-    fontFamily: 'PlatformMono',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    paddingHorizontal: 8,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabItemActive: {
-    borderBottomColor: BrandColors.primary,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  tabTextActive: {
-    color: BrandColors.primary,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingBottom: 30,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#94A3B8',
-  },
-  floatingBulkActionBar: {
-    position: 'absolute',
-    bottom: 20,
-    left: 16,
-    right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 12,
-    zIndex: 9999,
-  },
-  selectAllBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  selectAllText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  bulkAssignBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: BrandColors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  bulkAssignBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

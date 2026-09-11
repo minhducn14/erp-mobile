@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { BrandColors } from '@/constants/colors';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 
 export interface PipelineTabItem {
   id: string;
@@ -28,11 +27,11 @@ export const PipelineTabs: React.FC<PipelineTabsProps> = ({
   tabCounts = {},
 }) => {
   return (
-    <View style={styles.container}>
+    <View className="bg-surface border-b border-slate-100">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
       >
         {PIPELINE_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -41,16 +40,20 @@ export const PipelineTabs: React.FC<PipelineTabsProps> = ({
           return (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.tabButton, isActive && styles.activeTabButton]}
+              className={`flex-row items-center px-3.5 py-2 rounded-full border gap-1.5 ${
+                isActive
+                  ? 'bg-primary border-primary shadow-xs'
+                  : 'bg-background border-border'
+              }`}
               onPress={() => onSelectTab(tab.id)}
               activeOpacity={0.75}
             >
-              <Text style={[styles.tabText, isActive && styles.activeTabText]}>
+              <Text className={`text-xs ${isActive ? 'font-bold text-white' : 'font-semibold text-text-secondary'}`}>
                 {tab.title}
               </Text>
               {typeof count === 'number' && (
-                <View style={[styles.countBadge, isActive && styles.activeCountBadge]}>
-                  <Text style={[styles.countText, isActive && styles.activeCountText]}>
+                <View className={`px-1.5 py-px rounded-full ${isActive ? 'bg-white/30' : 'bg-slate-200'}`}>
+                  <Text className={`text-[11px] font-bold ${isActive ? 'text-white' : 'text-slate-600'}`}>
                     {count}
                   </Text>
                 </View>
@@ -62,62 +65,3 @@ export const PipelineTabs: React.FC<PipelineTabsProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  tabButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 6,
-  },
-  activeTabButton: {
-    backgroundColor: BrandColors.primary,
-    borderColor: BrandColors.primary,
-    shadowColor: BrandColors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  activeTabText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  countBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 10,
-    backgroundColor: '#E2E8F0',
-  },
-  activeCountBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  countText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  activeCountText: {
-    color: '#FFFFFF',
-  },
-});

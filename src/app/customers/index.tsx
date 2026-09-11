@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -69,60 +68,60 @@ export default function CustomersScreen() {
 
   const renderCustomerCard = ({ item }: { item: CustomerItem }) => {
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{(item.name || 'C').charAt(0).toUpperCase()}</Text>
+      <View className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+        <View className="flex-row items-center mb-2.5">
+          <View className="w-[42px] h-[42px] rounded-xl bg-blue-50 border border-blue-100 items-center justify-center mr-3">
+            <Text className="text-lg font-extrabold text-blue-500">{(item.name || 'C').charAt(0).toUpperCase()}</Text>
           </View>
-          <View style={styles.headerInfo}>
-            <Text style={styles.customerName} numberOfLines={1}>
+          <View className="flex-1">
+            <Text className="text-[15px] font-bold text-slate-900 mb-0.5" numberOfLines={1}>
               {item.name}
             </Text>
             {item.contactPerson ? (
-              <Text style={styles.contactPerson} numberOfLines={1}>
+              <Text className="text-xs text-slate-500" numberOfLines={1}>
                 Đại diện: {item.contactPerson}
               </Text>
             ) : null}
           </View>
-          {item.code && <Text style={styles.codeBadge}>#{item.code}</Text>}
+          {item.code && <Text className="text-[11px] font-bold text-slate-400">#{item.code}</Text>}
         </View>
 
         {item.address ? (
-          <View style={styles.addressRow}>
+          <View className="flex-row items-start gap-1.5 mb-3 bg-slate-50 p-2.5 rounded-lg">
             <Feather name="map-pin" size={13} color="#64748B" />
-            <Text style={styles.addressText} numberOfLines={2}>
+            <Text className="text-xs text-slate-500 leading-[18px] flex-1" numberOfLines={2}>
               {item.address}
             </Text>
           </View>
         ) : null}
 
-        <View style={styles.cardFooter}>
-          <View style={styles.actionsRow}>
+        <View className="flex-row justify-between items-center border-t border-slate-100 pt-2.5">
+          <View className="flex-row items-center gap-2">
             {item.phoneNumber && (
               <TouchableOpacity
-                style={[styles.actionBtn, styles.callBtn]}
+                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50"
                 onPress={() => handleCall(item.phoneNumber)}
                 activeOpacity={0.7}
               >
                 <Feather name="phone" size={14} color="#10B981" />
-                <Text style={styles.callBtnText}>Gọi điện</Text>
+                <Text className="text-xs font-bold text-emerald-600">Gọi điện</Text>
               </TouchableOpacity>
             )}
 
             {item.email && (
               <TouchableOpacity
-                style={[styles.actionBtn, styles.emailBtn]}
+                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50"
                 onPress={() => handleEmail(item.email)}
                 activeOpacity={0.7}
               >
                 <Feather name="mail" size={14} color="#3B82F6" />
-                <Text style={styles.emailBtnText}>Gửi mail</Text>
+                <Text className="text-xs font-bold text-blue-600">Gửi mail</Text>
               </TouchableOpacity>
             )}
           </View>
 
           {item.contracts && item.contracts.length > 0 ? (
-            <Text style={styles.contractCountText}>
+            <Text className="text-[11px] font-semibold text-slate-500">
               {item.contracts.length} hợp đồng
             </Text>
           ) : null}
@@ -133,25 +132,25 @@ export default function CustomersScreen() {
 
   if (!hasAccess) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/')}>
+      <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
+        <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
+          <TouchableOpacity className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center" onPress={() => router.replace('/')}>
             <Feather name="arrow-left" size={20} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Hồ sơ Khách hàng & CRM</Text>
-          <View style={{ width: 40 }} />
+          <Text className="text-[17px] font-bold text-slate-900">Hồ sơ Khách hàng & CRM</Text>
+          <View className="w-10" />
         </View>
 
-        <View style={styles.forbiddenContainer}>
-          <View style={styles.forbiddenIconBox}>
+        <View className="flex-1 justify-center items-center p-8 gap-3">
+          <View className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 items-center justify-center mb-2">
             <Feather name="shield-off" size={36} color="#EF4444" />
           </View>
-          <Text style={styles.forbiddenTitle}>Không có quyền truy cập</Text>
-          <Text style={styles.forbiddenDesc}>
+          <Text className="text-lg font-extrabold text-slate-900">Không có quyền truy cập</Text>
+          <Text className="text-[13px] text-slate-500 text-center leading-5 max-w-[280px]">
             Phân hệ Khách hàng chỉ dành riêng cho Ban Quản trị (Admin/BOD) và Bộ phận Phát triển kinh doanh (BD).
           </Text>
-          <TouchableOpacity style={styles.returnHomeBtn} onPress={() => router.replace('/')}>
-            <Text style={styles.returnHomeText}>Quay về Trang chủ</Text>
+          <TouchableOpacity className="mt-3 bg-primary px-5 py-3 rounded-xl" onPress={() => router.replace('/')}>
+            <Text className="text-sm font-bold text-white">Quay về Trang chủ</Text>
           </TouchableOpacity>
         </View>
 
@@ -161,26 +160,26 @@ export default function CustomersScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <TouchableOpacity
-          style={styles.backBtn}
+          className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center"
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Hồ sơ Khách hàng & CRM</Text>
-        <View style={{ width: 40 }} />
+        <Text className="text-[17px] font-bold text-slate-900">Hồ sơ Khách hàng & CRM</Text>
+        <View className="w-10" />
       </View>
 
       {/* Search Input */}
-      <View style={styles.searchWrapper}>
-        <View style={styles.searchBox}>
+      <View className="px-4 py-3 bg-white border-b border-slate-200">
+        <View className="flex-row items-center bg-slate-100 rounded-xl px-3 h-[42px]">
           <Feather name="search" size={18} color="#94A3B8" />
           <TextInput
-            style={styles.searchInput}
+            className="flex-1 ml-2 text-sm text-slate-900"
             placeholder="Tìm theo tên công ty, SĐT, người đại diện..."
             placeholderTextColor="#94A3B8"
             value={searchQuery}
@@ -196,16 +195,16 @@ export default function CustomersScreen() {
 
       {/* Content List */}
       {isLoading && !isFetching ? (
-        <View style={styles.loadingContainer}>
+        <View className="flex-1 justify-center items-center gap-2.5">
           <ActivityIndicator size="large" color={BrandColors.primary} />
-          <Text style={styles.loadingText}>Đang tải danh bạ đối tác Getvini...</Text>
+          <Text className="text-[13px] text-slate-400">Đang tải danh bạ đối tác Getvini...</Text>
         </View>
       ) : (
         <FlatList
           data={filteredCustomers}
           keyExtractor={(item) => item.id}
           renderItem={renderCustomerCard}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -216,10 +215,10 @@ export default function CustomersScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
+            <View className="py-14 items-center justify-center gap-2.5">
               <Feather name="users" size={44} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>Chưa có thông tin đối tác</Text>
-              <Text style={styles.emptyDesc}>
+              <Text className="text-base font-bold text-slate-600">Chưa có thông tin đối tác</Text>
+              <Text className="text-[13px] text-slate-400 text-center max-w-[260px]">
                 {searchQuery
                   ? 'Không tìm thấy đối tác nào phù hợp.'
                   : 'Hiện tại chưa có hồ sơ khách hàng nào trong hệ thống.'}
@@ -234,236 +233,3 @@ export default function CustomersScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  searchWrapper: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 42,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#0F172A',
-  },
-  listContent: {
-    padding: 16,
-    gap: 12,
-    paddingBottom: 24,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#3B82F6',
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  customerName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  contactPerson: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  codeBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#94A3B8',
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginBottom: 12,
-    backgroundColor: '#F8FAFC',
-    padding: 10,
-    borderRadius: 8,
-  },
-  addressText: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 18,
-    flex: 1,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 10,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  callBtn: {
-    backgroundColor: '#ECFDF5',
-  },
-  callBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  emailBtn: {
-    backgroundColor: '#EFF6FF',
-  },
-  emailBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  contractCountText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#94A3B8',
-  },
-  emptyContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  emptyDesc: {
-    fontSize: 13,
-    color: '#94A3B8',
-    textAlign: 'center',
-    maxWidth: 260,
-  },
-  forbiddenContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-    gap: 12,
-  },
-  forbiddenIconBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  forbiddenTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  forbiddenDesc: {
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 280,
-  },
-  returnHomeBtn: {
-    marginTop: 12,
-    backgroundColor: BrandColors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  returnHomeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { TaskItem } from '@/services/dashboardService';
 import { BrandColors } from '@/constants/colors';
@@ -30,54 +30,56 @@ export const TodayTasksWidget: React.FC<TodayTasksWidgetProps> = ({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
+    <View className="bg-surface rounded-[18px] p-4 border border-border mb-5">
+      <View className="flex-row justify-between items-center mb-3.5">
+        <View className="flex-row items-center gap-2">
           <Feather name="calendar" size={16} color={BrandColors.primary} />
-          <Text style={styles.title}>Nhiệm vụ ưu tiên ({tasks.length})</Text>
+          <Text className="text-[15px] font-bold text-text-primary">Nhiệm vụ ưu tiên ({tasks.length})</Text>
         </View>
         {onViewAll && (
           <TouchableOpacity onPress={onViewAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.viewAllText}>Tất cả việc</Text>
+            <Text className="text-xs font-semibold text-primary">Tất cả việc</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {tasks.length === 0 ? (
-        <View style={styles.emptyBox}>
+        <View className="py-5 items-center justify-center gap-2">
           <Feather name="check-circle" size={28} color="#10B981" />
-          <Text style={styles.emptyText}>Tuyệt vời! Không có nhiệm vụ nào quá hạn hoặc cần làm gấp.</Text>
+          <Text className="text-xs text-text-secondary text-center max-w-[260px]">
+            Tuyệt vời! Không có nhiệm vụ nào quá hạn hoặc cần làm gấp.
+          </Text>
         </View>
       ) : (
-        <View style={styles.list}>
+        <View className="gap-2.5">
           {tasks.slice(0, 5).map((task) => {
             const badge = getStatusColor(task.status);
             return (
               <TouchableOpacity
                 key={task.id}
-                style={styles.taskCard}
+                className="flex-row rounded-xl bg-background border border-slate-100 overflow-hidden"
                 onPress={() => onTaskPress && onTaskPress(task)}
                 activeOpacity={0.7}
               >
-                <View style={styles.leftBorder} />
-                <View style={styles.taskBody}>
-                  <View style={styles.topRow}>
-                    <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-                      <Text style={[styles.statusText, { color: badge.text }]}>{badge.label}</Text>
+                <View className="w-1 bg-primary" />
+                <View className="flex-1 p-3">
+                  <View className="flex-row justify-between items-center mb-1.5">
+                    <View className="px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: badge.bg }}>
+                      <Text className="text-[10px] font-bold" style={{ color: badge.text }}>{badge.label}</Text>
                     </View>
                     {task.plannedEndDate && (
-                      <Text style={styles.dateText}>
+                      <Text className="text-[11px] text-text-muted">
                         Hạn: {new Date(task.plannedEndDate).toLocaleDateString('vi-VN')}
                       </Text>
                     )}
                   </View>
 
-                  <Text style={styles.taskTitle} numberOfLines={2}>
+                  <Text className="text-xs font-semibold text-text-primary leading-4.5 mb-1" numberOfLines={2}>
                     {task.name}
                   </Text>
 
                   {task.project?.name && (
-                    <Text style={styles.projectName} numberOfLines={1}>
+                    <Text className="text-[11px] text-text-secondary" numberOfLines={1}>
                       📁 {task.project.name}
                     </Text>
                   )}
@@ -90,96 +92,3 @@ export const TodayTasksWidget: React.FC<TodayTasksWidgetProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  viewAllText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: BrandColors.primary,
-  },
-  emptyBox: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  emptyText: {
-    fontSize: 12,
-    color: '#64748B',
-    textAlign: 'center',
-    maxWidth: 260,
-  },
-  list: {
-    gap: 10,
-  },
-  taskCard: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    overflow: 'hidden',
-  },
-  leftBorder: {
-    width: 4,
-    backgroundColor: BrandColors.primary,
-  },
-  taskBody: {
-    flex: 1,
-    padding: 12,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  statusBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  dateText: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  taskTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0F172A',
-    lineHeight: 18,
-    marginBottom: 4,
-  },
-  projectName: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-});
