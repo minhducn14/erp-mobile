@@ -13,7 +13,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { TaskDetail, taskService } from '@/services/taskService';
+import { TaskDetail } from '@/services/taskService';
+import {
+  useFinalizeTaskMutation,
+  useRejectTaskMutation,
+  useTaskReviewsQuery,
+} from '@/hooks/queries/useTasks';
 import { BrandColors } from '@/constants/colors';
 
 interface TaskReviewModalProps {
@@ -30,34 +35,23 @@ export default function TaskReviewModal({
   onSuccess,
 }: TaskReviewModalProps) {
   const { width } = useWindowDimensions();
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [passedIds, setPassedIds] = useState<string[]>([]);
   const [note, setNote] = useState('');
-  const [isFinalizing, setIsFinalizing] = useState(false);
-  const [isRejecting, setIsRejecting] = useState(false);
   const [activeTab, setActiveTab] = useState<'TEAM_LEAD' | 'ASSIGNER'>('TEAM_LEAD');
 
+  const { data: reviewsData, isLoading: isLoadingReviews } = useTaskReviewsQuery(
+    visible && task?.id ? task.id : ''
+  );
+  const reviews = reviewsData || [];
+
   useEffect(() => {
-    if (visible && task?.id) {
-      loadReviews();
-    } else {
-      setReviews([]);
+    if (visible && reviews.length > 0) {
+      setPassedIds(reviews.filter((r: any) => r.isPassed).map((r: any) => r.id));
+    } else if (!visible) {
       setPassedIds([]);
       setNote('');
     }
-  }, [visible, task?.id]);
-
-  const loadReviews = async () => {
-    if (!task?.id) return;
-    setIsLoadingReviews(true);
-    const res = await taskService.getTaskReviews(task.id);
-    setIsLoadingReviews(false);
-    if (res.data) {
-      setReviews(res.data);
-      setPassedIds(res.data.filter((r: any) => r.isPassed).map((r: any) => r.id));
-    }
-  };
+  }, [visible, reviews]);
 
   const leadReviews = reviews.filter((r) => r.reviewerType === 'TEAM_LEAD');
   const assignerReviews = reviews.filter((r) => r.reviewerType === 'ASSIGNER');
@@ -84,29 +78,37 @@ export default function TaskReviewModal({
     });
   };
 
-  const handleApprove = async () => {
+  const finalizeTaskMutation = useFinalizeTaskMutation();
+  const rejectTaskMutation = useRejectTaskMutation();
+  const isFinalizing = finalizeTaskMutation.isPending;
+  const isRejecting = rejectTaskMutation.isPending;
+
+  const handleFinalize = async () => {
     if (!task?.id) return;
     if (!isAllPassed && reviews.length > 0) {
       Alert.alert('Cảnh báo', 'Bạn cần tích chọn xác nhận tất cả các tiêu chí trước khi duyệt.');
       return;
     }
 
-    setIsFinalizing(true);
-    const res = await taskService.finalizeTask(task.id, {
-      passedCriteriaIds: passedIds,
-      reviewNote: note.trim(),
-      projectId: task.project?.id,
-    });
-    setIsFinalizing(false);
+    try {
+      await finalizeTaskMutation.mutateAsync({
+        taskId: task.id,
+        payload: {
+          passedCriteriaIds: passedIds,
+          reviewNote: note.trim(),
+          projectId: task.project?.id,
+        },
+      });
 
-    if (res.error) {
-      Alert.alert('Lỗi', res.error);
-    } else {
       Alert.alert('Thành công', 'Đã duyệt hoàn thành công việc thành công!');
       onClose();
       onSuccess();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi duyệt công việc.');
     }
   };
+
+  const handleApprove = handleFinalize;
 
   const handleReject = async () => {
     if (!task?.id) return;
@@ -115,20 +117,21 @@ export default function TaskReviewModal({
       return;
     }
 
-    setIsRejecting(true);
-    const res = await taskService.rejectTask(task.id, {
-      passedCriteriaIds: passedIds,
-      reviewNote: note.trim(),
-      projectId: task.project?.id,
-    });
-    setIsRejecting(false);
+    try {
+      await rejectTaskMutation.mutateAsync({
+        taskId: task.id,
+        payload: {
+          passedCriteriaIds: passedIds,
+          reviewNote: note.trim(),
+          projectId: task.project?.id,
+        },
+      });
 
-    if (res.error) {
-      Alert.alert('Lỗi', res.error);
-    } else {
       Alert.alert('Thành công', 'Đã từ chối kết quả công việc.');
       onClose();
       onSuccess();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi từ chối công việc.');
     }
   };
 

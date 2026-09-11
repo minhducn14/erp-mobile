@@ -13,7 +13,8 @@ import {
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
-import { TaskDetail, taskService } from '@/services/taskService';
+import { TaskDetail } from '@/services/taskService';
+import { useSubmitTaskResultMutation } from '@/hooks/queries/useTasks';
 import { BrandColors } from '@/constants/colors';
 import { isValidUrl, normalizeUrl } from '@/utils/validators';
 
@@ -36,7 +37,7 @@ export default function TaskResultModal({
   const [resultLink, setResultLink] = useState('');
   const [resultFile, setResultFile] = useState<any>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitResultMutation = useSubmitTaskResultMutation();
 
   useEffect(() => {
     if (visible) {
@@ -107,23 +108,19 @@ export default function TaskResultModal({
         resultData = { type: 'LINK', url, name: url };
       }
 
-      setIsSubmitting(true);
-      const res = await taskService.submitTaskResult(task.id, {
-        result: resultData,
-        projectId: task.project?.id,
+      await submitResultMutation.mutateAsync({
+        id: task.id,
+        payload: {
+          result: resultData,
+          projectId: task.project?.id,
+        },
       });
-      setIsSubmitting(false);
 
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', 'Đã gửi kết quả công việc thành công!');
-        onClose();
-        onSuccess();
-      }
+      Alert.alert('Thành công', 'Đã gửi kết quả công việc thành công!');
+      onClose();
+      onSuccess();
     } catch (err: any) {
       setIsUploading(false);
-      setIsSubmitting(false);
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi gửi kết quả.');
     }
   };
@@ -132,6 +129,8 @@ export default function TaskResultModal({
     submissionType === 'file'
       ? Boolean(resultFile)
       : Boolean(resultLink.trim());
+
+  const isPending = submitResultMutation.isPending || isUploading;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -237,7 +236,7 @@ export default function TaskResultModal({
             <TouchableOpacity
               style={styles.cancelBtn}
               onPress={onClose}
-              disabled={isSubmitting || isUploading}
+              disabled={isPending}
             >
               <Text style={styles.cancelBtnText}>Hủy</Text>
             </TouchableOpacity>
@@ -245,12 +244,12 @@ export default function TaskResultModal({
             <TouchableOpacity
               style={[
                 styles.submitBtn,
-                (!isReady || isSubmitting || isUploading) && { opacity: 0.5 },
+                (!isReady || isPending) && { opacity: 0.5 },
               ]}
               onPress={handleSubmit}
-              disabled={!isReady || isSubmitting || isUploading}
+              disabled={!isReady || isPending}
             >
-              {isSubmitting || isUploading ? (
+              {isPending ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Text style={styles.submitBtnText}>Hoàn tất</Text>

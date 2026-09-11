@@ -9,6 +9,7 @@ import {
   productDescriptionService,
   ProductDescriptionSubmission,
 } from '@/services/productDescriptionService';
+import { teamService } from '@/services/teamService';
 import { queryKeys } from '@/services/queryKeys';
 
 export interface ProjectListFilters {
@@ -285,6 +286,98 @@ export function useRejectProductDescriptionMutation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.projects.productDescriptions(variables.projectId),
       });
+    },
+  });
+}
+
+/**
+ * Hook to update team member role
+ */
+export function useUpdateTeamMemberRoleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      teamId,
+      memberId,
+      role,
+    }: {
+      teamId: string;
+      memberId: string;
+      role: string;
+    }) => {
+      const res = await teamService.updateTeamMemberRole(teamId, memberId, role);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to fetch available company users for project team
+ */
+export function useAvailableUsersQuery() {
+  return useQuery({
+    queryKey: ['users', 'available'],
+    queryFn: async () => {
+      const res = await teamService.getAvailableUsers();
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data || [];
+    },
+  });
+}
+
+/**
+ * Hook to add member to team
+ */
+export function useAddTeamMemberMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      teamId,
+      userId,
+      role,
+    }: {
+      teamId: string;
+      userId: string;
+      role: string;
+    }) => {
+      const res = await teamService.addTeamMember(teamId, userId, role);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to remove member from team
+ */
+export function useRemoveTeamMemberMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ teamId, memberId }: { teamId: string; memberId: string }) => {
+      const res = await teamService.removeTeamMember(teamId, memberId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     },
   });
 }

@@ -21,7 +21,18 @@ import TaskResultModal from '@/components/tasks/TaskResultModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
 import TaskReviewModal from '@/components/tasks/TaskReviewModal';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
-import { useTaskDetailQuery } from '@/hooks/queries/useTasks';
+import {
+  useTaskDetailQuery,
+  useTaskReviewsQuery,
+  useUpdateTaskMutation,
+  useApproveByCustomerMutation,
+  useRequestSupportMutation,
+  useRespondToSupportMutation,
+  useReturnSupportMutation,
+  useRequestReturnSupportMutation,
+  useSendTaskReminderMutation,
+  useRequestReworkMutation,
+} from '@/hooks/queries/useTasks';
 
 const formatDateTimeStr = (dateStr?: string) => {
   if (!dateStr) return 'Chưa thiết lập';
@@ -56,13 +67,12 @@ export default function TaskDetailScreen() {
   const task: TaskDetail | null = taskRes || null;
   const isLoading = isTaskLoading;
 
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [isActionLoading, setIsActionLoading] = useState(false);
+  const { data: reviewsData, refetch: refetchReviews } = useTaskReviewsQuery(String(id || ''));
+  const reviews = reviewsData || [];
 
   // Description inline edit state
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState('');
-  const [isUpdatingDescription, setIsUpdatingDescription] = useState(false);
 
   // Modal States
   const [isReworkModalOpen, setIsReworkModalOpen] = useState(false);
@@ -70,22 +80,32 @@ export default function TaskDetailScreen() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
+  // Mutations
+  const updateTaskMutation = useUpdateTaskMutation();
+  const approveByCustomerMutation = useApproveByCustomerMutation();
+  const requestSupportMutation = useRequestSupportMutation();
+  const respondToSupportMutation = useRespondToSupportMutation();
+  const returnSupportMutation = useReturnSupportMutation();
+  const requestReturnSupportMutation = useRequestReturnSupportMutation();
+  const sendTaskReminderMutation = useSendTaskReminderMutation();
+  const requestReworkMutation = useRequestReworkMutation();
+
+  const isActionLoading =
+    updateTaskMutation.isPending ||
+    approveByCustomerMutation.isPending ||
+    requestSupportMutation.isPending ||
+    respondToSupportMutation.isPending ||
+    returnSupportMutation.isPending ||
+    requestReturnSupportMutation.isPending ||
+    sendTaskReminderMutation.isPending ||
+    requestReworkMutation.isPending;
+
+  const isUpdatingDescription = updateTaskMutation.isPending;
+
   const loadTask = useCallback(() => {
     refetchTask();
-    if (id) {
-      taskService.getTaskReviews(id).then((res) => {
-        if (res.data) setReviews(res.data);
-      }).catch(() => {});
-    }
-  }, [id, refetchTask]);
-
-  useEffect(() => {
-    if (id) {
-      taskService.getTaskReviews(id).then((res) => {
-        if (res.data) setReviews(res.data);
-      }).catch(() => {});
-    }
-  }, [id]);
+    refetchReviews();
+  }, [refetchTask, refetchReviews]);
 
   useSSERefresh(['invalidate_Tasks', 'invalidate_TaskReviews'], loadTask);
 
@@ -103,138 +123,122 @@ export default function TaskDetailScreen() {
 
   const handleSaveDescription = async () => {
     if (!task) return;
-    setIsUpdatingDescription(true);
     try {
-      const res = await taskService.updateTask(task.id, {
-        description: editedDescription,
-        projectId: task.project?.id,
+      await updateTaskMutation.mutateAsync({
+        id: task.id,
+        payload: {
+          description: editedDescription,
+          projectId: task.project?.id,
+        },
       });
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', 'Cập nhật mô tả thành công!');
-        setIsEditingDescription(false);
-        loadTask();
-      }
-    } finally {
-      setIsUpdatingDescription(false);
+      Alert.alert('Thành công', 'Cập nhật mô tả thành công!');
+      setIsEditingDescription(false);
+      loadTask();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể cập nhật mô tả');
     }
   };
 
   const handleCustomerApprove = async () => {
     if (!task) return;
-    setIsActionLoading(true);
     try {
-      const res = await taskService.approveByCustomer(task.id, task.project?.id);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', 'Khách hàng đã duyệt công việc!');
-        loadTask();
-      }
-    } finally {
-      setIsActionLoading(false);
+      await approveByCustomerMutation.mutateAsync({
+        taskId: task.id,
+        projectId: task.project?.id,
+      });
+      Alert.alert('Thành công', 'Khách hàng đã duyệt công việc!');
+      loadTask();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể duyệt');
     }
   };
 
   const handleRequestSupport = async () => {
     if (!task) return;
-    setIsActionLoading(true);
     try {
-      const res = await taskService.requestSupport(task.id, 'Yêu cầu hỗ trợ từ thành viên', task.project?.id);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', 'Đã gửi yêu cầu hỗ trợ!');
-        loadTask();
-      }
-    } finally {
-      setIsActionLoading(false);
+      await requestSupportMutation.mutateAsync({
+        taskId: task.id,
+        reason: 'Yêu cầu hỗ trợ từ thành viên',
+        projectId: task.project?.id,
+      });
+      Alert.alert('Thành công', 'Đã gửi yêu cầu hỗ trợ!');
+      loadTask();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể gửi yêu cầu hỗ trợ');
     }
   };
 
   const handleRespondSupport = async (action: 'ACCEPT' | 'REJECT') => {
     if (!task) return;
-    setIsActionLoading(true);
     try {
-      const res = await taskService.respondToSupport(task.id, action, task.project?.id);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', action === 'ACCEPT' ? 'Đã chấp nhận hỗ trợ' : 'Đã từ chối hỗ trợ');
-        loadTask();
-      }
-    } finally {
-      setIsActionLoading(false);
+      await respondToSupportMutation.mutateAsync({
+        taskId: task.id,
+        action,
+        projectId: task.project?.id,
+      });
+      Alert.alert('Thành công', action === 'ACCEPT' ? 'Đã chấp nhận hỗ trợ' : 'Đã từ chối hỗ trợ');
+      loadTask();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Thao tác thất bại');
     }
   };
 
   const handleReturnSupport = async () => {
     if (!task) return;
-    setIsActionLoading(true);
     try {
-      const res = await taskService.returnSupport(task.id, task.project?.id);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', 'Đã trả lại task cho team gốc.');
-        router.back();
-      }
-    } finally {
-      setIsActionLoading(false);
+      await returnSupportMutation.mutateAsync({
+        taskId: task.id,
+        projectId: task.project?.id,
+      });
+      Alert.alert('Thành công', 'Đã trả lại task cho team gốc.');
+      router.back();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể trả lại task');
     }
   };
 
   const handleRequestReturnSupport = async () => {
     if (!task) return;
-    setIsActionLoading(true);
     try {
-      const res = await taskService.requestReturnSupport(task.id, 'Yêu cầu trả lại task', task.project?.id);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', 'Đã gửi yêu cầu trả lại task!');
-        loadTask();
-      }
-    } finally {
-      setIsActionLoading(false);
+      await requestReturnSupportMutation.mutateAsync({
+        taskId: task.id,
+        reason: 'Yêu cầu trả lại task',
+        projectId: task.project?.id,
+      });
+      Alert.alert('Thành công', 'Đã gửi yêu cầu trả lại task!');
+      loadTask();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Thao tác thất bại');
     }
   };
 
   const handleSendReminder = async () => {
     if (!task) return;
-    setIsActionLoading(true);
     try {
-      const res = await taskService.sendTaskReminder(task.id);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', 'Đã gửi nhắc nhở công việc!');
-      }
-    } finally {
-      setIsActionLoading(false);
+      await sendTaskReminderMutation.mutateAsync(task.id);
+      Alert.alert('Thành công', 'Đã gửi nhắc nhở công việc!');
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Gửi nhắc nhở thất bại');
     }
   };
 
   const handleReworkSubmit = async (data: { feedback: string; deadlineAt: string; attachments: any[] }) => {
     if (!task) return;
-    setIsActionLoading(true);
     try {
-      const res = await taskService.requestRework(task.id, {
-        feedback: data.feedback,
-        deadlineAt: data.deadlineAt,
-        attachments: data.attachments,
-        projectId: task.project?.id,
+      await requestReworkMutation.mutateAsync({
+        id: task.id,
+        payload: {
+          feedback: data.feedback,
+          deadlineAt: data.deadlineAt,
+          attachments: data.attachments,
+          projectId: task.project?.id,
+        },
       });
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        Alert.alert('Thành công', 'Gửi yêu cầu làm lại thành công!');
-        setIsReworkModalOpen(false);
-        loadTask();
-      }
-    } finally {
-      setIsActionLoading(false);
+      Alert.alert('Thành công', 'Gửi yêu cầu làm lại thành công!');
+      setIsReworkModalOpen(false);
+      loadTask();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Gửi yêu cầu làm lại thất bại');
     }
   };
 

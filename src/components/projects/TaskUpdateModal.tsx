@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { taskService, TASK_STATUS_CONFIG, TaskDetail } from '@/services/taskService';
+import { TASK_STATUS_CONFIG, TaskDetail } from '@/services/taskService';
+import { useUpdateTaskStatusMutation, useUpdateTaskMutation } from '@/hooks/queries/useTasks';
 import { BrandColors } from '@/constants/colors';
 
 interface TaskUpdateModalProps {
@@ -35,7 +36,11 @@ export default function TaskUpdateModal({
 }: TaskUpdateModalProps) {
   const [status, setStatus] = useState<string>('DOING');
   const [progress, setProgress] = useState<number>(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const updateStatusMutation = useUpdateTaskStatusMutation();
+  const updateTaskMutation = useUpdateTaskMutation();
+
+  const isSubmitting = updateStatusMutation.isPending || updateTaskMutation.isPending;
 
   useEffect(() => {
     if (task) {
@@ -46,24 +51,17 @@ export default function TaskUpdateModal({
 
   const handleSave = async () => {
     if (!task) return;
-    setIsSubmitting(true);
     try {
       // Update status
-      const resStatus = await taskService.updateTaskStatus(task.id, status);
+      await updateStatusMutation.mutateAsync({ id: task.id, status });
       // Update details progress
-      await taskService.updateTask(task.id, { progress });
+      await updateTaskMutation.mutateAsync({ id: task.id, payload: { progress } });
 
-      if (resStatus.error) {
-        Alert.alert('Lỗi', resStatus.error);
-      } else {
-        Alert.alert('Thành công', 'Đã cập nhật công việc thành công.');
-        onSuccess();
-        onClose();
-      }
+      Alert.alert('Thành công', 'Đã cập nhật công việc thành công.');
+      onSuccess();
+      onClose();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Không thể cập nhật task.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

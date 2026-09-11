@@ -37,12 +37,16 @@ import {
 import { formatVNDFull, formatNumber } from '@/utils/formatters';
 import { isValidUrl, normalizeUrl } from '@/utils/validators';
 import {
-  projectService,
   ProjectItem,
   UserPMItem,
   PROJECT_STATUS_CONFIG,
   PROJECT_STATUS_LABELS,
 } from '@/services/projectService';
+import {
+  usePmUsersQuery,
+  useProjectByContractQuery,
+  useAssignProjectMutation,
+} from '@/hooks/queries/useProjects';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
 
 const formatDate = (dateStr?: string) => {
@@ -103,38 +107,27 @@ export default function ContractDetailScreen() {
   const [isUploadingSigned, setIsUploadingSigned] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Project Info State (Chuẩn 100% Web ERP ProjectInfo.jsx)
-  const [project, setProject] = useState<ProjectItem | null>(null);
-  const [pmUsers, setPmUsers] = useState<UserPMItem[]>([]);
+  // Project Info & PMs via TanStack Query
+  const { data: pmUsersData } = usePmUsersQuery();
+  const pmUsers: UserPMItem[] = isAdminOrBod ? pmUsersData || [] : [];
+
+  const { data: projectData } = useProjectByContractQuery(contractId);
+  const project: ProjectItem | null = projectData || null;
+
+  const assignProjectMutation = useAssignProjectMutation();
+  const isAssigningPm = assignProjectMutation.isPending;
+
   const [selectedPmId, setSelectedPmId] = useState<string>('');
-  const [isAssigningPm, setIsAssigningPm] = useState(false);
   const [isPmPickerVisible, setIsPmPickerVisible] = useState(false);
 
   useEffect(() => {
-    if (isAdminOrBod) {
-      projectService.getPmUsers().then((res) => {
-        if (res.data) setPmUsers(res.data);
-      });
+    if (project) {
+      const pmMember = project.team?.members?.find((m) => m.role === 'PROJECT_MANAGER');
+      setSelectedPmId(pmMember?.user?.id || '');
+    } else {
+      setSelectedPmId('');
     }
-  }, [isAdminOrBod]);
-
-  // Load project linked with contract
-  useEffect(() => {
-    if (contractId) {
-      projectService
-        .getProjectByContract(contractId)
-        .then((projRes) => {
-          if (projRes.data) {
-            setProject(projRes.data);
-            const pmMember = projRes.data.team?.members?.find((m) => m.role === 'PROJECT_MANAGER');
-            setSelectedPmId(pmMember?.user?.id || '');
-          } else {
-            setProject(null);
-          }
-        })
-        .catch(() => setProject(null));
-    }
-  }, [contractId]);
+  }, [project]);
 
   useSSERefresh('invalidate_Contracts', refetch);
 
@@ -145,19 +138,12 @@ export default function ContractDetailScreen() {
   const handleAssignPmSubmit = async (pmId: string) => {
     if (!contract) return;
     try {
-      setIsAssigningPm(true);
-      const res = await projectService.assignProject(contract.id, pmId || null);
-      if (res.error) {
-        Alert.alert('Lỗi phân công', res.error);
-      } else {
-        Alert.alert('Thành công', 'Phân công PM phụ trách dự án thành công!');
-        setIsPmPickerVisible(false);
-        refetch();
-      }
+      await assignProjectMutation.mutateAsync({ contractId: contract.id, pmId: pmId || null });
+      Alert.alert('Thành công', 'Phân công PM phụ trách dự án thành công!');
+      setIsPmPickerVisible(false);
+      refetch();
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.message || 'Không thể phân công PM');
-    } finally {
-      setIsAssigningPm(false);
+      Alert.alert('Lỗi phân công', err?.message || 'Không thể phân công PM');
     }
   };
 

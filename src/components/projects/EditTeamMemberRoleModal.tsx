@@ -10,7 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { teamService, TeamMember, TEAM_MEMBER_ROLE_LABELS } from '@/services/teamService';
+import { TeamMember, TEAM_MEMBER_ROLE_LABELS } from '@/services/teamService';
+import { useUpdateTeamMemberRoleMutation } from '@/hooks/queries/useProjects';
 import { BrandColors } from '@/constants/colors';
 
 interface EditTeamMemberRoleModalProps {
@@ -44,7 +45,8 @@ export default function EditTeamMemberRoleModal({
   onSuccess,
 }: EditTeamMemberRoleModalProps) {
   const [selectedRole, setSelectedRole] = useState<string>('EDITOR');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const updateRoleMutation = useUpdateTeamMemberRoleMutation();
+  const isSubmitting = updateRoleMutation.isPending;
 
   useEffect(() => {
     if (visible && member) {
@@ -73,20 +75,18 @@ export default function EditTeamMemberRoleModal({
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      const res = await teamService.updateTeamMemberRole(teamId, member.id, selectedRole);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error || 'Cập nhật vai trò thất bại.');
-      } else {
-        Alert.alert('Thành công', `Đã cập nhật vai trò của ${member.user?.fullName || 'nhân sự'} thành ${TEAM_MEMBER_ROLE_LABELS[selectedRole] || selectedRole}.`);
-        onSuccess();
-        onClose();
-      }
+      await updateRoleMutation.mutateAsync({
+        teamId,
+        memberId: member.id,
+        role: selectedRole,
+      });
+
+      Alert.alert('Thành công', `Đã cập nhật vai trò của ${member.user?.fullName || 'nhân sự'} thành ${TEAM_MEMBER_ROLE_LABELS[selectedRole] || selectedRole}.`);
+      onSuccess();
+      onClose();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi cập nhật vai trò.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

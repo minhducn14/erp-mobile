@@ -49,6 +49,8 @@ import {
   useApproveQuotationMutation,
   useRejectQuotationMutation,
 } from '@/hooks/queries/useQuotations';
+import { useCreateContractMutation } from '@/hooks/queries/useContracts';
+import { useUpdateCustomerMutation } from '@/hooks/queries/useCustomers';
 
 // Dictionary mapping for Region, Field and Priority
 const REGION_LABELS: Record<string, string> = {
@@ -129,11 +131,13 @@ export default function OpportunityDetailScreen() {
 
   const updateOpportunityMutation = useUpdateOpportunityMutation();
   const approveOpportunityMutation = useApproveOpportunityMutation();
+  const createContractMutation = useCreateContractMutation();
+  const updateCustomerMutation = useUpdateCustomerMutation();
   const approveQuotationMutation = useApproveQuotationMutation();
   const rejectQuotationMutation = useRejectQuotationMutation();
 
   const isApproving = approveOpportunityMutation.isPending;
-  const [isCreatingContract, setIsCreatingContract] = useState(false);
+  const isCreatingContract = createContractMutation.isPending;
 
   // Customer Assign Modal State
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
@@ -153,14 +157,12 @@ export default function OpportunityDetailScreen() {
           text: 'Tạo hợp đồng',
           onPress: async () => {
             try {
-              setIsCreatingContract(true);
-              const res = await contractService.createContract({
+              const newContract = await createContractMutation.mutateAsync({
                 opportunityId: id as string,
                 name: defaultName,
               });
 
-              if (res.data) {
-                const newContract = res.data;
+              if (newContract) {
                 Alert.alert('Thành công', 'Đã tạo hợp đồng kinh tế thành công!', [
                   {
                     text: 'Xem chi tiết hợp đồng',
@@ -176,17 +178,12 @@ export default function OpportunityDetailScreen() {
                   {
                     text: 'Đóng',
                     style: 'cancel',
-                    onPress: () => refetchAll(),
                   },
                 ]);
-                await refetchAll();
-              } else {
-                Alert.alert('Lỗi', res.error || 'Có lỗi xảy ra khi tạo hợp đồng');
+                refetchAll();
               }
             } catch (err: any) {
-              Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi tạo hợp đồng');
-            } finally {
-              setIsCreatingContract(false);
+              Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi tạo hợp đồng.');
             }
           },
         },

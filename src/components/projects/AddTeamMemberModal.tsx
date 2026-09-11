@@ -10,7 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { teamService, CompanyUser, TEAM_MEMBER_ROLE_LABELS, USER_ROLE } from '@/services/teamService';
+import { CompanyUser, TEAM_MEMBER_ROLE_LABELS, USER_ROLE } from '@/services/teamService';
+import { useAvailableUsersQuery, useAddTeamMemberMutation } from '@/hooks/queries/useProjects';
 import { BrandColors } from '@/constants/colors';
 
 interface AddTeamMemberModalProps {
@@ -30,33 +31,21 @@ export default function AddTeamMemberModal({
   existingLeadName,
   onSuccess,
 }: AddTeamMemberModalProps) {
-  const [users, setUsers] = useState<CompanyUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<string>('EDITOR');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: usersData, isLoading: loadingUsers } = useAvailableUsersQuery();
+  const users = usersData || [];
+
+  const addMemberMutation = useAddTeamMemberMutation();
+  const isSubmitting = addMemberMutation.isPending;
 
   useEffect(() => {
     if (visible) {
       setSelectedUserId('');
       setSelectedRole('EDITOR');
-      loadUsers();
     }
   }, [visible]);
-
-  const loadUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const res = await teamService.getAvailableUsers();
-      if (res.data) {
-        setUsers(res.data);
-      }
-    } catch {
-      // Handled gracefully
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
 
   const availableUsers = users.filter((u) => !existingMemberUserIds.includes(u.id));
 
@@ -70,20 +59,18 @@ export default function AddTeamMemberModal({
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      const res = await teamService.addTeamMember(teamId, selectedUserId, selectedRole);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error || 'Thêm nhân sự thất bại.');
-      } else {
-        Alert.alert('Thành công', 'Đã thêm nhân sự vào đội dự án!');
-        onSuccess();
-        onClose();
-      }
+      await addMemberMutation.mutateAsync({
+        teamId,
+        userId: selectedUserId,
+        role: selectedRole,
+      });
+
+      Alert.alert('Thành công', 'Đã thêm nhân sự vào đội dự án!');
+      onSuccess();
+      onClose();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi thêm nhân sự.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

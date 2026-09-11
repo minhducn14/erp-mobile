@@ -10,7 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { projectService, UserPMItem } from '@/services/projectService';
+import { UserPMItem } from '@/services/projectService';
+import { usePmUsersQuery, useAssignProjectMutation } from '@/hooks/queries/useProjects';
 import { BrandColors } from '@/constants/colors';
 
 interface AssignPmModalProps {
@@ -30,31 +31,19 @@ export default function AssignPmModal({
   currentPmId,
   onSuccess,
 }: AssignPmModalProps) {
-  const [pmUsers, setPmUsers] = useState<UserPMItem[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
   const [selectedPmId, setSelectedPmId] = useState<string | undefined>(currentPmId);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: pmUsersData, isLoading: loadingUsers } = usePmUsersQuery();
+  const pmUsers = pmUsersData || [];
+
+  const assignProjectMutation = useAssignProjectMutation();
+  const isSubmitting = assignProjectMutation.isPending;
 
   useEffect(() => {
     if (visible) {
       setSelectedPmId(currentPmId);
-      loadPmUsers();
     }
   }, [visible, currentPmId]);
-
-  const loadPmUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const res = await projectService.getPmUsers();
-      if (res.data) {
-        setPmUsers(res.data);
-      }
-    } catch {
-      // Handled gracefully
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
 
   const handleAssign = async () => {
     if (!selectedPmId) {
@@ -62,21 +51,17 @@ export default function AssignPmModal({
       return;
     }
     const targetContractId = contractId || projectId;
-    setIsSubmitting(true);
     try {
-      const res = await projectService.assignPm(targetContractId, selectedPmId);
+      await assignProjectMutation.mutateAsync({
+        contractId: targetContractId,
+        pmId: selectedPmId,
+      });
 
-      if (res.error) {
-        Alert.alert('Lỗi', res.error || 'Khởi tạo gán PM thất bại.');
-      } else {
-        Alert.alert('Thành công', 'Đã phân công Quản lý dự án thành công.');
-        onSuccess();
-        onClose();
-      }
+      Alert.alert('Thành công', 'Đã phân công Quản lý dự án thành công.');
+      onSuccess();
+      onClose();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

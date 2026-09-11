@@ -15,8 +15,12 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { BrandColors } from '@/constants/colors';
-import { customerService, CustomerItem } from '@/services/customerService';
-import { opportunityService } from '@/services/opportunityService';
+import { CustomerItem } from '@/services/customerService';
+import { useCustomersQuery } from '@/hooks/queries/useCustomers';
+import {
+  useReferralPartnersQuery,
+  useReferralPartnerDetailQuery,
+} from '@/hooks/queries/useOpportunities';
 import { fetchTaxInfo } from '@/utils/tax';
 import { isValidEmail, isValidPhone, isValidTaxId } from '@/utils/validators';
 
@@ -61,19 +65,28 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
   const [customerType, setCustomerType] = useState<'DIRECT' | 'REFERRAL'>('DIRECT');
 
   // 2. Đối tác giới thiệu
-  const [referralPartners, setReferralPartners] = useState<Array<{ id: string; name: string; phone?: string; taxId?: string }>>([]);
   const [selectedReferralPartnerId, setSelectedReferralPartnerId] = useState<string>('');
-  const [isLoadingPartnerDetails, setIsLoadingPartnerDetails] = useState(false);
 
   // 3. Trạng thái khách hàng: Mặc định rỗng '' theo Web ('POTENTIAL' | 'EXISTING')
   const [customerStatus, setCustomerStatus] = useState<'' | 'EXISTING' | 'POTENTIAL'>('');
 
   // 4. Danh sách khách hàng (Hệ thống vs Khách hàng của đối tác)
-  const [allCustomers, setAllCustomers] = useState<CustomerItem[]>([]);
-  const [partnerCustomers, setPartnerCustomers] = useState<CustomerItem[]>([]);
-  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+
+  // TanStack Queries for catalogs & partner details
+  const { data: allCustomersData, isLoading: isLoadingCustomers } = useCustomersQuery();
+  const allCustomers: CustomerItem[] = allCustomersData || [];
+
+  const { data: referralPartnersData } = useReferralPartnersQuery();
+  const referralPartners: Array<{ id: string; name: string; phone?: string; taxId?: string }> =
+    referralPartnersData || [];
+
+  const { data: partnerDetailData, isLoading: isLoadingPartnerDetails } =
+    useReferralPartnerDetailQuery(
+      customerType === 'REFERRAL' ? selectedReferralPartnerId : ''
+    );
+  const partnerCustomers: CustomerItem[] = (partnerDetailData?.customers as CustomerItem[]) || [];
 
   // 5. Thông tin khách hàng tiềm năng (Lead)
   const [leadTaxId, setLeadTaxId] = useState('');
@@ -132,54 +145,7 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
     } else {
       setSelectedReferralPartnerId('');
     }
-
-    const loadCatalogs = async () => {
-      setIsLoadingCustomers(true);
-      try {
-        const [custRes, partRes] = await Promise.all([
-          customerService.getCustomers(),
-          opportunityService.getReferralPartners(),
-        ]);
-        if (custRes.data && Array.isArray(custRes.data)) {
-          setAllCustomers(custRes.data);
-        }
-        if (partRes.data && Array.isArray(partRes.data)) {
-          setReferralPartners(partRes.data);
-        }
-      } catch {
-        // silent fail
-      } finally {
-        setIsLoadingCustomers(false);
-      }
-    };
-
-    loadCatalogs();
   }, [visible, initialData]);
-
-  // Khi chọn Đối tác giới thiệu ➔ Lấy danh sách khách hàng liên kết của đối tác đó
-  useEffect(() => {
-    if (customerType === 'REFERRAL' && selectedReferralPartnerId) {
-      const fetchPartnerCustomers = async () => {
-        setIsLoadingPartnerDetails(true);
-        try {
-          const res = await opportunityService.getReferralPartner(selectedReferralPartnerId);
-          if (res.data && Array.isArray(res.data.customers)) {
-            setPartnerCustomers(res.data.customers);
-          } else {
-            setPartnerCustomers([]);
-          }
-        } catch {
-          setPartnerCustomers([]);
-        } finally {
-          setIsLoadingPartnerDetails(false);
-        }
-      };
-
-      fetchPartnerCustomers();
-    } else {
-      setPartnerCustomers([]);
-    }
-  }, [customerType, selectedReferralPartnerId]);
 
   // Tự động tra cứu MST khi gõ đủ 10 hoặc 13 số (Debounce 500ms chuẩn Web)
   useEffect(() => {

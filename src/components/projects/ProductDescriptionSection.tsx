@@ -270,8 +270,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
       setUploadProgress({});
       const payload = await buildPayload();
 
-      const res = await productDescriptionService.createSubmission(projectId, payload);
-      if (res.error) throw new Error(res.error);
+      await createSubmissionMutation.mutateAsync({ projectId, payload });
       Alert.alert('Thành công', 'Đã tạo bản mô tả sản phẩm mới (DRAFT)');
       resetForm();
       loadSubmissions();
@@ -290,13 +289,11 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
       const payload = await buildPayload();
 
       // Mỗi lần gửi duyệt sẽ tạo 1 bản submission mới
-      const createRes = await productDescriptionService.createSubmission(projectId, payload);
-      if (createRes.error) throw new Error(createRes.error);
-      const savedId = createRes.data?.id;
+      const createRes = await createSubmissionMutation.mutateAsync({ projectId, payload });
+      const savedId = createRes?.id;
 
       if (savedId) {
-        const submitRes = await productDescriptionService.submitSubmission(projectId, savedId);
-        if (submitRes.error) throw new Error(submitRes.error);
+        await submitSubmissionMutation.mutateAsync({ projectId, submissionId: savedId });
         Alert.alert('Thành công', 'Đã tạo bản mới và gửi PM duyệt thông tin chuẩn sản phẩm');
       }
       resetForm();
@@ -312,8 +309,7 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
   const handleApprove = async (submissionId: string) => {
     try {
       setIsReviewing(true);
-      const res = await productDescriptionService.approveSubmission(projectId, submissionId);
-      if (res.error) throw new Error(res.error);
+      await approveSubmissionMutation.mutateAsync({ projectId, submissionId });
       Alert.alert('Thành công', 'Đã duyệt version mô tả sản phẩm');
       loadSubmissions();
     } catch (err: any) {
@@ -333,19 +329,18 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
     if (!rejectTargetId) return;
     try {
       setIsReviewing(true);
-      const res = await productDescriptionService.rejectSubmission(
+      await rejectSubmissionMutation.mutateAsync({
         projectId,
-        rejectTargetId,
-        rejectReason.trim() || undefined
-      );
-      if (res.error) throw new Error(res.error);
+        submissionId: rejectTargetId,
+        reviewNote: rejectReason.trim() || undefined,
+      });
       Alert.alert('Thành công', 'Đã từ chối duyệt bản mô tả sản phẩm');
       setRejectModalVisible(false);
       setRejectTargetId(null);
       setRejectReason('');
       loadSubmissions();
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.message || 'Không duyệt thất bại');
+      Alert.alert('Lỗi', err?.message || 'Từ chối thất bại');
     } finally {
       setIsReviewing(false);
     }

@@ -14,11 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { isManagementRole } from '@/utils/rbac';
-import {
-  projectService,
-  ProjectDetailItem,
-  PROJECT_STATUS_CONFIG,
-} from '@/services/projectService';
+import { ProjectDetailItem, PROJECT_STATUS_CONFIG,} from '@/services/projectService';
 import { taskService, TaskDetail } from '@/services/taskService';
 import { acceptanceService, AcceptanceItem } from '@/services/acceptanceService';
 import { BrandColors } from '@/constants/colors';
@@ -37,7 +33,13 @@ import AddTeamMemberModal from '@/components/projects/AddTeamMemberModal';
 import EditTeamMemberRoleModal from '@/components/projects/EditTeamMemberRoleModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
-import { useProjectDetailQuery, useConfirmProjectMutation } from '@/hooks/queries/useProjects';
+import {
+  useProjectDetailQuery,
+  useConfirmProjectMutation,
+  useRemoveTeamMemberMutation,
+} from '@/hooks/queries/useProjects';
+import { useTasksByProjectQuery } from '@/hooks/queries/useTasks';
+import { useAcceptancesQuery } from '@/hooks/queries/useAcceptances';
 
 type TabKey = 'OVERVIEW' | 'TASKS' | 'ACCEPTANCE';
 
@@ -47,8 +49,6 @@ export default function ProjectDetailScreen() {
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabKey>('OVERVIEW');
-  const [tasks, setTasks] = useState<TaskDetail[]>([]);
-  const [acceptances, setAcceptances] = useState<AcceptanceItem[]>([]);
 
   // TanStack Query for Project Detail
   const {
@@ -59,12 +59,17 @@ export default function ProjectDetailScreen() {
   } = useProjectDetailQuery(String(id || ''));
 
   const confirmProjectMutation = useConfirmProjectMutation();
+  const removeTeamMemberMutation = useRemoveTeamMemberMutation();
+
+  const { data: tasksData, isLoading: isLoadingTasks, refetch: refetchTasks } = useTasksByProjectQuery(String(id || ''));
+  const tasks: TaskDetail[] = tasksData || [];
+
+  const { data: acceptancesData, isLoading: isLoadingAcceptances, refetch: refetchAcceptances } = useAcceptancesQuery({ projectId: String(id || '') });
+  const acceptances: AcceptanceItem[] = acceptancesData || [];
 
   const project: ProjectDetailItem | null = projectData || null;
   const isLoading = isProjectLoading;
   const isRefreshing = isProjectFetching;
-  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
-  const [isLoadingAcceptances, setIsLoadingAcceptances] = useState(false);
 
   // Modal & Confirm States
   const [showAssignPm, setShowAssignPm] = useState(false);
@@ -116,13 +121,12 @@ export default function ProjectDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const res = await teamService.removeTeamMember(project.team!.id, memberId);
-            if (res.error) {
-              Alert.alert('Lỗi', res.error);
-            } else {
-              Alert.alert('Thành công', 'Đã xóa nhân sự khỏi đội dự án.');
-              loadProjectDetail();
-            }
+            await removeTeamMemberMutation.mutateAsync({
+              teamId: project.team!.id,
+              memberId,
+            });
+            Alert.alert('Thành công', 'Đã xóa nhân sự khỏi đội dự án.');
+            loadProjectDetail();
           } catch (err: any) {
             Alert.alert('Lỗi', err?.message || 'Không thể xóa nhân sự.');
           }
@@ -131,14 +135,13 @@ export default function ProjectDetailScreen() {
     ]);
   };
 
-
   const handleConfirmProject = async () => {
     if (!id) return;
     setIsConfirming(true);
     try {
       await confirmProjectMutation.mutateAsync(id);
       Alert.alert('Thành công', 'Đã chấp nhận dự án thành công.');
-      loadTasks();
+      refetchTasks();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi chấp nhận dự án.');
     } finally {
@@ -150,41 +153,13 @@ export default function ProjectDetailScreen() {
     refetchProject();
   }, [refetchProject]);
 
-  const loadTasks = useCallback(async () => {
-    if (!id) return;
-    setIsLoadingTasks(true);
-    try {
-      const res = await taskService.getTasksByProject(id);
-      if (res.data && Array.isArray(res.data)) {
-        setTasks(res.data);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoadingTasks(false);
-    }
-  }, [id]);
+  const loadTasks = useCallback(() => {
+    refetchTasks();
+  }, [refetchTasks]);
 
-  const loadAcceptances = useCallback(async () => {
-    if (!id) return;
-    setIsLoadingAcceptances(true);
-    try {
-      console.log(id);
-      const res = await acceptanceService.getAcceptanceRequests(id);
-      if (res.data && Array.isArray(res.data)) {
-        setAcceptances(res.data);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoadingAcceptances(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    loadTasks();
-    loadAcceptances();
-  }, [loadTasks, loadAcceptances]);
+  const loadAcceptances = useCallback(() => {
+    refetchAcceptances();
+  }, [refetchAcceptances]);
 
   useSSERefresh('invalidate_Projects', refetchProject);
   useSSERefresh(['invalidate_Tasks', 'invalidate_TaskReviews'], loadTasks);

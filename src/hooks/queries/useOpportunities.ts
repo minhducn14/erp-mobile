@@ -127,3 +127,17 @@ export function useReferralPartnersQuery() {
     staleTime: 1000 * 60 * 10,
   });
 }
+
+/**
+ * Hook to fetch single referral partner detail
+ */
+export function useReferralPartnerDetailQuery(id: string) {
+  return useQuery({
+    queryKey: ['referral-partners', id],
+    queryFn: async () => {
+      const res = await opportunityService.getReferralPartner(id);
+      return res.data;
+    },
+    enabled: Boolean(id),
+  });
+}

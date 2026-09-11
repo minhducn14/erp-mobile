@@ -15,6 +15,14 @@ import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { taskService, TaskDetail } from '@/services/taskService';
 import { teamService, TEAM_MEMBER_ROLE_LABELS } from '@/services/teamService';
+import {
+  useAssignTaskMutation,
+  useBulkAssignTasksMutation,
+  useAssignSupportTeamMutation,
+  useRequestSupportMutation,
+  useVendorsByJobQuery,
+  useTeamsQuery,
+} from '@/hooks/queries/useTasks';
 import { uploadToCloudinary, PickedFile } from '@/services/cloudinaryService';
 import { BrandColors } from '@/constants/colors';
 import { isValidUrl, normalizeUrl } from '@/utils/validators';
@@ -461,18 +469,38 @@ export default function TaskAssignModal({
   const [links, setLinks] = useState<string[]>(['']);
   const [files, setFiles] = useState<PickedFile[]>([]);
 
-  // Auxiliary data
-  const [allTeams, setAllTeams] = useState<any[]>([]);
-  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [isLoadingVendors, setIsLoadingVendors] = useState(false);
-
   const [uploadProgress, setUploadProgress] = useState<Record<number, number>>({});
   const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const assignTaskMutation = useAssignTaskMutation();
+  const bulkAssignMutation = useBulkAssignTasksMutation();
+  const assignSupportTeamMutation = useAssignSupportTeamMutation();
+  const requestSupportMutation = useRequestSupportMutation();
+
+  const isPending =
+    assignTaskMutation.isPending ||
+    bulkAssignMutation.isPending ||
+    assignSupportTeamMutation.isPending ||
+    requestSupportMutation.isPending ||
+    isUploading;
 
   const isSupportRequested = !isBulk && representativeTask ? (representativeTask as any).isSupportRequested : false;
   const isSupportMode = !isBulk && representativeTask ? !isSupportRequested && (representativeTask.status === 'DOING' || representativeTask.status === 'REWORKING') : false;
+
+  const jobId =
+    representativeTask?.jobId ||
+    representativeTask?.job?.id ||
+    (representativeTask as any)?.contractService?.jobId ||
+    (representativeTask as any)?.contractService?.job?.id ||
+    '';
+
+  const { data: vendorsData, isLoading: isLoadingVendors } = useVendorsByJobQuery(
+    performerType === 'VENDOR' ? jobId : ''
+  );
+  const vendors = vendorsData || [];
+
+  const { data: teamsData, isLoading: isLoadingTeams } = useTeamsQuery();
+  const allTeams = teamsData || [];
 
   // Initial load when modal becomes visible
   useEffect(() => {
@@ -488,58 +516,13 @@ export default function TaskAssignModal({
       setLinks(['']);
       setFiles([]);
       setUploadProgress({});
-
-      if (defaultPerfType === 'VENDOR') {
-        loadVendors();
-      }
     }
   }, [visible, representativeTask]);
-
-  // Load vendors for job/vendor selection (Matches Web useGetVendorsByJobQuery)
-  const loadVendors = useCallback(async () => {
-    const jobId =
-      representativeTask?.jobId ||
-      representativeTask?.job?.id ||
-      (representativeTask as any)?.contractService?.jobId ||
-      (representativeTask as any)?.contractService?.job?.id;
-
-    if (!jobId) {
-      setVendors([]);
-      return;
-    }
-
-    setIsLoadingVendors(true);
-    try {
-      const res = await taskService.getVendorsByJob(jobId);
-      setVendors(res?.data || []);
-    } catch {
-      setVendors([]);
-    } finally {
-      setIsLoadingVendors(false);
-    }
-  }, [task]);
-
-  // Load teams when Support Team switch is activated
-  const loadTeams = useCallback(async () => {
-    if (allTeams.length > 0) return;
-    setIsLoadingTeams(true);
-    try {
-      const res = await teamService.getTeams();
-      setAllTeams(res.data || []);
-    } catch {
-      setAllTeams([]);
-    } finally {
-      setIsLoadingTeams(false);
-    }
-  }, [allTeams.length]);
 
   const handlePerformerTypeChange = (type: 'INTERNAL' | 'VENDOR') => {
     setPerformerType(type);
     setSelectedAssigneeId('');
     setSelectedVendorId('');
-    if (type === 'VENDOR') {
-      loadVendors();
-    }
   };
 
   const handleToggleTeamAssignment = () => {
@@ -548,9 +531,6 @@ export default function TaskAssignModal({
     setSelectedAssigneeId('');
     setSelectedTeamId('');
     setSelectedVendorId('');
-    if (nextVal) {
-      loadTeams();
-    }
   };
 
   // Link helper actions
@@ -629,7 +609,6 @@ export default function TaskAssignModal({
       }
     }
 
-    setIsSubmitting(true);
     try {
       const attachmentsList: Array<{ type: string; name: string; url: string; size?: number }> = [];
 
@@ -642,7 +621,6 @@ export default function TaskAssignModal({
               'Liên kết không hợp lệ',
               `Đường dẫn "${trimmed}" không đúng định dạng. Vui lòng kiểm tra lại (Ví dụ: google.com hoặc https://example.com).`
             );
-            setIsSubmitting(false);
             return;
           }
           const formattedUrl = normalizeUrl(trimmed);
@@ -680,7 +658,7 @@ export default function TaskAssignModal({
       // 3. Execute assignment logic
       if (isBulk) {
         const finalAssigneeId = performerType === 'INTERNAL' ? selectedAssigneeId : selectedVendorId;
-        const res = await taskService.bulkAssignTasks({
+        await bulkAssignMutation.mutateAsync({
           taskIds: tasks.map((t) => t.id),
           assigneeId: finalAssigneeId,
           performerType,
@@ -691,41 +669,36 @@ export default function TaskAssignModal({
           projectId,
         });
 
-        if (res.error) {
-          Alert.alert('Lỗi', res.error || 'Phân công hàng loạt không thành công.');
-          return;
-        }
         Alert.alert('Thành công', `Đã phân công ${tasks.length} công việc hàng loạt thành công!`);
       } else if (isTeamAssignment) {
         if (representativeTask && representativeTask.status === 'DOING' && !isSupportRequested) {
-          await taskService.requestSupport(
-            representativeTask.id,
-            description || 'Cần hỗ trợ thực hiện công việc này',
-            projectId
-          );
+          await requestSupportMutation.mutateAsync({
+            taskId: representativeTask.id,
+            reason: description || 'Cần hỗ trợ thực hiện công việc này',
+            projectId,
+          });
         }
 
-        const supportRes = await taskService.assignSupportTeam(representativeTask?.id || '', selectedTeamId, projectId);
-        if (supportRes.error) {
-          Alert.alert('Lỗi', supportRes.error || 'Phân công hỗ trợ team thất bại.');
-          return;
-        }
+        await assignSupportTeamMutation.mutateAsync({
+          taskId: representativeTask?.id || '',
+          teamId: selectedTeamId,
+          projectId,
+        });
         Alert.alert('Thành công', 'Đã phân công Team hỗ trợ thực hiện công việc thành công!');
       } else {
         const finalAssigneeId = performerType === 'INTERNAL' ? selectedAssigneeId : selectedVendorId;
-        const res = await taskService.assignTask(representativeTask?.id || '', {
-          assigneeId: finalAssigneeId,
-          performerType,
-          plannedEndDate: formattedPlannedEndDate,
-          description: description.trim() || undefined,
-          attachments: attachmentsList,
-          projectId,
+        await assignTaskMutation.mutateAsync({
+          id: representativeTask?.id || '',
+          payload: {
+            assigneeId: finalAssigneeId,
+            performerType,
+            plannedEndDate: formattedPlannedEndDate,
+            description: description.trim() || undefined,
+            attachments: attachmentsList,
+            projectId,
+          },
         });
 
-        if (res.error) {
-          Alert.alert('Lỗi', res.error || 'Phân công công việc không thành công.');
-          return;
-        }
         Alert.alert('Thành công', `Đã phân công công việc "${representativeTask?.name}" thành công!`);
       }
 
@@ -734,8 +707,6 @@ export default function TaskAssignModal({
     } catch (err: any) {
       setIsUploading(false);
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi phân công công việc.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -1096,7 +1067,7 @@ export default function TaskAssignModal({
               <TouchableOpacity
                 style={styles.cancelBtn}
                 onPress={onClose}
-                disabled={isSubmitting || isUploading}
+                disabled={isPending}
               >
                 <Text style={styles.cancelBtnText}>Hủy bỏ</Text>
               </TouchableOpacity>
@@ -1104,12 +1075,12 @@ export default function TaskAssignModal({
               <TouchableOpacity
                 style={[
                   styles.submitBtn,
-                  (isSubmitting || isUploading) && styles.submitBtnDisabled,
+                  isPending && styles.submitBtnDisabled,
                 ]}
                 onPress={handleSubmit}
-                disabled={isSubmitting || isUploading}
+                disabled={isPending}
               >
-                {isSubmitting || isUploading ? (
+                {isPending ? (
                   <>
                     <ActivityIndicator size="small" color="#FFFFFF" />
                     <Text style={styles.submitBtnText}>Đang xử lý...</Text>

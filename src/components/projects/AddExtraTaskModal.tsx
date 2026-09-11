@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { taskService } from '@/services/taskService';
+import { useCreateTaskMutation } from '@/hooks/queries/useTasks';
 import { BrandColors } from '@/constants/colors';
 
 interface AddExtraTaskModalProps {
@@ -30,7 +30,9 @@ export default function AddExtraTaskModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const createTaskMutation = useCreateTaskMutation();
+  const isSubmitting = createTaskMutation.isPending;
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -38,9 +40,8 @@ export default function AddExtraTaskModal({
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      const res = await taskService.createTask({
+      await createTaskMutation.mutateAsync({
         projectId,
         name: name.trim(),
         description: description.trim(),
@@ -48,20 +49,14 @@ export default function AddExtraTaskModal({
         isExtraTask: true,
       });
 
-      if (res.error) {
-        Alert.alert('Lỗi', res.error || 'Thêm công việc phát sinh thất bại.');
-      } else {
-        Alert.alert('Thành công', 'Đã thêm công việc phát sinh thành công.');
-        setName('');
-        setDescription('');
-        setDueDate('');
-        onSuccess();
-        onClose();
-      }
+      Alert.alert('Thành công', 'Đã thêm công việc phát sinh thành công.');
+      setName('');
+      setDescription('');
+      setDueDate('');
+      onSuccess();
+      onClose();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

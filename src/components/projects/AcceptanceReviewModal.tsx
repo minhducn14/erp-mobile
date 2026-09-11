@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { acceptanceService, AcceptanceItem, ACCEPTANCE_STATUS_CONFIG } from '@/services/acceptanceService';
+import { AcceptanceItem, ACCEPTANCE_STATUS_CONFIG } from '@/services/acceptanceService';
+import { useAcceptanceDetailQuery, useProcessAcceptanceMutation } from '@/hooks/queries/useAcceptances';
 import { BrandColors } from '@/constants/colors';
 
 interface AcceptanceReviewModalProps {
@@ -30,10 +31,14 @@ export default function AcceptanceReviewModal({
   onSuccess,
 }: AcceptanceReviewModalProps) {
   const router = useRouter();
-  const [fullRequest, setFullRequest] = useState<any>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [decisions, setDecisions] = useState<Record<string, any>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: fullRequest, isLoading: isLoadingDetails } = useAcceptanceDetailQuery(
+    visible && request?.id ? request.id : ''
+  );
+
+  const processAcceptanceMutation = useProcessAcceptanceMutation();
+  const isSubmitting = processAcceptanceMutation.isPending;
 
   const handleGoToTask = (taskId?: string) => {
     if (!taskId) return;
@@ -42,24 +47,8 @@ export default function AcceptanceReviewModal({
   };
 
   useEffect(() => {
-    if (visible && request?.id) {
-      loadFullDetails();
-    } else {
-      setFullRequest(null);
-      setDecisions({});
-    }
-  }, [visible, request?.id]);
-
-  const loadFullDetails = async () => {
-    if (!request?.id) return;
-    setIsLoadingDetails(true);
-    const res = await acceptanceService.getAcceptanceById(request.id);
-    setIsLoadingDetails(false);
-    if (res.data) {
-      const data = res.data;
-      setFullRequest(data);
-
-      const services = (data as any).services || [];
+    if (visible && fullRequest) {
+      const services = (fullRequest as any).services || [];
       const initialDecisions: Record<string, any> = {};
       services.forEach((s: any) => {
         initialDecisions[s.id] = {
@@ -75,8 +64,10 @@ export default function AcceptanceReviewModal({
         };
       });
       setDecisions(initialDecisions);
+    } else if (!visible) {
+      setDecisions({});
     }
-  };
+  }, [visible, fullRequest]);
 
   const handleServiceDecision = (serviceId: string, status: 'APPROVED' | 'REJECTED') => {
     setDecisions((prev) => {
@@ -160,16 +151,17 @@ export default function AcceptanceReviewModal({
       }
     }
 
-    setIsSubmitting(true);
-    const res = await acceptanceService.processAcceptanceRequest(request.id, payload);
-    setIsSubmitting(false);
+    try {
+      await processAcceptanceMutation.mutateAsync({
+        id: request.id,
+        decisions: payload,
+      });
 
-    if (res.error) {
-      Alert.alert('Lỗi', res.error || 'Xử lý nghiệm thu thất bại.');
-    } else {
       Alert.alert('Thành công', 'Đã xử lý nghiệm thu thành công.');
       onClose();
       onSuccess();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Xử lý nghiệm thu thất bại.');
     }
   };
 
@@ -219,7 +211,7 @@ export default function AcceptanceReviewModal({
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Người yêu cầu:</Text>
                   <Text style={styles.infoVal}>
-                    {fullRequest?.requester?.fullName || request.creator?.fullName || 'Team Lead'}
+                    {(fullRequest as any)?.requester?.fullName || fullRequest?.creator?.fullName || request.creator?.fullName || 'Team Lead'}
                   </Text>
                 </View>
                 {request.createdAt && (

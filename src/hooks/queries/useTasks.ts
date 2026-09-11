@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { taskService, TaskDetail } from '@/services/taskService';
+import { teamService } from '@/services/teamService';
 import { TaskItem } from '@/services/dashboardService';
 import { queryKeys } from '@/services/queryKeys';
 
@@ -71,6 +72,29 @@ export function useUpdateTaskStatusMutation() {
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const res = await taskService.updateTaskStatus(id, status);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+    },
+  });
+}
+
+/**
+ * Hook to update task payload details
+ */
+export function useUpdateTaskMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<TaskDetail> }) => {
+      const res = await taskService.updateTask(id, payload);
       if (res.error) {
         throw new Error(res.error);
       }
@@ -289,6 +313,240 @@ export function useRequestReworkMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to fetch vendors by job ID
+ */
+export function useVendorsByJobQuery(jobId: string) {
+  return useQuery({
+    queryKey: ['vendors', 'job', jobId],
+    queryFn: async () => {
+      const res = await taskService.getVendorsByJob(jobId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data || [];
+    },
+    enabled: Boolean(jobId),
+  });
+}
+
+/**
+ * Hook to fetch all support teams
+ */
+export function useTeamsQuery() {
+  return useQuery({
+    queryKey: ['teams', 'all'],
+    queryFn: async () => {
+      const res = await teamService.getTeams();
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data || [];
+    },
+  });
+}
+
+/**
+ * Hook to assign support team
+ */
+export function useAssignSupportTeamMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      teamId,
+      projectId,
+    }: {
+      taskId: string;
+      teamId: string;
+      projectId?: string;
+    }) => {
+      const res = await taskService.assignSupportTeam(taskId, teamId, projectId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.taskId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to request support
+ */
+export function useRequestSupportMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      reason,
+      projectId,
+    }: {
+      taskId: string;
+      reason: string;
+      projectId?: string;
+    }) => {
+      const res = await taskService.requestSupport(taskId, reason, projectId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.taskId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to fetch task reviews criteria/checklist
+ */
+export function useTaskReviewsQuery(taskId: string) {
+  return useQuery({
+    queryKey: ['tasks', 'reviews', taskId],
+    queryFn: async () => {
+      const res = await taskService.getTaskReviews(taskId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data || [];
+    },
+    enabled: Boolean(taskId),
+  });
+}
+
+/**
+ * Hook to approve task by customer
+ */
+export function useApproveByCustomerMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, projectId }: { taskId: string; projectId?: string }) => {
+      const res = await taskService.approveByCustomer(taskId, projectId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.taskId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to respond to support request (ACCEPT / REJECT)
+ */
+export function useRespondToSupportMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      action,
+      projectId,
+    }: {
+      taskId: string;
+      action: 'ACCEPT' | 'REJECT';
+      projectId?: string;
+    }) => {
+      const res = await taskService.respondToSupport(taskId, action, projectId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.taskId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to return support
+ */
+export function useReturnSupportMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, projectId }: { taskId: string; projectId?: string }) => {
+      const res = await taskService.returnSupport(taskId, projectId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.taskId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to request return support
+ */
+export function useRequestReturnSupportMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      reason,
+      projectId,
+    }: {
+      taskId: string;
+      reason: string;
+      projectId?: string;
+    }) => {
+      const res = await taskService.requestReturnSupport(taskId, reason, projectId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.taskId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+/**
+ * Hook to send task reminder
+ */
+export function useSendTaskReminderMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const res = await taskService.sendTaskReminder(taskId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, taskId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
     },
   });
 }

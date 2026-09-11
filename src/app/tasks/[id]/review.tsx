@@ -13,51 +13,37 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { TaskDetail, taskService } from '@/services/taskService';
+import {
+  useTaskDetailQuery,
+  useTaskReviewsQuery,
+  useFinalizeTaskMutation,
+  useRejectTaskMutation,
+} from '@/hooks/queries/useTasks';
 import { BrandColors } from '@/constants/colors';
 
 export default function TaskReviewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const [task, setTask] = useState<TaskDetail | null>(null);
-  const [isLoadingTask, setIsLoadingTask] = useState(true);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+  const { data: task, isLoading: isLoadingTask } = useTaskDetailQuery(String(id || ''));
+  const { data: reviewsData, isLoading: isLoadingReviews } = useTaskReviewsQuery(String(id || ''));
+  const reviews = reviewsData || [];
+
   const [passedIds, setPassedIds] = useState<string[]>([]);
   const [note, setNote] = useState('');
-  const [isFinalizing, setIsFinalizing] = useState(false);
-  const [isRejecting, setIsRejecting] = useState(false);
   const [activeTab, setActiveTab] = useState<'TEAM_LEAD' | 'ASSIGNER'>('TEAM_LEAD');
 
+  const finalizeTaskMutation = useFinalizeTaskMutation();
+  const rejectTaskMutation = useRejectTaskMutation();
+
+  const isFinalizing = finalizeTaskMutation.isPending;
+  const isRejecting = rejectTaskMutation.isPending;
+
   useEffect(() => {
-    if (id) {
-      loadTaskData();
+    if (reviews.length > 0) {
+      setPassedIds(reviews.filter((r: any) => r.isPassed).map((r: any) => r.id));
     }
-  }, [id]);
-
-  const loadTaskData = async () => {
-    if (!id) return;
-    setIsLoadingTask(true);
-    setIsLoadingReviews(true);
-
-    const [taskRes, reviewsRes] = await Promise.all([
-      taskService.getTaskById(id),
-      taskService.getTaskReviews(id),
-    ]);
-
-    setIsLoadingTask(false);
-    setIsLoadingReviews(false);
-
-    if (taskRes.data) {
-      setTask(taskRes.data);
-    }
-
-    if (reviewsRes.data) {
-      setReviews(reviewsRes.data);
-      setPassedIds(reviewsRes.data.filter((r: any) => r.isPassed).map((r: any) => r.id));
-    }
-  };
+  }, [reviews]);
 
   const leadReviews = reviews.filter((r) => r.reviewerType === 'TEAM_LEAD');
   const assignerReviews = reviews.filter((r) => r.reviewerType === 'ASSIGNER');
@@ -91,19 +77,20 @@ export default function TaskReviewScreen() {
       return;
     }
 
-    setIsFinalizing(true);
-    const res = await taskService.finalizeTask(id, {
-      passedCriteriaIds: passedIds,
-      reviewNote: note.trim(),
-      projectId: task.project?.id,
-    });
-    setIsFinalizing(false);
+    try {
+      await finalizeTaskMutation.mutateAsync({
+        taskId: id,
+        payload: {
+          passedCriteriaIds: passedIds,
+          reviewNote: note.trim(),
+          projectId: task.project?.id,
+        },
+      });
 
-    if (res.error) {
-      Alert.alert('Lỗi', res.error);
-    } else {
       Alert.alert('Thành công', 'Đã duyệt hoàn thành công việc thành công!');
       router.back();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể duyệt');
     }
   };
 
@@ -114,19 +101,20 @@ export default function TaskReviewScreen() {
       return;
     }
 
-    setIsRejecting(true);
-    const res = await taskService.rejectTask(id, {
-      passedCriteriaIds: passedIds,
-      reviewNote: note.trim(),
-      projectId: task.project?.id,
-    });
-    setIsRejecting(false);
+    try {
+      await rejectTaskMutation.mutateAsync({
+        taskId: id,
+        payload: {
+          passedCriteriaIds: passedIds,
+          reviewNote: note.trim(),
+          projectId: task.project?.id,
+        },
+      });
 
-    if (res.error) {
-      Alert.alert('Lỗi', res.error);
-    } else {
       Alert.alert('Thành công', 'Đã từ chối kết quả công việc.');
       router.back();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể từ chối');
     }
   };
 

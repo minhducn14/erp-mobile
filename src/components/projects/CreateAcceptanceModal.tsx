@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { acceptanceService } from '@/services/acceptanceService';
+import { useCreateAcceptanceMutation } from '@/hooks/queries/useAcceptances';
 import { BrandColors } from '@/constants/colors';
 
 interface CreateAcceptanceModalProps {
@@ -95,6 +95,8 @@ export default function CreateAcceptanceModal({
     setExpandedServices((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const createAcceptanceMutation = useCreateAcceptanceMutation();
+
   const handleCreate = async () => {
     if (availableServices.length > 0 && selectedServiceIds.length === 0) {
       Alert.alert('Cảnh báo', 'Vui lòng chọn ít nhất một hạng mục dịch vụ để nghiệm thu.');
@@ -103,23 +105,19 @@ export default function CreateAcceptanceModal({
 
     setIsSubmitting(true);
     try {
-      const res = await acceptanceService.createAcceptanceRequest({
+      await createAcceptanceMutation.mutateAsync({
         projectId,
         name: name.trim() || undefined,
         note: note.trim() || undefined,
         serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
       });
 
-      if (res.error) {
-        Alert.alert('Lỗi', res.error || 'Gửi yêu cầu nghiệm thu thất bại.');
-      } else {
-        Alert.alert('Thành công', 'Đã gửi yêu cầu nghiệm thu thành công.');
-        setNote('');
-        setName('');
-        setSelectedServiceIds([]);
-        onSuccess();
-        onClose();
-      }
+      Alert.alert('Thành công', 'Đã gửi yêu cầu nghiệm thu thành công.');
+      setNote('');
+      setName('');
+      setSelectedServiceIds([]);
+      onSuccess();
+      onClose();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi tạo yêu cầu nghiệm thu.');
     } finally {
