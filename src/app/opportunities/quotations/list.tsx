@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   FlatList,
   RefreshControl,
@@ -58,7 +57,6 @@ export default function QuotationsListScreen() {
   const isLoading = (isOppLoading || isQuoteLoading) && !opportunity;
   const isRefreshing = isOppFetching || isQuoteFetching;
 
-  // Reject modal state
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -75,14 +73,9 @@ export default function QuotationsListScreen() {
     }, [refetchAll])
   );
 
-  useSSERefresh(
-    'invalidate_Quotations',
-    refetchAll
-  );
+  useSSERefresh('invalidate_Quotations', refetchAll);
 
-  const handleRefresh = () => {
-    refetchAll();
-  };
+  const handleRefresh = () => refetchAll();
 
   const hasCustomer = !!(
     opportunity?.customer ||
@@ -142,7 +135,6 @@ export default function QuotationsListScreen() {
       Alert.alert('Thông báo', 'Vui lòng nhập lý do từ chối');
       return;
     }
-
     try {
       await rejectQuotationMutation.mutateAsync({
         id: selectedQuoteId,
@@ -185,11 +177,11 @@ export default function QuotationsListScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-[#F8FAFC]" edges={['top', 'left', 'right']}>
       {/* Top Header */}
-      <View style={styles.header}>
+      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-[#E2E8F0]">
         <TouchableOpacity
-          style={styles.backButton}
+          className="p-1.5 rounded-lg bg-[#F1F5F9]"
           onPress={() => router.back()}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -197,39 +189,40 @@ export default function QuotationsListScreen() {
           <Feather name="arrow-left" size={22} color="#1E293B" />
         </TouchableOpacity>
 
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Danh sách báo giá</Text>
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
+        <View className="flex-1 mx-3">
+          <Text className="text-base font-bold text-[#0F172A]">Danh sách báo giá</Text>
+          <Text className="text-xs text-[#64748B] mt-0.5" numberOfLines={1}>
             {params.opportunityName || opportunity?.name || 'Cơ hội kinh doanh'}
           </Text>
         </View>
 
         {canCreateQuotation ? (
           <TouchableOpacity
-            style={styles.headerActionBtn}
+            className="flex-row items-center gap-1 bg-[#059669] px-2.5 py-1.5 rounded-lg"
             onPress={handleCreateNew}
             activeOpacity={0.8}
           >
             <Feather name="plus" size={18} color="#FFFFFF" />
-            <Text style={styles.headerActionText}>Tạo mới</Text>
+            <Text className="text-[13px] font-bold text-white">Tạo mới</Text>
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 40 }} />
+          <View className="w-10" />
         )}
       </View>
 
       {/* Main Content */}
       {isLoading ? (
-        <View style={styles.loadingContainer}>
+        <View className="flex-1 items-center justify-center gap-3">
           <ActivityIndicator size="large" color="#059669" />
-          <Text style={styles.loadingText}>Đang tải danh sách báo giá...</Text>
+          <Text className="text-sm text-[#64748B]">Đang tải danh sách báo giá...</Text>
         </View>
       ) : (
         <FlatList
           data={quotations}
           keyExtractor={(item) => item.id}
           renderItem={renderQuotationItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerClassName="p-4 pb-8"
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -238,30 +231,30 @@ export default function QuotationsListScreen() {
             />
           }
           ListHeaderComponent={
-            <View style={styles.listMetaBar}>
-              <View style={styles.countBadge}>
+            <View className="mb-3">
+              <View className="flex-row items-center gap-1.5 self-start bg-[#ECFDF5] px-2.5 py-1 rounded-lg border border-[#A7F3D0]">
                 <Feather name="file-text" size={14} color="#059669" />
-                <Text style={styles.countText}>{quotations.length} bản báo giá</Text>
+                <Text className="text-xs font-bold text-[#065F46]">{quotations.length} bản báo giá</Text>
               </View>
             </View>
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconBox}>
+            <View className="items-center justify-center py-16 px-6">
+              <View className="w-16 h-16 rounded-full bg-[#F1F5F9] items-center justify-center mb-4">
                 <Feather name="file-text" size={36} color="#94A3B8" />
               </View>
-              <Text style={styles.emptyTitle}>Chưa có bản báo giá nào</Text>
-              <Text style={styles.emptySubtitle}>
+              <Text className="text-base font-bold text-[#1E293B] mb-1.5">Chưa có bản báo giá nào</Text>
+              <Text className="text-[13px] text-[#64748B] text-center mb-5">
                 Chưa có báo giá nào được tạo cho cơ hội này.
               </Text>
               {canCreateQuotation && (
                 <TouchableOpacity
-                  style={styles.emptyCreateBtn}
+                  className="flex-row items-center gap-1.5 bg-[#059669] px-4.5 py-2.5 rounded-xl"
                   onPress={handleCreateNew}
                   activeOpacity={0.85}
                 >
                   <Feather name="plus" size={16} color="#FFFFFF" />
-                  <Text style={styles.emptyCreateBtnText}>Tạo báo giá đầu tiên</Text>
+                  <Text className="text-sm font-bold text-white">Tạo báo giá đầu tiên</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -276,10 +269,10 @@ export default function QuotationsListScreen() {
         animationType="fade"
         onRequestClose={() => setRejectModalVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Từ chối báo giá</Text>
+        <View className="flex-1 bg-black/50 items-center justify-center p-5">
+          <View className="w-full bg-white rounded-2xl p-5">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-base font-bold text-[#0F172A]">Từ chối báo giá</Text>
               <TouchableOpacity
                 onPress={() => setRejectModalVisible(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -288,9 +281,9 @@ export default function QuotationsListScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalLabel}>Lý do từ chối (bắt buộc):</Text>
+            <Text className="text-[13px] font-semibold text-[#334155] mb-2">Lý do từ chối (bắt buộc):</Text>
             <TextInput
-              style={styles.modalInput}
+              className="bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-3 text-sm text-[#0F172A] min-h-[100px] mb-5"
               placeholder="Nhập lý do cần chỉnh sửa / từ chối..."
               placeholderTextColor="#94A3B8"
               multiline
@@ -300,27 +293,24 @@ export default function QuotationsListScreen() {
               onChangeText={setRejectReason}
             />
 
-            <View style={styles.modalActions}>
+            <View className="flex-row justify-end gap-2.5">
               <TouchableOpacity
-                style={styles.modalCancelBtn}
+                className="px-4 py-2.5 rounded-lg bg-[#F1F5F9]"
                 onPress={() => setRejectModalVisible(false)}
                 disabled={isSubmittingReject}
               >
-                <Text style={styles.modalCancelText}>Hủy</Text>
+                <Text className="text-sm font-semibold text-[#64748B]">Hủy</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.modalConfirmBtn,
-                  isSubmittingReject && styles.modalConfirmBtnDisabled,
-                ]}
+                className={'px-4 py-2.5 rounded-lg bg-[#DC2626] ' + (isSubmittingReject ? 'opacity-60' : '')}
                 onPress={handleConfirmReject}
                 disabled={isSubmittingReject}
               >
                 {isSubmittingReject ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.modalConfirmText}>Xác nhận từ chối</Text>
+                  <Text className="text-sm font-bold text-white">Xác nhận từ chối</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -330,204 +320,3 @@ export default function QuotationsListScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  backButton: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  headerTitleContainer: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  headerActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#059669',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  headerActionText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  listMetaBar: {
-    marginBottom: 12,
-  },
-  countBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  countText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 24,
-  },
-  emptyIconBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  emptyCreateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#059669',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  emptyCreateBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  modalLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  modalInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 14,
-    color: '#0F172A',
-    minHeight: 100,
-    marginBottom: 20,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-  },
-  modalCancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  modalCancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  modalConfirmBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#DC2626',
-  },
-  modalConfirmBtnDisabled: {
-    opacity: 0.6,
-  },
-  modalConfirmText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

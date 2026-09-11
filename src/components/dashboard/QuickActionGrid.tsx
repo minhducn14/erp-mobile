@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BrandColors } from '@/constants/colors';
@@ -34,15 +28,6 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
 }) => {
   const router = useRouter();
   const hasOppAccess = canAccessOpportunities(userRole);
-  const hasCustAccess = canAccessCustomers(userRole);
-  const hasContractAccess = canAccessContracts(userRole);
-  const isMgmt = isManagementRole(userRole);
-
-  const formatShortMoney = (val: number) => {
-    if (val >= 1_000_000_000) return `${(val / 1_000_000_000).toFixed(1)} Tỷ`;
-    if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(0)} Tr`;
-    return formatVND(val);
-  };
 
   // Actions for Sales & Management roles (BOD, Admin, BD, Admin Sale)
   const salesActions: ActionItem[] = [
@@ -203,20 +188,20 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
   const actions = hasOppAccess ? salesActions : staffActions;
 
   return (
-    <View style={styles.cardWrapper}>
-      <View style={styles.headerTitleRow}>
-        <Text style={styles.sectionHeaderTitle}>Tiện ích truy cập nhanh</Text>
+    <View className="bg-surface rounded-2xl px-3 py-4 mb-4 border border-border shadow-xs">
+      <View className="flex-row justify-between items-center px-1 mb-3.5">
+        <Text className="text-[15px] font-bold text-text-primary tracking-tight">Tiện ích truy cập nhanh</Text>
       </View>
 
-      <View style={styles.gridContainer}>
+      <View className="flex-row flex-wrap">
         {actions.map((item) => (
           <TouchableOpacity
             key={item.id}
-            style={styles.gridItem}
+            className="w-1/4 items-center py-2 px-0.5"
             onPress={item.onPress}
             activeOpacity={0.7}
           >
-            <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
+            <View className="w-[50px] h-[50px] rounded-2xl justify-center items-center mb-1.5 relative" style={{ backgroundColor: item.bgColor }}>
               {item.iconType === 'feather' ? (
                 <Feather name={item.iconName as any} size={22} color={item.iconColor} />
               ) : (
@@ -224,13 +209,13 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
               )}
 
               {item.badge ? (
-                <View style={styles.badgeContainer}>
-                  <Text style={styles.badgeText}>{item.badge}</Text>
+                <View className="absolute -top-1 -right-1.5 bg-danger px-1 py-0.5 rounded-lg border-[1.5px] border-surface">
+                  <Text className="text-[9px] font-extrabold text-white">{item.badge}</Text>
                 </View>
               ) : null}
             </View>
 
-            <Text style={styles.itemLabel} numberOfLines={2}>
+            <Text className="text-xs font-semibold text-slate-700 text-center leading-4" numberOfLines={2}>
               {item.label}
             </Text>
           </TouchableOpacity>
@@ -239,80 +224,3 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  cardWrapper: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1.5,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    marginBottom: 14,
-  },
-  sectionHeaderTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.2,
-  },
-  sectionHeaderHint: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  gridItem: {
-    width: '25%',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 2,
-  },
-  iconBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-    position: 'relative',
-  },
-  itemLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  badgeContainer: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  badgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-});

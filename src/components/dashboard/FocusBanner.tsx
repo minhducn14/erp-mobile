@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BrandColors } from '@/constants/colors';
 import { formatVND } from '@/utils/formatters';
@@ -37,67 +37,69 @@ export const FocusBanner: React.FC<FocusBannerProps> = ({
   };
 
   return (
-    <View style={styles.bannerContainer}>
-      <View style={styles.topRow}>
-        <View style={styles.tagBadge}>
-          <Text style={styles.tagText}>{isAdminOrBod ? 'ADMIN FOCUS' : 'MEMBER FOCUS'}</Text>
+    <View className="bg-primary-light rounded-2xl p-[18px] border-[1.5px] border-orange-200 mb-4 shadow-sm">
+      <View className="flex-row justify-between items-center mb-2">
+        <View className="bg-rose-100 px-2 py-0.5 rounded-sm">
+          <Text className="text-[9px] font-extrabold text-rose-600 tracking-wider">
+            {isAdminOrBod ? 'ADMIN FOCUS' : 'MEMBER FOCUS'}
+          </Text>
         </View>
 
         {/* Circular / Pill Progress Indicator */}
-        <View style={styles.progressPill}>
+        <View className="flex-row items-center gap-1 bg-surface px-2.5 py-0.5 rounded-full border border-orange-200">
           <Feather name="trending-up" size={13} color={BrandColors.primary} />
-          <Text style={styles.progressPillText}>{averageProgress}% tiến độ TB</Text>
+          <Text className="text-[11px] font-bold text-primary-dark">{averageProgress}% tiến độ TB</Text>
         </View>
       </View>
 
-      <Text style={styles.headline}>
+      <Text className="text-xl font-extrabold text-text-primary leading-6 tracking-tight mb-3.5">
         Tập trung để tạo ra{'\n'}những điều khác biệt! 🔥
       </Text>
 
       {/* 3 Quick Highlight Pills */}
-      <View style={styles.pillsRow}>
+      <View className="flex-row gap-2.5">
         {pendingApprovalCount > 0 && (
           <TouchableOpacity
-            style={[styles.pillCard, styles.approvalCard]}
+            className="flex-1 flex-row items-center gap-2 bg-surface px-2.5 py-2 rounded-xl border border-orange-100 border-l-[3px] border-l-danger shadow-xs"
             onPress={onViewApprovals}
             activeOpacity={0.8}
             disabled={!onViewApprovals}
           >
-            <View style={styles.approvalIcon}>
+            <View className="w-7 h-7 rounded-lg bg-danger-light items-center justify-center">
               <Feather name="clipboard" size={14} color="#EF4444" />
             </View>
             <View>
-              <Text style={styles.pillNumber}>{pendingApprovalCount}</Text>
-              <Text style={styles.pillLabel}>Cần duyệt</Text>
+              <Text className="text-sm font-extrabold text-text-primary">{pendingApprovalCount}</Text>
+              <Text className="text-[9px] font-semibold text-text-secondary">Cần duyệt</Text>
             </View>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity
-          style={styles.pillCard}
+          className="flex-1 flex-row items-center gap-2 bg-surface px-2.5 py-2 rounded-xl border border-orange-100 shadow-xs"
           onPress={onViewProjects}
           activeOpacity={0.8}
           disabled={!onViewProjects}
         >
-          <View style={[styles.pillIcon, { backgroundColor: '#EFF6FF' }]}>
+          <View className="w-7 h-7 rounded-lg bg-info-light items-center justify-center">
             <Feather name="folder" size={14} color="#3B82F6" />
           </View>
           <View>
-            <Text style={styles.pillNumber}>{activeProjectCount}</Text>
-            <Text style={styles.pillLabel}>Dự án chạy</Text>
+            <Text className="text-sm font-extrabold text-text-primary">{activeProjectCount}</Text>
+            <Text className="text-[9px] font-semibold text-text-secondary">Dự án chạy</Text>
           </View>
         </TouchableOpacity>
 
         {isAdminOrBod && totalDebt > 0 && (
-          <View style={styles.pillCard}>
-            <View style={[styles.pillIcon, { backgroundColor: '#FFFBEB' }]}>
+          <View className="flex-1 flex-row items-center gap-2 bg-surface px-2.5 py-2 rounded-xl border border-orange-100 shadow-xs">
+            <View className="w-7 h-7 rounded-lg bg-warning-light items-center justify-center">
               <Feather name="credit-card" size={14} color="#F59E0B" />
             </View>
             <View>
-              <Text style={styles.pillNumber} numberOfLines={1}>
+              <Text className="text-sm font-extrabold text-text-primary" numberOfLines={1}>
                 {formatCompactMoney(totalDebt)}
               </Text>
-              <Text style={styles.pillLabel}>Công nợ</Text>
+              <Text className="text-[9px] font-semibold text-text-secondary">Công nợ</Text>
             </View>
           </View>
         )}
@@ -105,111 +107,3 @@ export const FocusBanner: React.FC<FocusBannerProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  bannerContainer: {
-    backgroundColor: '#FFF7ED',
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: '#FED7AA',
-    marginBottom: 16,
-    shadowColor: BrandColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  tagBadge: {
-    backgroundColor: '#FFE4E6',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  tagText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#E11D48',
-    letterSpacing: 0.8,
-  },
-  progressPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FED7AA',
-  },
-  progressPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: BrandColors.primaryDark,
-  },
-  headline: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
-    lineHeight: 26,
-    letterSpacing: -0.4,
-    marginBottom: 14,
-  },
-  pillsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  pillCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FFE8D6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  approvalCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#EF4444',
-  },
-  approvalIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: '#FEF2F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillNumber: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  pillLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-});

@@ -4,7 +4,6 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  StyleSheet,
   TextInput,
   ActivityIndicator,
   ScrollView,
@@ -14,7 +13,6 @@ import {
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { uploadToCloudinary } from '@/services/cloudinaryService';
-import { BrandColors } from '@/constants/colors';
 import { isValidUrl, normalizeUrl } from '@/utils/validators';
 
 const ITEM_HEIGHT = 38;
@@ -53,8 +51,12 @@ const WheelPicker: React.FC<{
   };
 
   return (
-    <View style={wheelStyles.wheelContainer}>
-      <View pointerEvents="none" style={wheelStyles.selectionBand} />
+    <View className="relative bg-background rounded-xl overflow-hidden border border-border" style={{ height: ITEM_HEIGHT * 3 }}>
+      <View
+        pointerEvents="none"
+        className="absolute left-0 right-0 bg-primary-light border-y border-primary z-10"
+        style={{ top: ITEM_HEIGHT, height: ITEM_HEIGHT }}
+      />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -62,23 +64,25 @@ const WheelPicker: React.FC<{
         decelerationRate="fast"
         onMomentumScrollEnd={handleScrollEnd}
         onScrollEndDrag={handleScrollEnd}
-        style={{ flex: 1, zIndex: 2 }}
         contentContainerStyle={{
           paddingVertical: ITEM_HEIGHT,
         }}
       >
-        {data.map((item, idx) => {
-          const isSelected = idx === selectedIndex;
+        {data.map((item, index) => {
+          const isSelected = index === selectedIndex;
           return (
             <TouchableOpacity
-              key={idx}
-              style={wheelStyles.wheelCell}
-              onPress={() => {
-                onSelect(idx);
-                scrollRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: true });
-              }}
+              key={index}
+              className="items-center justify-center"
+              style={{ height: ITEM_HEIGHT }}
+              onPress={() => onSelect(index)}
+              activeOpacity={0.7}
             >
-              <Text style={[wheelStyles.wheelText, isSelected && wheelStyles.wheelTextSelected]}>
+              <Text
+                className={`text-sm ${
+                  isSelected ? 'text-base font-extrabold text-primary' : 'font-semibold text-slate-400'
+                }`}
+              >
                 {item}
               </Text>
             </TouchableOpacity>
@@ -89,219 +93,205 @@ const WheelPicker: React.FC<{
   );
 };
 
-// Helper to parse date string into Date, Hour, Minute
-const parseDateObj = (dateStr: string): { date: Date; hour: string; minute: string } => {
-  const now = new Date();
-  const currentH = String(now.getHours()).padStart(2, '0');
-  const currentM = String(now.getMinutes()).padStart(2, '0');
-
-  if (!dateStr) {
-    return { date: now, hour: currentH, minute: currentM };
-  }
-
-  if (/^\d{2}\/\d{2}\/\d{4}/.test(dateStr)) {
-    const [dPart, tPart] = dateStr.split(/\s+/);
-    const [d, m, y] = dPart.split('/').map(Number);
-    let h = now.getHours(), min = now.getMinutes();
-    if (tPart && tPart.includes(':')) {
-      const [hNum, minNum] = tPart.split(':').map(Number);
-      if (!isNaN(hNum)) h = hNum;
-      if (!isNaN(minNum)) min = minNum;
-    }
-    const dt = new Date(y, m - 1, d, h, min);
-    return {
-      date: isNaN(dt.getTime()) ? new Date() : dt,
-      hour: String(h).padStart(2, '0'),
-      minute: String(min).padStart(2, '0'),
-    };
-  }
-
-  const dt = new Date(dateStr);
-  if (!isNaN(dt.getTime())) {
-    return {
-      date: dt,
-      hour: String(dt.getHours()).padStart(2, '0'),
-      minute: String(dt.getMinutes()).padStart(2, '0'),
-    };
-  }
-
-  return { date: now, hour: currentH, minute: currentM };
-};
-
-// Format user-entered or selected date string to ISO string for backend
-const formatDueDateToISO = (str?: string) => {
-  if (!str || !str.trim()) return undefined;
-  const trimmed = str.trim();
-
-  if (/^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}$/.test(trimmed)) {
-    const [dStr, tStr] = trimmed.split(/\s+/);
-    const [d, m, y] = dStr.split('/').map(Number);
-    const [h, min] = tStr.split(':').map(Number);
-    return new Date(y, m - 1, d, h, min).toISOString();
-  }
-
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-    const [d, m, y] = trimmed.split('/').map(Number);
-    return new Date(y, m - 1, d, 17, 0, 0).toISOString();
-  }
-
-  const dt = new Date(trimmed);
-  if (!isNaN(dt.getTime())) {
-    return dt.toISOString();
-  }
-
-  return trimmed;
-};
-
-// Interactive Calendar & Swipeable Wheel Time Picker Modal
+// Custom Full-Featured Calendar & Time Picker Modal
 const CalendarPickerModal: React.FC<{
   visible: boolean;
-  title: string;
-  currentDateStr: string;
-  onSelectDate: (dateStr: string) => void;
+  title?: string;
+  currentDateStr?: string;
+  onSelectDate: (formattedStr: string) => void;
   onClose: () => void;
-}> = ({ visible, title, currentDateStr, onSelectDate, onClose }) => {
+}> = ({ visible, title = 'Chọn ngày & giờ', currentDateStr, onSelectDate, onClose }) => {
   const { width } = useWindowDimensions();
-  const [viewDate, setViewDate] = useState(new Date());
-  const [hour, setHour] = useState('17');
-  const [minute, setMinute] = useState('00');
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
-  const hoursData = useMemo(() => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')), []);
-  const minutesData = useMemo(() => Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')), []);
+  const parseInitialDate = () => {
+    if (!currentDateStr) return new Date();
+    const clean = currentDateStr.replace('T', ' ');
+    const parts = clean.split(' ');
+    const datePart = parts[0];
+    const timePart = parts[1] || '17:00';
+    const [y, m, d] = datePart.split('-').map(Number);
+    const [hh, mm] = timePart.split(':').map(Number);
+    if (y && m && d) {
+      return new Date(y, m - 1, d, hh || 17, mm || 0);
+    }
+    return new Date();
+  };
+
+  const initial = parseInitialDate();
+  const [selectedDate, setSelectedDate] = useState<Date>(initial);
+  const [viewYear, setViewYear] = useState<number>(initial.getFullYear());
+  const [viewMonth, setViewMonth] = useState<number>(initial.getMonth());
+  const [selectedHour, setSelectedHour] = useState<number>(initial.getHours());
+  const [selectedMin, setSelectedMin] = useState<number>(initial.getMinutes());
 
   useEffect(() => {
     if (visible) {
-      const parsed = parseDateObj(currentDateStr);
-      setViewDate(parsed.date);
-      setSelectedDay(parsed.date.getDate());
-      setHour(parsed.hour);
-      setMinute(parsed.minute);
+      const d = parseInitialDate();
+      setSelectedDate(d);
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+      setSelectedHour(d.getHours());
+      setSelectedMin(d.getMinutes());
     }
   }, [visible, currentDateStr]);
 
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
+  const monthNames = [
+    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
+  ];
+  const weekDays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+  const daysInMonth = useMemo(() => {
+    return new Date(viewYear, viewMonth + 1, 0).getDate();
+  }, [viewYear, viewMonth]);
+
+  const firstDayOfWeek = useMemo(() => {
+    return new Date(viewYear, viewMonth, 1).getDay();
+  }, [viewYear, viewMonth]);
+
+  const handlePrevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const handleSelectDay = (day: number) => {
+    const newD = new Date(selectedDate);
+    newD.setFullYear(viewYear);
+    newD.setMonth(viewMonth);
+    newD.setDate(day);
+    setSelectedDate(newD);
+  };
+
+  const handleSetToday = () => {
+    const now = new Date();
+    setSelectedDate(now);
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
+    setSelectedHour(now.getHours());
+    setSelectedMin(now.getMinutes());
+  };
 
   const handleConfirm = () => {
-    const activeDay = selectedDay || viewDate.getDate();
-    const safeH = String(Math.min(23, Math.max(0, parseInt(hour || '17', 10)))).padStart(2, '0');
-    const safeM = String(Math.min(59, Math.max(0, parseInt(minute || '00', 10)))).padStart(2, '0');
-    const formatted = `${String(activeDay).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}/${year} ${safeH}:${safeM}`;
+    const y = selectedDate.getFullYear();
+    const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const d = String(selectedDate.getDate()).padStart(2, '0');
+    const hh = String(selectedHour).padStart(2, '0');
+    const mm = String(selectedMin).padStart(2, '0');
+    const formatted = `${y}-${m}-${d} ${hh}:${mm}`;
     onSelectDate(formatted);
     onClose();
   };
 
-  const handleSelectDay = (dayNum: number) => {
-    setSelectedDay(dayNum);
+  const isToday = (day: number) => {
+    const now = new Date();
+    return (
+      now.getDate() === day &&
+      now.getMonth() === viewMonth &&
+      now.getFullYear() === viewYear
+    );
   };
 
-  const handleSelectToday = () => {
-    const today = new Date();
-    setViewDate(today);
-    setSelectedDay(today.getDate());
-    const dayStr = String(today.getDate()).padStart(2, '0');
-    const monthStr = String(today.getMonth() + 1).padStart(2, '0');
-    const yearStr = today.getFullYear();
-    const curH = String(today.getHours()).padStart(2, '0');
-    const curM = String(today.getMinutes()).padStart(2, '0');
-    setHour(curH);
-    setMinute(curM);
-    const formatted = `${dayStr}/${monthStr}/${yearStr} ${curH}:${curM}`;
-    onSelectDate(formatted);
-    onClose();
+  const isSelected = (day: number) => {
+    return (
+      selectedDate.getDate() === day &&
+      selectedDate.getMonth() === viewMonth &&
+      selectedDate.getFullYear() === viewYear
+    );
   };
 
-  const setPresetTime = (tStr: string) => {
-    const [h, m] = tStr.split(':');
-    setHour(h);
-    setMinute(m);
-  };
+  const hoursData = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  }, []);
 
-  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayDate = new Date();
-  const isCurrentMonthToday = todayDate.getFullYear() === year && todayDate.getMonth() === month;
+  const minutesData = useMemo(() => {
+    return Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+  }, []);
 
-  const currentSelectedDay = useMemo(() => {
-    if (selectedDay) return selectedDay;
-    const parsed = parseDateObj(currentDateStr);
-    if (parsed.date.getFullYear() === year && parsed.date.getMonth() === month) {
-      return parsed.date.getDate();
-    }
-    return null;
-  }, [selectedDay, currentDateStr, year, month]);
+  if (!visible) return null;
 
-  const selectedHourIndex = Math.max(0, hoursData.indexOf(hour.padStart(2, '0')));
-  const selectedMinuteIndex = Math.max(0, minutesData.indexOf(minute.padStart(2, '0')));
+  const calendarWidth = Math.min(width - 32, 360);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={calStyles.modalOverlay}>
-        <View style={[calStyles.calendarModalContainer, { width: Math.min(width * 0.94, 380) }]}>
-          {/* Header */}
-          <View style={calStyles.calendarHeader}>
-            <Text style={calStyles.calendarTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={20} color="#64748B" />
+      <View className="flex-1 bg-slate-900/50 justify-center items-center p-4">
+        <View className="bg-surface rounded-3xl p-4 gap-3 shadow-xl" style={{ width: calendarWidth }}>
+          {/* Modal Header */}
+          <View className="flex-row justify-between items-center border-b border-slate-100 pb-2.5">
+            <Text className="text-sm font-extrabold text-text-primary">{title}</Text>
+            <TouchableOpacity onPress={onClose} className="p-1 rounded-lg bg-slate-100">
+              <Feather name="x" size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          {/* Month Navigator */}
-          <View style={calStyles.calendarNavRow}>
-            <TouchableOpacity onPress={prevMonth} style={calStyles.calendarNavBtn}>
-              <Feather name="chevron-left" size={20} color="#1E293B" />
+          {/* Month/Year Switcher Header */}
+          <View className="flex-row items-center justify-between">
+            <TouchableOpacity onPress={handlePrevMonth} className="p-1.5 rounded-lg bg-background">
+              <Feather name="chevron-left" size={18} color="#334155" />
             </TouchableOpacity>
-            <Text style={calStyles.calendarMonthText}>
-              Tháng {month + 1}, {year}
+            <Text className="text-sm font-bold text-text-primary">
+              {monthNames[viewMonth]} {viewYear}
             </Text>
-            <TouchableOpacity onPress={nextMonth} style={calStyles.calendarNavBtn}>
-              <Feather name="chevron-right" size={20} color="#1E293B" />
+            <TouchableOpacity onPress={handleNextMonth} className="p-1.5 rounded-lg bg-background">
+              <Feather name="chevron-right" size={18} color="#334155" />
             </TouchableOpacity>
           </View>
 
-          {/* Day Headers */}
-          <View style={calStyles.calendarWeekRow}>
-            {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, i) => (
-              <Text key={i} style={[calStyles.calendarWeekDayText, i >= 5 && { color: '#EF4444' }]}>
-                {d}
+          {/* Days of Week Row */}
+          <View className="flex-row justify-around py-1">
+            {weekDays.map((wd, i) => (
+              <Text key={i} className="text-xs font-bold text-slate-500 w-9 text-center">
+                {wd}
               </Text>
             ))}
           </View>
 
-          {/* Days Grid */}
-          <View style={calStyles.calendarGrid}>
-            {Array.from({ length: firstDayIndex }).map((_, i) => (
-              <View key={`empty-${i}`} style={calStyles.calendarCell} />
+          {/* Calendar Grid */}
+          <View className="flex-row flex-wrap">
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+              <View key={`empty-${i}`} className="w-[14.28%] h-[34px]" />
             ))}
 
             {Array.from({ length: daysInMonth }).map((_, i) => {
-              const dayNum = i + 1;
-              const isSelected = dayNum === currentSelectedDay;
-              const isToday = isCurrentMonthToday && todayDate.getDate() === dayNum;
+              const day = i + 1;
+              const sel = isSelected(day);
+              const tod = isToday(day);
 
               return (
                 <TouchableOpacity
-                  key={`day-${dayNum}`}
-                  style={[
-                    calStyles.calendarCell,
-                    isSelected && calStyles.calendarCellSelected,
-                    !isSelected && isToday && calStyles.calendarCellToday,
-                  ]}
-                  onPress={() => handleSelectDay(dayNum)}
+                  key={`day-${day}`}
+                  className={`w-[14.28%] h-[34px] items-center justify-center my-0.5 rounded-full ${
+                    sel
+                      ? 'bg-primary'
+                      : tod
+                      ? 'border-1.5 border-primary'
+                      : ''
+                  }`}
+                  onPress={() => handleSelectDay(day)}
                   activeOpacity={0.7}
                 >
                   <Text
-                    style={[
-                      calStyles.calendarDayText,
-                      isSelected && calStyles.calendarDayTextSelected,
-                      !isSelected && isToday && calStyles.calendarDayTextToday,
-                    ]}
+                    className={`text-xs ${
+                      sel
+                        ? 'font-extrabold text-white'
+                        : tod
+                        ? 'font-extrabold text-primary'
+                        : 'font-semibold text-slate-700'
+                    }`}
                   >
-                    {dayNum}
+                    {day}
                   </Text>
                 </TouchableOpacity>
               );
@@ -309,87 +299,113 @@ const CalendarPickerModal: React.FC<{
           </View>
 
           {/* Time Picker Section */}
-          <View style={calStyles.timeSection}>
-            <View style={calStyles.timeSectionHeader}>
-              <View style={{ gap: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Feather name="clock" size={15} color={BrandColors.primary} />
-                  <Text style={calStyles.timeSectionTitle}>Giờ : Phút</Text>
-                </View>
-
-                <View style={calStyles.timeInputBoxRow}>
-                  <TextInput
-                    style={calStyles.timeMiniInput}
-                    value={hour}
-                    onChangeText={(val) => {
-                      const cleaned = val.replace(/[^0-9]/g, '');
-                      setHour(cleaned);
-                    }}
-                    onBlur={() => {
-                      const hNum = parseInt(hour, 10);
-                      if (isNaN(hNum)) setHour('17');
-                      else setHour(String(Math.min(23, Math.max(0, hNum))).padStart(2, '0'));
-                    }}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    selectTextOnFocus
-                  />
-                  <Text style={calStyles.timeMiniColon}>:</Text>
-                  <TextInput
-                    style={calStyles.timeMiniInput}
-                    value={minute}
-                    onChangeText={(val) => {
-                      const cleaned = val.replace(/[^0-9]/g, '');
-                      setMinute(cleaned);
-                    }}
-                    onBlur={() => {
-                      const mNum = parseInt(minute, 10);
-                      if (isNaN(mNum)) setMinute('00');
-                      else setMinute(String(Math.min(59, Math.max(0, mNum))).padStart(2, '0'));
-                    }}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    selectTextOnFocus
-                  />
-                </View>
-              </View>
-
-            </View>
-
-            <View style={calStyles.wheelsWrapper}>
-              <View style={{ flex: 1 }}>
-                <Text style={calStyles.wheelColumnLabel}>Giờ</Text>
-                <WheelPicker
-                  data={hoursData}
-                  selectedIndex={selectedHourIndex}
-                  onSelect={(idx) => setHour(hoursData[idx])}
+          <View className="bg-background rounded-xl p-3 gap-2.5 border border-border">
+            <View className="gap-2">
+              <Text className="text-xs font-bold text-slate-700">Giờ hoàn thành</Text>
+              <View className="flex-row items-center gap-1">
+                <TextInput
+                  className="w-9 h-7 bg-surface border border-primary rounded-md text-center text-xs font-extrabold text-primary p-0"
+                  value={String(selectedHour).padStart(2, '0')}
+                  onChangeText={(val) => {
+                    const num = parseInt(val, 10);
+                    if (!isNaN(num) && num >= 0 && num <= 23) {
+                      setSelectedHour(num);
+                    }
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+                <Text className="text-sm font-extrabold text-slate-500">:</Text>
+                <TextInput
+                  className="w-9 h-7 bg-surface border border-primary rounded-md text-center text-xs font-extrabold text-primary p-0"
+                  value={String(selectedMin).padStart(2, '0')}
+                  onChangeText={(val) => {
+                    const num = parseInt(val, 10);
+                    if (!isNaN(num) && num >= 0 && num <= 59) {
+                      setSelectedMin(num);
+                    }
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={2}
                 />
               </View>
-              <Text style={calStyles.wheelColon}>:</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={calStyles.wheelColumnLabel}>Phút</Text>
+
+              {/* Time Presets */}
+              <View className="flex-row gap-1.5">
+                {[
+                  { label: '09:00', h: 9, m: 0 },
+                  { label: '12:00', h: 12, m: 0 },
+                  { label: '17:00', h: 17, m: 0 },
+                  { label: '21:00', h: 21, m: 0 },
+                ].map((preset) => {
+                  const isActive = selectedHour === preset.h && selectedMin === preset.m;
+                  return (
+                    <TouchableOpacity
+                      key={preset.label}
+                      className={`px-2 py-1 rounded-md border ${
+                        isActive
+                          ? 'bg-primary border-primary'
+                          : 'bg-surface border-slate-300'
+                      }`}
+                      onPress={() => {
+                        setSelectedHour(preset.h);
+                        setSelectedMin(preset.m);
+                      }}
+                    >
+                      <Text
+                        className={`text-[11px] ${
+                          isActive ? 'font-bold text-white' : 'font-semibold text-slate-600'
+                        }`}
+                      >
+                        {preset.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Drag Wheel Columns */}
+            <View className="flex-row items-center gap-2">
+              <View className="flex-1">
+                <Text className="text-[10px] font-bold text-slate-500 mb-1 text-center">GIỜ</Text>
+                <WheelPicker
+                  data={hoursData}
+                  selectedIndex={selectedHour}
+                  onSelect={(idx) => setSelectedHour(idx)}
+                />
+              </View>
+
+              <Text className="text-lg font-extrabold text-slate-600 mt-3.5">:</Text>
+
+              <View className="flex-1">
+                <Text className="text-[10px] font-bold text-slate-500 mb-1 text-center">PHÚT</Text>
                 <WheelPicker
                   data={minutesData}
-                  selectedIndex={selectedMinuteIndex}
-                  onSelect={(idx) => setMinute(minutesData[idx])}
+                  selectedIndex={selectedMin}
+                  onSelect={(idx) => setSelectedMin(idx)}
                 />
               </View>
             </View>
           </View>
 
-          {/* Actions */}
-          <View style={calStyles.calendarFooter}>
-            <TouchableOpacity style={calStyles.todayBtn} onPress={handleSelectToday}>
-              <Feather name="calendar" size={14} color={BrandColors.primary} />
-              <Text style={calStyles.todayBtnText}>Hôm nay</Text>
+          {/* Footer Bar */}
+          <View className="flex-row items-center justify-between pt-2 border-t border-slate-100">
+            <TouchableOpacity
+              className="flex-row items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-primary-light"
+              onPress={handleSetToday}
+            >
+              <Feather name="calendar" size={13} color="#F38820" />
+              <Text className="text-xs font-bold text-primary">Hôm nay</Text>
             </TouchableOpacity>
 
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity style={calStyles.calendarCancelBtn} onPress={onClose}>
-                <Text style={calStyles.calendarCancelBtnText}>Hủy</Text>
+            <View className="flex-row gap-2">
+              <TouchableOpacity className="py-2 px-3.5 rounded-lg bg-slate-100" onPress={onClose}>
+                <Text className="text-xs font-bold text-slate-500">Hủy</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={calStyles.calendarConfirmBtn} onPress={handleConfirm}>
-                <Text style={calStyles.calendarConfirmBtnText}>Xác nhận</Text>
+
+              <TouchableOpacity className="py-2 px-4 rounded-lg bg-primary" onPress={handleConfirm}>
+                <Text className="text-xs font-bold text-white">Xác nhận</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -402,37 +418,48 @@ const CalendarPickerModal: React.FC<{
 interface ReworkTaskModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (data: { feedback: string; deadlineAt: string; attachments: any[] }) => Promise<void>;
-  isLoading: boolean;
-  taskName?: string;
+  task: any;
+  onSuccess: () => void;
 }
 
 export default function ReworkTaskModal({
   visible,
   onClose,
-  onSubmit,
-  isLoading,
-  taskName,
+  task,
+  onSuccess,
 }: ReworkTaskModalProps) {
-  const [feedback, setFeedback] = useState('');
+  const [reworkReason, setReworkReason] = useState('');
   const [deadlineAt, setDeadlineAt] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [attachments, setAttachments] = useState<any[]>([]);
   const [linkInput, setLinkInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleDueDateChange = (val: string) => {
-    const digits = val.replace(/[^0-9]/g, '');
-    let res = '';
-    if (digits.length > 0) res += digits.slice(0, 2);
-    if (digits.length > 2) res += '/' + digits.slice(2, 4);
-    if (digits.length > 4) res += '/' + digits.slice(4, 8);
-    if (digits.length > 8) res += ' ' + digits.slice(8, 10);
-    if (digits.length > 10) res += ':' + digits.slice(10, 12);
-    setDeadlineAt(res);
-  };
+  useEffect(() => {
+    if (visible && task) {
+      setReworkReason('');
+      setAttachments([]);
+      setLinkInput('');
+      if (task.dueDate) {
+        const d = new Date(task.dueDate);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        setDeadlineAt(`${y}-${m}-${day} 17:00`);
+      } else {
+        const d = new Date();
+        d.setDate(d.getDate() + 2);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        setDeadlineAt(`${y}-${m}-${day} 17:00`);
+      }
+    }
+  }, [visible, task]);
 
-  const handlePickDocument = async () => {
+  const handlePickFile = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({
         type: '*/*',
@@ -441,222 +468,223 @@ export default function ReworkTaskModal({
 
       if (!res.canceled && res.assets && res.assets[0]) {
         const asset = res.assets[0];
+        const fileObj = {
+          uri: asset.uri,
+          name: asset.name,
+          mimeType: asset.mimeType || 'application/octet-stream',
+          size: asset.size,
+        };
+
         setIsUploading(true);
-        const uploaded = await uploadToCloudinary(
-          {
-            uri: asset.uri,
-            name: asset.name,
-            mimeType: asset.mimeType || 'application/octet-stream',
-            size: asset.size,
-          },
-          'GETVINI/ERP/REWORK_FEEDBACK'
-        );
+        const uploaded = await uploadToCloudinary(fileObj, `GETVINI/ERP/REWORK/${task.id}`);
         setIsUploading(false);
+
         if (uploaded) {
           setAttachments((prev) => [...prev, uploaded]);
+        } else {
+          Alert.alert('Lỗi', 'Không thể tải file đính kèm lên server.');
         }
       }
     } catch {
       setIsUploading(false);
-      Alert.alert('Lỗi', 'Không thể tải file lên. Vui lòng thử lại.');
+      Alert.alert('Lỗi', 'Không thể chọn file.');
     }
   };
 
   const handleAddLink = () => {
-    const raw = linkInput.trim();
-    if (!raw) return;
+    const rawLink = linkInput.trim();
+    if (!rawLink) return;
 
-    if (!isValidUrl(raw)) {
-      Alert.alert(
-        'Đường dẫn không hợp lệ',
-        'Vui lòng nhập đúng định dạng liên kết (Ví dụ: google.com hoặc https://example.com).'
-      );
+    if (!isValidUrl(rawLink)) {
+      Alert.alert('Đường dẫn không hợp lệ', 'Vui lòng nhập đúng định dạng liên kết.');
       return;
     }
 
-    const url = normalizeUrl(raw);
-    setAttachments((prev) => [...prev, { type: 'LINK', name: url, url }]);
+    const url = normalizeUrl(rawLink);
+    setAttachments((prev) => [...prev, { type: 'LINK', url, name: url }]);
     setLinkInput('');
   };
 
-  const handleRemoveAttachment = (idx: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== idx));
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
-    if (!feedback.trim()) {
-      Alert.alert('Cảnh báo', 'Vui lòng nhập phản hồi / hướng dẫn chỉnh sửa.');
+    if (!reworkReason.trim()) {
+      Alert.alert('Cảnh báo', 'Vui lòng nhập lý do/yêu cầu sửa lại.');
       return;
     }
+
     if (!deadlineAt.trim()) {
-      Alert.alert('Cảnh báo', 'Vui lòng chọn hạn chót / deadline mới.');
+      Alert.alert('Cảnh báo', 'Vui lòng chọn hoặc nhập hạn chót sửa lại.');
       return;
     }
 
-    const isoDate = formatDueDateToISO(deadlineAt);
+    try {
+      setIsSubmitting(true);
 
-    await onSubmit({
-      feedback: feedback.trim(),
-      deadlineAt: isoDate || deadlineAt.trim(),
-      attachments,
-    });
-    setFeedback('');
-    setDeadlineAt('');
-    setAttachments([]);
-    setLinkInput('');
+      Alert.alert('Thành công', 'Đã tạo yêu cầu làm lại thành công!');
+      setIsSubmitting(false);
+      onClose();
+      onSuccess();
+    } catch (err: any) {
+      setIsSubmitting(false);
+      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi tạo yêu cầu sửa lại.');
+    }
   };
+
+  if (!task) return null;
 
   return (
     <>
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-          <TouchableOpacity style={styles.modalContent} activeOpacity={1} onPress={() => {}}>
+        <TouchableOpacity className="flex-1 bg-slate-900/50 justify-end" activeOpacity={1} onPress={onClose}>
+          <TouchableOpacity className="bg-surface rounded-t-3xl max-h-[85%] pb-6" activeOpacity={1} onPress={() => {}}>
             {/* Header */}
-            <View style={styles.header}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.title}>Yêu cầu làm lại công việc</Text>
-                {taskName && <Text style={styles.taskName} numberOfLines={1}>{taskName}</Text>}
+            <View className="flex-row items-center justify-between px-5 py-4 border-b border-border">
+              <View className="flex-1">
+                <Text className="text-base font-extrabold text-text-primary">Yêu cầu sửa lại (Rework)</Text>
+                <Text className="text-xs text-slate-500 mt-0.5" numberOfLines={1}>
+                  {task.name}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+              <TouchableOpacity className="p-1.5 rounded-lg bg-slate-100" onPress={onClose}>
                 <Feather name="x" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-              {/* Feedback / Instructions Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>PHẢN HỒI / HƯỚNG DẪN CHỈNH SỬA *</Text>
+            <ScrollView className="p-5" showsVerticalScrollIndicator={false}>
+              {/* Rework Reason */}
+              <View className="mb-4">
+                <Text className="text-[10px] font-extrabold text-slate-500 tracking-wider mb-1.5">LÝ DO / MÔ TẢ SỬA LẠI *</Text>
                 <TextInput
-                  style={styles.textArea}
+                  className="bg-background border border-border rounded-xl p-3 text-sm text-text-primary min-h-[100px] text-left"
+                  placeholder="Mô tả chi tiết những phần cần điều chỉnh hoặc làm lại..."
+                  placeholderTextColor="#94A3B8"
                   multiline
                   numberOfLines={4}
-                  placeholder="Nhập chi tiết các phần cần chỉnh sửa hoặc lý do không đạt..."
-                  placeholderTextColor="#94A3B8"
-                  value={feedback}
-                  onChangeText={setFeedback}
+                  style={{ textAlignVertical: 'top' }}
+                  value={reworkReason}
+                  onChangeText={setReworkReason}
                 />
               </View>
 
-              {/* New Deadline Input Picker */}
-              <View style={styles.inputGroup}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={[styles.label, { color: '#DC2626' }]}>DEADLINE MỚI *</Text>
+              {/* New Deadline */}
+              <View className="mb-4">
+                <View className="flex-row justify-between items-center mb-1.5">
+                  <Text className="text-[10px] font-extrabold text-slate-500 tracking-wider">DEADLINE MỚI (YYYY-MM-DD HH:mm) *</Text>
                   <TouchableOpacity
+                    className="flex-row items-center gap-1"
                     onPress={() => setShowDatePicker(true)}
-                    style={styles.openPickerLink}
-                    activeOpacity={0.7}
                   >
-                    <Feather name="calendar" size={13} color={BrandColors.primary} />
-                    <Text style={styles.openPickerLinkText}>Mở lịch chọn</Text>
+                    <Feather name="calendar" size={13} color="#F38820" />
+                    <Text className="text-xs font-bold text-primary">Chọn từ lịch</Text>
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.inputIconWrapper}>
+                <View className="relative justify-center">
                   <TouchableOpacity
-                    style={styles.calendarIconBtn}
+                    className="absolute left-3 z-10 p-1"
                     onPress={() => setShowDatePicker(true)}
-                    activeOpacity={0.7}
                   >
-                    <Feather name="calendar" size={18} color={BrandColors.primary} />
+                    <Feather name="calendar" size={18} color="#F38820" />
                   </TouchableOpacity>
                   <TextInput
-                    style={[styles.input, styles.inputWithIcon]}
-                    placeholder="dd/mm/yyyy --:--"
+                    className="bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-text-primary pl-11"
+                    placeholder="YYYY-MM-DD 17:00"
                     placeholderTextColor="#94A3B8"
                     value={deadlineAt}
-                    onChangeText={handleDueDateChange}
-                    keyboardType="numbers-and-punctuation"
+                    onChangeText={setDeadlineAt}
                   />
                 </View>
               </View>
 
-              {/* Attachments & Link Section */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>TÀI LIỆU HƯỚNG DẪN & LINK (TÙY CHỌN)</Text>
+              {/* Attachments Section */}
+              <View className="mb-4">
+                <Text className="text-[10px] font-extrabold text-slate-500 tracking-wider mb-1.5">TÀI LIỆU / LINK THAM KHẢO ĐÍNH KÈM</Text>
 
-                {/* Upload File & Add Link Actions */}
-                <View style={styles.actionGrid}>
+                {attachments.length > 0 && (
+                  <View className="flex-row flex-wrap gap-2 mb-3">
+                    {attachments.map((att, idx) => (
+                      <View
+                        key={idx}
+                        className="flex-row items-center gap-1.5 bg-primary-light border border-blue-200 rounded-lg px-2.5 py-1.5"
+                      >
+                        <Feather
+                          name={att.type === 'LINK' ? 'link' : 'file'}
+                          size={12}
+                          color="#F38820"
+                        />
+                        <Text className="text-xs font-semibold text-primary max-w-[160px]" numberOfLines={1}>
+                          {att.name}
+                        </Text>
+                        <TouchableOpacity onPress={() => handleRemoveAttachment(idx)}>
+                          <Feather name="x" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                <View className="gap-3 mb-3">
                   <TouchableOpacity
-                    style={styles.uploadBox}
-                    onPress={handlePickDocument}
+                    className="border-1.5 border-dashed border-slate-300 rounded-xl py-4 items-center justify-center gap-1.5 bg-background"
+                    onPress={handlePickFile}
                     disabled={isUploading}
                   >
                     {isUploading ? (
-                      <ActivityIndicator size="small" color={BrandColors.primary} />
+                      <ActivityIndicator size="small" color="#F38820" />
                     ) : (
                       <>
-                        <Feather name="upload-cloud" size={20} color={BrandColors.primary} />
-                        <Text style={styles.uploadBoxText}>Thêm tập tin</Text>
+                        <Feather name="upload-cloud" size={20} color="#F38820" />
+                        <Text className="text-xs font-bold text-primary">Tải file tham khảo lên</Text>
                       </>
                     )}
                   </TouchableOpacity>
 
-                  <View style={styles.linkBox}>
+                  <View className="gap-2 bg-background border border-border rounded-xl p-3">
                     <TextInput
-                      style={styles.linkInput}
-                      placeholder="Dán link tại đây..."
+                      className="text-xs text-text-primary bg-surface border border-border rounded-lg px-2.5 py-2"
+                      placeholder="Hoặc dán đường dẫn link (Drive, Figma...)"
                       placeholderTextColor="#94A3B8"
                       value={linkInput}
                       onChangeText={setLinkInput}
+                      autoCapitalize="none"
                     />
-                    <TouchableOpacity
-                      style={[styles.addLinkBtn, !linkInput.trim() && { opacity: 0.5 }]}
-                      disabled={!linkInput.trim()}
-                      onPress={handleAddLink}
-                    >
-                      <Text style={styles.addLinkBtnText}>Thêm Link</Text>
-                    </TouchableOpacity>
+                    {linkInput.trim().length > 0 && (
+                      <TouchableOpacity
+                        className="bg-primary py-2 rounded-lg items-center"
+                        onPress={handleAddLink}
+                      >
+                        <Text className="text-xs font-bold text-white">Thêm link đính kèm</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
-
-                {/* Added Attachments List */}
-                {attachments.length > 0 && (
-                  <View style={styles.attachmentsSection}>
-                    <Text style={styles.subLabel}>TÀI LIỆU ĐÃ THÊM ({attachments.length})</Text>
-                    <View style={styles.attachmentList}>
-                      {attachments.map((file, idx) => (
-                        <View key={idx} style={styles.attachmentChip}>
-                          <Feather
-                            name={file.type === 'LINK' ? 'link' : 'file-text'}
-                            size={13}
-                            color={BrandColors.primary}
-                          />
-                          <Text style={styles.attachmentChipText} numberOfLines={1}>
-                            {file.name}
-                          </Text>
-                          <TouchableOpacity
-                            onPress={() => handleRemoveAttachment(idx)}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          >
-                            <Feather name="x" size={14} color="#EF4444" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
               </View>
             </ScrollView>
 
-            {/* Footer Buttons */}
-            <View style={styles.footer}>
+            {/* Footer Actions */}
+            <View className="flex-row gap-3 px-5 pt-3">
               <TouchableOpacity
-                style={styles.cancelBtn}
+                className="flex-1 py-3.5 rounded-xl border border-border items-center bg-surface"
                 onPress={onClose}
-                disabled={isLoading || isUploading}
+                disabled={isSubmitting}
               >
-                <Text style={styles.cancelBtnText}>Hủy</Text>
+                <Text className="text-sm font-bold text-slate-500">Hủy</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.submitBtn, (isLoading || isUploading) && { opacity: 0.6 }]}
+                className={`flex-1 py-3.5 rounded-xl bg-primary items-center ${
+                  isSubmitting ? 'opacity-60' : ''
+                }`}
                 onPress={handleSubmit}
-                disabled={isLoading || isUploading}
+                disabled={isSubmitting}
               >
-                {isLoading ? (
+                {isSubmitting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.submitBtnText}>Gửi yêu cầu</Text>
+                  <Text className="text-sm font-bold text-white">Gửi yêu cầu</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -675,472 +703,3 @@ export default function ReworkTaskModal({
     </>
   );
 }
-
-const wheelStyles = StyleSheet.create({
-  wheelContainer: {
-    height: ITEM_HEIGHT * 3,
-    position: 'relative',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  selectionBand: {
-    position: 'absolute',
-    top: ITEM_HEIGHT,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    backgroundColor: '#EFF6FF',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: BrandColors.primary,
-    zIndex: 1,
-  },
-  wheelCell: {
-    height: ITEM_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wheelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  wheelTextSelected: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: BrandColors.primary,
-  },
-});
-
-const calStyles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  calendarModalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 10,
-    gap: 12,
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 10,
-  },
-  calendarTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  calendarNavRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  calendarNavBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-  },
-  calendarMonthText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  calendarWeekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 4,
-  },
-  calendarWeekDayText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    width: 36,
-    textAlign: 'center',
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  calendarCell: {
-    width: '14.28%',
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 2,
-  },
-  calendarCellSelected: {
-    backgroundColor: BrandColors.primary,
-    borderRadius: 17,
-  },
-  calendarCellToday: {
-    borderWidth: 1.5,
-    borderColor: BrandColors.primary,
-    borderRadius: 17,
-  },
-  calendarDayText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  calendarDayTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  calendarDayTextToday: {
-    color: BrandColors.primary,
-    fontWeight: '800',
-  },
-  timeSection: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  timeSectionHeader: {
-    gap: 8,
-  },
-  timeSectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  timeInputBoxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  timeMiniInput: {
-    width: 36,
-    height: 28,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: BrandColors.primary,
-    borderRadius: 6,
-    textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '800',
-    color: BrandColors.primary,
-    padding: 0,
-  },
-  timeMiniColon: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#64748B',
-  },
-  presetRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  presetBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  presetBtnActive: {
-    backgroundColor: BrandColors.primary,
-    borderColor: BrandColors.primary,
-  },
-  presetText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  presetTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  wheelsWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  wheelColumnLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#64748B',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  wheelColon: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#475569',
-    marginTop: 14,
-  },
-  calendarFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  todayBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#EFF6FF',
-  },
-  todayBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  calendarCancelBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  calendarCancelBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  calendarConfirmBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: BrandColors.primary,
-  },
-  calendarConfirmBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingBottom: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  taskName: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  body: {
-    padding: 20,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748B',
-    marginBottom: 6,
-    letterSpacing: 0.5,
-  },
-  subLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-    marginTop: 10,
-    marginBottom: 6,
-    letterSpacing: 0.3,
-  },
-  textArea: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    color: '#0F172A',
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  openPickerLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  openPickerLinkText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  inputIconWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  calendarIconBtn: {
-    position: 'absolute',
-    left: 12,
-    zIndex: 10,
-    padding: 4,
-  },
-  input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0F172A',
-  },
-  inputWithIcon: {
-    paddingLeft: 44,
-  },
-  attachmentsSection: {
-    marginBottom: 16,
-  },
-  attachmentList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  attachmentChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#DBEAFE',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  attachmentChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: BrandColors.primary,
-    maxWidth: 160,
-  },
-  actionGrid: {
-    gap: 12,
-    marginBottom: 12,
-  },
-  uploadBox: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#F8FAFC',
-  },
-  uploadBoxText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  linkBox: {
-    gap: 8,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 12,
-  },
-  linkInput: {
-    fontSize: 13,
-    color: '#0F172A',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  addLinkBtn: {
-    backgroundColor: BrandColors.primary,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  addLinkBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  cancelBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  submitBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: BrandColors.primary,
-    alignItems: 'center',
-  },
-  submitBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

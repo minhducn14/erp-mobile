@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Modal,
   TouchableOpacity,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { BrandColors } from '@/constants/colors';
 
 interface MonthYearPickerModalProps {
   visible: boolean;
@@ -63,14 +61,14 @@ export const MonthYearPickerModal: React.FC<MonthYearPickerModalProps> = ({
       onRequestClose={onClose}
     >
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
+        <View className="flex-1 bg-slate-900/50 justify-center items-center p-5">
           <TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
+            <View className="w-full max-w-[360px] bg-surface rounded-3xl p-5 shadow-xl">
               {/* Modal Header */}
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Chọn thời gian tra cứu</Text>
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-base font-extrabold text-text-primary">Chọn thời gian tra cứu</Text>
                 <TouchableOpacity
-                  style={styles.closeBtn}
+                  className="w-8 h-8 rounded-lg bg-slate-100 items-center justify-center"
                   onPress={onClose}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -79,21 +77,21 @@ export const MonthYearPickerModal: React.FC<MonthYearPickerModalProps> = ({
               </View>
 
               {/* Year Switcher Row */}
-              <View style={styles.yearSwitcher}>
+              <View className="flex-row justify-between items-center bg-background rounded-xl p-1.5 mb-4 border border-border">
                 <TouchableOpacity
-                  style={styles.yearNavBtn}
+                  className="w-9 h-9 rounded-lg bg-surface items-center justify-center border border-border"
                   onPress={() => setViewYear((y) => y - 1)}
                   activeOpacity={0.7}
                 >
                   <Feather name="chevron-left" size={20} color="#334155" />
                 </TouchableOpacity>
 
-                <View style={styles.yearLabelBox}>
-                  <Text style={styles.yearLabelText}>Năm {viewYear}</Text>
+                <View className="items-center">
+                  <Text className="text-sm font-extrabold text-text-primary tracking-wide">Năm {viewYear}</Text>
                 </View>
 
                 <TouchableOpacity
-                  style={styles.yearNavBtn}
+                  className="w-9 h-9 rounded-lg bg-surface items-center justify-center border border-border"
                   onPress={() => setViewYear((y) => y + 1)}
                   activeOpacity={0.7}
                 >
@@ -101,19 +99,23 @@ export const MonthYearPickerModal: React.FC<MonthYearPickerModalProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* 12 Months Grid (3 columns x 4 rows) */}
-              <View style={styles.monthsGrid}>
+              {/* 12 Months Grid */}
+              <View className="flex-row flex-wrap gap-2 justify-between">
                 {MONTHS.map((name, index) => {
                   const m = index + 1;
                   const active = isSelected(m);
                   return (
                     <TouchableOpacity
                       key={m}
-                      style={[styles.monthCell, active && styles.monthCellActive]}
+                      className={`w-[31%] py-3 rounded-xl items-center justify-center border ${
+                        active
+                          ? 'bg-primary border-primary shadow-xs'
+                          : 'bg-background border-slate-100'
+                      }`}
                       onPress={() => handleSelectMonth(index)}
                       activeOpacity={0.75}
                     >
-                      <Text style={[styles.monthCellText, active && styles.monthCellTextActive]}>
+                      <Text className={`text-xs ${active ? 'font-extrabold text-white' : 'font-semibold text-slate-700'}`}>
                         {name}
                       </Text>
                     </TouchableOpacity>
@@ -122,27 +124,27 @@ export const MonthYearPickerModal: React.FC<MonthYearPickerModalProps> = ({
               </View>
 
               {/* Divider */}
-              <View style={styles.divider} />
+              <View className="h-px bg-slate-100 my-3.5" />
 
               {/* All Time Button */}
               <TouchableOpacity
-                style={[
-                  styles.allTimeBtn,
-                  !selectedDate.month && !selectedDate.year && styles.allTimeBtnActive,
-                ]}
+                className={`flex-row items-center justify-center gap-2 py-3 rounded-xl border ${
+                  !selectedDate.month && !selectedDate.year
+                    ? 'bg-primary border-primary'
+                    : 'bg-primary-light border-orange-200'
+                }`}
                 onPress={handleSelectAllTime}
                 activeOpacity={0.75}
               >
                 <Feather
                   name="calendar"
                   size={15}
-                  color={!selectedDate.month && !selectedDate.year ? '#FFFFFF' : BrandColors.primary}
+                  color={!selectedDate.month && !selectedDate.year ? '#FFFFFF' : '#F38820'}
                 />
                 <Text
-                  style={[
-                    styles.allTimeText,
-                    !selectedDate.month && !selectedDate.year && styles.allTimeTextActive,
-                  ]}
+                  className={`text-xs font-bold ${
+                    !selectedDate.month && !selectedDate.year ? 'text-white' : 'text-primary'
+                  }`}
                 >
                   Tất cả thời gian
                 </Text>
@@ -155,135 +157,3 @@ export const MonthYearPickerModal: React.FC<MonthYearPickerModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  yearSwitcher: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 6,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  yearNavBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  yearLabelBox: {
-    alignItems: 'center',
-  },
-  yearLabelText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: 0.5,
-  },
-  monthsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  monthCell: {
-    width: '31%',
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  monthCellActive: {
-    backgroundColor: BrandColors.primary,
-    borderColor: BrandColors.primary,
-    shadowColor: BrandColors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  monthCellText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  monthCellTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 14,
-  },
-  allTimeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1,
-    borderColor: '#FFEDD5',
-  },
-  allTimeBtnActive: {
-    backgroundColor: BrandColors.primary,
-    borderColor: BrandColors.primary,
-  },
-  allTimeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  allTimeTextActive: {
-    color: '#FFFFFF',
-  },
-});

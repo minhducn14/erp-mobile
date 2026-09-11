@@ -4,13 +4,12 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   ScrollView,
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { CompanyUser, TEAM_MEMBER_ROLE_LABELS, USER_ROLE } from '@/services/teamService';
+import { USER_ROLE } from '@/services/teamService';
 import { useAvailableUsersQuery, useAddTeamMemberMutation } from '@/hooks/queries/useProjects';
 import { BrandColors } from '@/constants/colors';
 
@@ -76,51 +75,53 @@ export default function AddTeamMemberModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modalCard}>
+      <View className="flex-1 bg-slate-900/50 justify-end">
+        <View className="bg-surface rounded-t-3xl max-h-[85%] p-5 gap-3">
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerTitleBox}>
-              <Text style={styles.title}>Thêm nhân sự vào đội dự án</Text>
-              <Text style={styles.subtitle}>Chọn nhân viên công ty & phân bổ vai trò</Text>
+          <View className="flex-row justify-between items-center border-b border-slate-100 pb-3">
+            <View className="flex-1">
+              <Text className="text-base font-bold text-text-primary">Thêm nhân sự vào đội dự án</Text>
+              <Text className="text-xs text-text-secondary mt-0.5">Chọn nhân viên công ty & phân bổ vai trò</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity onPress={onClose} className="p-1">
               <Feather name="x" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
           {/* User Selection Section */}
-          <Text style={styles.label}>1. Chọn nhân sự ({availableUsers.length})</Text>
+          <Text className="text-xs font-bold text-slate-700 mt-1">1. Chọn nhân sự ({availableUsers.length})</Text>
           {loadingUsers ? (
-            <View style={styles.loadingBox}>
+            <View className="py-6 items-center gap-2">
               <ActivityIndicator size="small" color={BrandColors.primary} />
-              <Text style={styles.loadingText}>Đang tải danh sách nhân sự...</Text>
+              <Text className="text-xs text-text-muted">Đang tải danh sách nhân sự...</Text>
             </View>
           ) : availableUsers.length === 0 ? (
-            <View style={styles.emptyBox}>
+            <View className="py-5 items-center justify-center gap-1.5 bg-background rounded-xl">
               <Feather name="users" size={24} color="#94A3B8" />
-              <Text style={styles.emptyText}>Tất cả nhân sự công ty đã có trong dự án.</Text>
+              <Text className="text-xs text-text-secondary">Tất cả nhân sự công ty đã có trong dự án.</Text>
             </View>
           ) : (
-            <ScrollView style={styles.userList} showsVerticalScrollIndicator={false}>
+            <ScrollView className="max-h-[160px]" showsVerticalScrollIndicator={false}>
               {availableUsers.map((user) => {
                 const isSelected = selectedUserId === user.id;
                 return (
                   <TouchableOpacity
                     key={user.id}
-                    style={[styles.userOption, isSelected && styles.userOptionSelected]}
+                    className={`flex-row items-center justify-between py-2 px-2.5 rounded-xl mb-1.5 border ${
+                      isSelected ? 'border-primary bg-teal-50/50' : 'border-border bg-slate-50/50'
+                    }`}
                     onPress={() => setSelectedUserId(user.id)}
                     activeOpacity={0.7}
                   >
-                    <View style={styles.userInfo}>
-                      <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarText}>
+                    <View className="flex-row items-center gap-2.5 flex-1">
+                      <View className="w-8 h-8 rounded-full bg-slate-200 items-center justify-center">
+                        <Text className="text-xs font-bold text-slate-600">
                           {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
                         </Text>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.userName}>{user.fullName}</Text>
-                        <Text style={styles.userSub}>
+                      <View className="flex-1">
+                        <Text className="text-xs font-semibold text-text-primary">{user.fullName}</Text>
+                        <Text className="text-[11px] text-text-secondary">
                           {user.role ? (USER_ROLE[user.role] || user.role) : user.email || 'Nhân sự'}
                         </Text>
                       </View>
@@ -135,9 +136,9 @@ export default function AddTeamMemberModal({
           )}
 
           {/* Role Selection Section */}
-          <Text style={styles.label}>2. Chọn vai trò chuyên môn trong đội</Text>
-          <ScrollView style={styles.roleScrollView} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-            <View style={styles.roleGrid}>
+          <Text className="text-xs font-bold text-slate-700 mt-1">2. Chọn vai trò chuyên môn trong đội</Text>
+          <ScrollView className="max-h-[180px]" nestedScrollEnabled showsVerticalScrollIndicator={false}>
+            <View className="gap-2">
               {[
                 {
                   key: 'ACCOUNT',
@@ -158,11 +159,13 @@ export default function AddTeamMemberModal({
                 return (
                   <TouchableOpacity
                     key={roleItem.key}
-                    style={[
-                      styles.roleCard,
-                      isSelected && styles.roleCardSelected,
-                      isLeadDisabled && styles.roleCardDisabled,
-                    ]}
+                    className={`p-2.5 rounded-xl border ${
+                      isSelected
+                        ? 'border-primary bg-teal-50/50'
+                        : isLeadDisabled
+                        ? 'border-border bg-background opacity-70'
+                        : 'border-border bg-slate-50/50'
+                    }`}
                     onPress={() => {
                       if (isLeadDisabled) {
                         Alert.alert(
@@ -175,21 +178,23 @@ export default function AddTeamMemberModal({
                     }}
                     activeOpacity={isLeadDisabled ? 0.9 : 0.8}
                   >
-                    <View style={styles.roleHeader}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View className="flex-row justify-between items-center">
+                      <View className="flex-row items-center gap-1.5">
                         <Text
-                          style={[
-                            styles.roleTitle,
-                            isSelected && styles.roleTitleSelected,
-                            isLeadDisabled && styles.roleTitleDisabled,
-                          ]}
+                          className={`text-xs font-bold ${
+                            isSelected
+                              ? 'text-primary'
+                              : isLeadDisabled
+                              ? 'text-text-muted'
+                              : 'text-slate-700'
+                          }`}
                         >
                           {roleItem.label}
                         </Text>
                         {isLeadDisabled && (
-                          <View style={styles.disabledLockTag}>
+                          <View className="flex-row items-center gap-[3px] bg-slate-100 px-1.5 py-0.5 rounded">
                             <Feather name="lock" size={10} color="#94A3B8" />
-                            <Text style={styles.disabledLockTagText}>Đã có Lead</Text>
+                            <Text className="text-[10px] font-semibold text-text-secondary">Đã có Lead</Text>
                           </View>
                         )}
                       </View>
@@ -197,7 +202,7 @@ export default function AddTeamMemberModal({
                         <Feather name="check-circle" size={15} color={BrandColors.primary} />
                       )}
                     </View>
-                    <Text style={styles.roleDesc}>
+                    <Text className="text-[11px] text-text-secondary mt-0.5">
                       {isLeadDisabled
                         ? `Dự án đã có Lead phụ trách (${existingLeadName})`
                         : roleItem.desc}
@@ -209,12 +214,12 @@ export default function AddTeamMemberModal({
           </ScrollView>
 
           {/* Footer Actions */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={styles.cancelText}>Hủy</Text>
+          <View className="flex-row justify-end gap-2.5 border-t border-slate-100 pt-3 mt-1.5">
+            <TouchableOpacity className="px-4 py-2.5 rounded-xl bg-slate-100" onPress={onClose} disabled={isSubmitting}>
+              <Text className="text-xs font-semibold text-slate-600">Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.submitBtn, (!selectedUserId || isSubmitting) && styles.btnDisabled]}
+              className={`flex-row items-center gap-1.5 px-[18px] py-2.5 rounded-xl bg-primary ${(!selectedUserId || isSubmitting) ? 'opacity-50' : ''}`}
               onPress={handleAdd}
               disabled={!selectedUserId || isSubmitting}
             >
@@ -223,7 +228,7 @@ export default function AddTeamMemberModal({
               ) : (
                 <>
                   <Feather name="user-plus" size={15} color="#FFFFFF" />
-                  <Text style={styles.submitText}>Thêm vào đội</Text>
+                  <Text className="text-xs font-bold text-white">Thêm vào đội</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -233,211 +238,3 @@ export default function AddTeamMemberModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    padding: 20,
-    gap: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 12,
-  },
-  headerTitleBox: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-    marginTop: 4,
-  },
-  loadingBox: {
-    paddingVertical: 24,
-    alignItems: 'center',
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 12,
-    color: '#94A3B8',
-  },
-  emptyBox: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-  },
-  emptyText: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  userList: {
-    maxHeight: 160,
-  },
-  roleScrollView: {
-    maxHeight: 180,
-  },
-  userOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FAFAFA',
-  },
-  userOptionSelected: {
-    borderColor: BrandColors.primary,
-    backgroundColor: '#F0FDFA',
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  userName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  userSub: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  roleGrid: {
-    gap: 8,
-  },
-  roleCard: {
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FAFAFA',
-  },
-  roleCardSelected: {
-    borderColor: BrandColors.primary,
-    backgroundColor: '#F0FDFA',
-  },
-  roleCardDisabled: {
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-    opacity: 0.7,
-  },
-  roleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  roleTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  roleTitleSelected: {
-    color: BrandColors.primary,
-  },
-  roleTitleDisabled: {
-    color: '#94A3B8',
-  },
-  disabledLockTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  disabledLockTagText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  roleDesc: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 12,
-    marginTop: 6,
-  },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-  },
-  cancelText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: BrandColors.primary,
-  },
-  btnDisabled: {
-    opacity: 0.5,
-  },
-  submitText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

@@ -5,7 +5,6 @@ import {
   Modal,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   ScrollView,
@@ -129,27 +128,27 @@ export default function CreateAcceptanceModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modalCard}>
+      <View className="flex-1 bg-slate-900/50 justify-end">
+        <View className="bg-white rounded-t-[24px] p-5 gap-3.5 max-h-[90%]">
           {/* Header */}
-          <View style={styles.header}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Gửi nghiệm thu dịch vụ</Text>
+          <View className="flex-row justify-between items-center border-b border-slate-100 pb-3">
+            <View className="flex-1">
+              <Text className="text-[17px] font-extrabold text-slate-900">Gửi nghiệm thu dịch vụ</Text>
               {contract?.contractCode && (
-                <Text style={styles.contractCode}>Hợp đồng: #{contract.contractCode}</Text>
+                <Text className="text-xs text-slate-500 mt-0.5">Hợp đồng: #{contract.contractCode}</Text>
               )}
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity onPress={onClose} className="p-1.5 rounded-lg bg-slate-100">
               <Feather name="x" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.formBody} showsVerticalScrollIndicator={false}>
+          <ScrollView className="gap-3.5" showsVerticalScrollIndicator={false}>
             {/* Batch Name Section */}
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>TÊN ĐỢT NGHIỆM THU</Text>
+            <View className="mb-3.5">
+              <Text className="text-[11px] font-extrabold text-slate-500 mb-2 tracking-wider">TÊN ĐỢT NGHIỆM THU</Text>
               <TextInput
-                style={[styles.input, styles.inputDisabled]}
+                className="bg-slate-100 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-600 font-bold"
                 value={name}
                 editable={false}
                 selectTextOnFocus={false}
@@ -157,11 +156,11 @@ export default function CreateAcceptanceModal({
             </View>
 
             {/* Service Selection Section */}
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>HẠNG MỤC DỊCH VỤ ĐỦ ĐIỀU KIỆN</Text>
+            <View className="mb-3.5">
+              <Text className="text-[11px] font-extrabold text-slate-500 mb-2 tracking-wider">HẠNG MỤC DỊCH VỤ ĐỦ ĐIỀU KIỆN</Text>
 
               {availableServices.length > 0 ? (
-                <View style={styles.serviceList}>
+                <View className="gap-2.5">
                   {availableServices.map((service: any) => {
                     const isSelected = selectedServiceIds.includes(service.id);
                     const isExpanded = !!expandedServices[service.id];
@@ -193,47 +192,55 @@ export default function CreateAcceptanceModal({
                     return (
                       <View
                         key={service.id}
-                        style={[styles.serviceCard, isSelected && styles.serviceCardSelected]}
+                        className={`rounded-2xl p-3 border gap-2 ${
+                          isSelected ? 'bg-emerald-50/50 border-emerald-300' : 'bg-slate-50 border-slate-200'
+                        }`}
                       >
                         <TouchableOpacity
-                          style={styles.serviceHeaderRow}
+                          className="flex-row items-center gap-2.5"
                           onPress={() => toggleServiceSelection(service.id)}
                           activeOpacity={0.7}
                         >
-                          <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                          <View
+                            className={`w-5 h-5 rounded border-2 items-center justify-center ${
+                              isSelected ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'
+                            }`}
+                          >
                             {isSelected && <Feather name="check" size={12} color="#FFFFFF" />}
                           </View>
-                          <View style={{ flex: 1 }}>
-                            <View style={styles.nameWithCodeRow}>
+                          <View className="flex-1">
+                            <View className="flex-row items-center gap-1.5 flex-wrap">
                               {parentCode && (
-                                <View style={styles.parentCodeTag}>
-                                  <Text style={styles.parentCodeTagText}>#{parentCode}</Text>
+                                <View className="bg-purple-100 px-1.5 py-0.5 rounded">
+                                  <Text className="text-[11px] font-bold text-purple-700">#{parentCode}</Text>
                                 </View>
                               )}
                               {serviceCode && (
-                                <View style={styles.codeTag}>
-                                  <Text style={styles.codeTagText}>#{serviceCode}</Text>
+                                <View className="bg-sky-100 px-1.5 py-0.5 rounded">
+                                  <Text className="text-[11px] font-bold text-sky-700">#{serviceCode}</Text>
                                 </View>
                               )}
                               <Text
-                                style={[styles.serviceName, isSelected && styles.serviceNameSelected]}
+                                className={`text-sm font-bold ${
+                                  isSelected ? 'text-emerald-900' : 'text-slate-700'
+                                }`}
                                 numberOfLines={1}
                               >
                                 {serviceName}
                               </Text>
                             </View>
                             {parentName ? (
-                              <Text style={styles.parentServiceNameText}>
+                              <Text className="text-[11px] color-purple-800 font-medium mt-0.5">
                                 Dịch vụ cha: {parentName}
                               </Text>
                             ) : null}
-                            <Text style={styles.serviceMetaSuccess}>
+                            <Text className="text-[11px] font-semibold text-emerald-600 mt-0.5">
                               ✅ Tất cả {tasksList.length}/{tasksList.length} công việc con đã hoàn thành
                             </Text>
                           </View>
 
                           <TouchableOpacity
-                            style={styles.expandBtn}
+                            className="p-1"
                             onPress={() => toggleServiceExpand(service.id)}
                           >
                             <Feather
@@ -246,8 +253,8 @@ export default function CreateAcceptanceModal({
 
                         {/* Breakdown of Linked Tasks */}
                         {isExpanded && tasksList.length > 0 && (
-                          <View style={styles.tasksBreakdown}>
-                            <Text style={styles.breakdownTitle}>
+                          <View className="mt-2 pt-2 border-t border-emerald-100 gap-1.5">
+                            <Text className="text-[10px] font-extrabold text-emerald-700 tracking-wider mb-0.5">
                               CÁC CÔNG VIỆC LIÊN KẾT TRONG HẠNG MỤC:
                             </Text>
                             {tasksList.map((t: any) => {
@@ -257,7 +264,7 @@ export default function CreateAcceptanceModal({
                               return (
                                 <TouchableOpacity
                                   key={t.id}
-                                  style={styles.taskItemRow}
+                                  className="flex-row items-center gap-2 bg-white rounded-lg px-2.5 py-1.5 border border-slate-100"
                                   onPress={() => handleGoToTask(t.id)}
                                   activeOpacity={0.7}
                                 >
@@ -266,19 +273,17 @@ export default function CreateAcceptanceModal({
                                     size={14}
                                     color={statusCfg.color}
                                   />
-                                  <Text style={styles.taskItemName} numberOfLines={1}>
+                                  <Text className="flex-1 text-xs text-slate-700" numberOfLines={1}>
                                     {taskCode ? (
-                                      <Text style={styles.taskCodeText}>#{taskCode} </Text>
+                                      <Text className="font-bold text-sky-600">#{taskCode} </Text>
                                     ) : null}
                                     {t.name}
                                   </Text>
                                   <View
-                                    style={[
-                                      styles.miniBadge,
-                                      { backgroundColor: statusCfg.bg },
-                                    ]}
+                                    className="px-1.5 py-0.5 rounded"
+                                    style={{ backgroundColor: statusCfg.bg }}
                                   >
-                                    <Text style={[styles.miniBadgeText, { color: statusCfg.color }]}>
+                                    <Text className="text-[10px] font-bold" style={{ color: statusCfg.color }}>
                                       {statusCfg.label}
                                     </Text>
                                   </View>
@@ -293,11 +298,11 @@ export default function CreateAcceptanceModal({
                   })}
                 </View>
               ) : (
-                <View style={styles.warningBox}>
+                <View className="flex-row items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-2xl p-3.5">
                   <Feather name="alert-circle" size={20} color="#D97706" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.warningTitle}>Không có dịch vụ đủ điều kiện nghiệm thu</Text>
-                    <Text style={styles.warningDesc}>
+                  <View className="flex-1">
+                    <Text className="text-[13px] font-bold text-amber-800">Không có dịch vụ đủ điều kiện nghiệm thu</Text>
+                    <Text className="text-xs text-amber-700 mt-0.5 leading-4">
                       Dịch vụ chỉ có thể nghiệm thu khi TẤT CẢ các công việc liên kết trực thuộc đã ở trạng thái Hoàn thành.
                     </Text>
                   </View>
@@ -306,8 +311,8 @@ export default function CreateAcceptanceModal({
 
               {/* Disabled / Incomplete Services Section */}
               {rejectedServices.length > 0 && (
-                <View style={styles.disabledSection}>
-                  <Text style={styles.subLabel}>
+                <View className="mt-2 gap-2">
+                  <Text className="text-[10px] font-extrabold text-red-500 mt-3.5 mb-2 tracking-wider">
                     HẠNG MỤC CHƯA ĐỦ ĐIỀU KIỆN (CÒN TASK CHƯA XONG) ({rejectedServices.length})
                   </Text>
                   {rejectedServices.map((service: any) => {
@@ -340,43 +345,43 @@ export default function CreateAcceptanceModal({
                     const uncompletedTasks = tasksList.filter((t: any) => t.status !== 'COMPLETED');
 
                     return (
-                      <View key={service.id} style={styles.disabledServiceCard}>
+                      <View key={service.id} className="bg-red-50/50 border border-red-100 rounded-2xl p-3 gap-2">
                         <TouchableOpacity
-                          style={styles.disabledHeaderRow}
+                          className="flex-row items-center gap-2.5"
                           onPress={() => toggleServiceExpand(service.id)}
                           activeOpacity={0.7}
                         >
-                          <View style={styles.disabledLockWrap}>
+                          <View className="w-6 h-6 rounded-md bg-red-100 items-center justify-center">
                             <Feather name="lock" size={14} color="#EF4444" />
                           </View>
-                          <View style={{ flex: 1 }}>
-                            <View style={styles.nameWithCodeRow}>
+                          <View className="flex-1">
+                            <View className="flex-row items-center gap-1.5 flex-wrap">
                               {parentCode && (
-                                <View style={styles.parentCodeTagRed}>
-                                  <Text style={styles.parentCodeTagRedText}>#{parentCode}</Text>
+                                <View className="bg-pink-100 px-1.5 py-0.5 rounded">
+                                  <Text className="text-[11px] font-bold text-pink-800">#{parentCode}</Text>
                                 </View>
                               )}
                               {serviceCode && (
-                                <View style={styles.codeTagRed}>
-                                  <Text style={styles.codeTagRedText}>#{serviceCode}</Text>
+                                <View className="bg-red-100 px-1.5 py-0.5 rounded">
+                                  <Text className="text-[11px] font-bold text-red-700">#{serviceCode}</Text>
                                 </View>
                               )}
-                              <Text style={styles.disabledServiceName} numberOfLines={1}>
+                              <Text className="text-[13px] font-bold text-red-900" numberOfLines={1}>
                                 {serviceName}
                               </Text>
                             </View>
                             {parentName ? (
-                              <Text style={styles.parentServiceNameTextRed}>
+                              <Text className="text-[11px] text-pink-800 font-medium mt-0.5">
                                 Dịch vụ cha: {parentName}
                               </Text>
                             ) : null}
-                            <Text style={styles.disabledServiceMeta}>
+                            <Text className="text-[11px] color-red-600 font-semibold mt-0.5">
                               Còn {uncompletedTasks.length}/{tasksList.length} công việc chưa hoàn thành
                             </Text>
                           </View>
 
                           <TouchableOpacity
-                            style={styles.expandBtn}
+                            className="p-1"
                             onPress={() => toggleServiceExpand(service.id)}
                           >
                             <Feather
@@ -389,8 +394,8 @@ export default function CreateAcceptanceModal({
 
                         {/* Breakdown showing EXACTLY which tasks are holding back acceptance */}
                         {isExpanded && tasksList.length > 0 && (
-                          <View style={styles.tasksBreakdownDisabled}>
-                            <Text style={styles.breakdownTitleWarn}>
+                          <View className="mt-2 pt-2 border-t border-red-200 gap-1.5">
+                            <Text className="text-[10px] font-extrabold text-red-700 tracking-wider mb-0.5">
                               CẦN HOÀN THÀNH CÁC CÔNG VIỆC SAU ĐỂ ĐỦ ĐIỀU KIỆN:
                             </Text>
                             {tasksList.map((t: any) => {
@@ -401,10 +406,9 @@ export default function CreateAcceptanceModal({
                               return (
                                 <TouchableOpacity
                                   key={t.id}
-                                  style={[
-                                    styles.taskItemRow,
-                                    !isDone && { backgroundColor: '#FEF2F2' },
-                                  ]}
+                                  className={`flex-row items-center gap-2 rounded-lg px-2.5 py-1.5 border ${
+                                    !isDone ? 'bg-red-100/60 border-red-200' : 'bg-white border-slate-100'
+                                  }`}
                                   onPress={() => handleGoToTask(t.id)}
                                   activeOpacity={0.7}
                                 >
@@ -414,24 +418,21 @@ export default function CreateAcceptanceModal({
                                     color={statusCfg.color}
                                   />
                                   <Text
-                                    style={[
-                                      styles.taskItemName,
-                                      !isDone && { fontWeight: '700', color: '#991B1B' },
-                                    ]}
+                                    className={`flex-1 text-xs ${
+                                      !isDone ? 'font-bold text-red-900' : 'text-slate-700'
+                                    }`}
                                     numberOfLines={1}
                                   >
                                     {taskCode ? (
-                                      <Text style={styles.taskCodeText}>#{taskCode} </Text>
+                                      <Text className="font-bold text-sky-600">#{taskCode} </Text>
                                     ) : null}
                                     {t.name}
                                   </Text>
                                   <View
-                                    style={[
-                                      styles.miniBadge,
-                                      { backgroundColor: statusCfg.bg },
-                                    ]}
+                                    className="px-1.5 py-0.5 rounded"
+                                    style={{ backgroundColor: statusCfg.bg }}
                                   >
-                                    <Text style={[styles.miniBadgeText, { color: statusCfg.color }]}>
+                                    <Text className="text-[10px] font-bold" style={{ color: statusCfg.color }}>
                                       {statusCfg.label}
                                     </Text>
                                   </View>
@@ -449,14 +450,15 @@ export default function CreateAcceptanceModal({
             </View>
 
             {/* Note */}
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>GHI CHÚ NGHIỆM THU</Text>
+            <View className="mb-3.5">
+              <Text className="text-[11px] font-extrabold text-slate-500 mb-2 tracking-wider">GHI CHÚ NGHIỆM THU</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-900 h-20"
                 placeholder="Nhập ghi chú nghiệm thu (không bắt buộc)..."
                 placeholderTextColor="#94A3B8"
                 multiline
                 numberOfLines={3}
+                style={{ textAlignVertical: 'top' }}
                 value={note}
                 onChangeText={setNote}
               />
@@ -464,16 +466,16 @@ export default function CreateAcceptanceModal({
           </ScrollView>
 
           {/* Footer Actions */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={styles.cancelText}>Hủy bỏ</Text>
+          <View className="flex-row justify-end items-center gap-2.5 pt-2 border-t border-slate-100">
+            <TouchableOpacity className="px-4 py-2.5 rounded-xl bg-slate-100" onPress={onClose} disabled={isSubmitting}>
+              <Text className="text-xs font-bold text-slate-600">Hủy bỏ</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                (isSubmitting || (availableServices.length > 0 && selectedServiceIds.length === 0)) &&
-                  styles.btnDisabled,
-              ]}
+              className={`flex-row items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary ${
+                isSubmitting || (availableServices.length > 0 && selectedServiceIds.length === 0)
+                  ? 'opacity-50'
+                  : ''
+              }`}
               onPress={handleCreate}
               disabled={isSubmitting || (availableServices.length > 0 && selectedServiceIds.length === 0)}
             >
@@ -482,7 +484,7 @@ export default function CreateAcceptanceModal({
               ) : (
                 <>
                   <Feather name="send" size={14} color="#FFFFFF" />
-                  <Text style={styles.submitText}>Gửi yêu cầu</Text>
+                  <Text className="text-xs font-bold text-white">Gửi yêu cầu</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -492,345 +494,3 @@ export default function CreateAcceptanceModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    gap: 14,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  contractCode: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  formBody: {
-    gap: 14,
-  },
-  formGroup: {
-    marginBottom: 14,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-    marginBottom: 8,
-    letterSpacing: 0.5,
-  },
-  subLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#EF4444',
-    marginTop: 14,
-    marginBottom: 8,
-    letterSpacing: 0.5,
-  },
-  serviceList: {
-    gap: 10,
-  },
-  serviceCard: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 12,
-    gap: 8,
-  },
-  serviceCardSelected: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
-  },
-  serviceHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
-  },
-  serviceName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  nameWithCodeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  codeTag: {
-    backgroundColor: '#E0F2FE',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  codeTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0369A1',
-  },
-  codeTagRed: {
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  codeTagRedText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#B91C1C',
-  },
-  parentCodeTag: {
-    backgroundColor: '#F3E8FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  parentCodeTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#7E22CE',
-  },
-  parentCodeTagRed: {
-    backgroundColor: '#FCE7F3',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  parentCodeTagRedText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#BE185D',
-  },
-  parentServiceNameText: {
-    fontSize: 11,
-    color: '#6B21A8',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  parentServiceNameTextRed: {
-    fontSize: 11,
-    color: '#9D174D',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  taskCodeText: {
-    fontWeight: '700',
-    color: '#0284C7',
-  },
-  serviceNameSelected: {
-    color: '#065F46',
-  },
-  serviceMetaSuccess: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#059669',
-    marginTop: 2,
-  },
-  expandBtn: {
-    padding: 4,
-  },
-  tasksBreakdown: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#D1FAE5',
-    gap: 6,
-  },
-  tasksBreakdownDisabled: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#FEE2E2',
-    gap: 6,
-  },
-  breakdownTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#047857',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  breakdownTitleWarn: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#B91C1C',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  taskItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  taskItemName: {
-    flex: 1,
-    fontSize: 12,
-    color: '#334155',
-  },
-  miniBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  miniBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  warningBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: 14,
-    padding: 14,
-  },
-  warningTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#B45309',
-  },
-  warningDesc: {
-    fontSize: 12,
-    color: '#D97706',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  disabledSection: {
-    marginTop: 8,
-    gap: 8,
-  },
-  disabledServiceCard: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    borderRadius: 14,
-    padding: 12,
-    gap: 8,
-  },
-  disabledHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  disabledLockWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabledServiceName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#991B1B',
-  },
-  disabledServiceMeta: {
-    fontSize: 11,
-    color: '#DC2626',
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0F172A',
-  },
-  inputDisabled: {
-    backgroundColor: '#F1F5F9',
-    borderColor: '#E2E8F0',
-    color: '#475569',
-    fontWeight: '700',
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 12,
-  },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-  },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#10B981',
-  },
-  btnDisabled: {
-    opacity: 0.5,
-  },
-  submitText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

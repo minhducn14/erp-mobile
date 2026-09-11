@@ -4,13 +4,11 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   ScrollView,
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { UserPMItem } from '@/services/projectService';
 import { usePmUsersQuery, useAssignProjectMutation } from '@/hooks/queries/useProjects';
 import { BrandColors } from '@/constants/colors';
 
@@ -67,42 +65,44 @@ export default function AssignPmModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modalCard}>
+      <View className="flex-1 bg-slate-900/50 justify-center p-5">
+        <View className="bg-surface rounded-2xl max-h-[80%] p-5 gap-4 shadow-xl">
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Phân công Quản lý Dự án (PM)</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <View className="flex-row justify-between items-center border-b border-slate-100 pb-3">
+            <Text className="text-base font-bold text-text-primary">Phân công Quản lý Dự án (PM)</Text>
+            <TouchableOpacity onPress={onClose} className="p-1">
               <Feather name="x" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
           {/* User List */}
           {loadingUsers ? (
-            <View style={styles.loadingBox}>
+            <View className="py-7.5 items-center gap-2">
               <ActivityIndicator size="small" color={BrandColors.primary} />
-              <Text style={styles.loadingText}>Đang tải danh sách PM...</Text>
+              <Text className="text-xs text-text-muted">Đang tải danh sách PM...</Text>
             </View>
           ) : (
-            <ScrollView style={styles.userList} showsVerticalScrollIndicator={false}>
+            <ScrollView className="max-h-[280px]" showsVerticalScrollIndicator={false}>
               {pmUsers.map((user) => {
                 const isSelected = selectedPmId === user.id;
                 return (
                   <TouchableOpacity
                     key={user.id}
-                    style={[styles.userOption, isSelected && styles.userOptionSelected]}
+                    className={`flex-row items-center justify-between py-2.5 px-3 rounded-xl mb-2 border ${
+                      isSelected ? 'border-primary bg-teal-50/50' : 'border-border bg-slate-50/50'
+                    }`}
                     onPress={() => setSelectedPmId(user.id)}
                     activeOpacity={0.7}
                   >
-                    <View style={styles.userInfo}>
-                      <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarText}>
+                    <View className="flex-row items-center gap-2.5">
+                      <View className="w-9 h-9 rounded-full bg-slate-200 items-center justify-center">
+                        <Text className="text-sm font-bold text-slate-600">
                           {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
                         </Text>
                       </View>
                       <View>
-                        <Text style={styles.userName}>{user.fullName}</Text>
-                        {user.email && <Text style={styles.userEmail}>{user.email}</Text>}
+                        <Text className="text-sm font-semibold text-text-primary">{user.fullName}</Text>
+                        {user.email && <Text className="text-xs text-text-secondary">{user.email}</Text>}
                       </View>
                     </View>
                     {isSelected && (
@@ -115,19 +115,19 @@ export default function AssignPmModal({
           )}
 
           {/* Footer Actions */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={styles.cancelText}>Hủy</Text>
+          <View className="flex-row justify-end gap-2.5 border-t border-slate-100 pt-3.5">
+            <TouchableOpacity className="px-4 py-2.5 rounded-xl bg-slate-100" onPress={onClose} disabled={isSubmitting}>
+              <Text className="text-sm font-semibold text-slate-600">Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.submitBtn, isSubmitting && styles.btnDisabled]}
+              className={`px-4.5 py-2.5 rounded-xl bg-primary ${isSubmitting ? 'opacity-60' : ''}`}
               onPress={handleAssign}
               disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.submitText}>Lưu phân công</Text>
+                <Text className="text-sm font-bold text-white">Lưu phân công</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -136,123 +136,3 @@ export default function AssignPmModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    maxHeight: '80%',
-    padding: 20,
-    gap: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  loadingBox: {
-    paddingVertical: 30,
-    alignItems: 'center',
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#94A3B8',
-  },
-  userList: {
-    maxHeight: 280,
-  },
-  userOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FAFAFA',
-  },
-  userOptionSelected: {
-    borderColor: BrandColors.primary,
-    backgroundColor: '#F0FDFA',
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 14,
-  },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-  },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  submitBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: BrandColors.primary,
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  submitText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

@@ -2,11 +2,9 @@ import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -46,14 +44,14 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
       {/* Top Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hồ sơ cá nhân</Text>
+      <View className="items-center border-b border-slate-200 bg-white px-4 py-3.5">
+        <Text className="text-[17px] font-bold text-slate-900">Hồ sơ cá nhân</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerClassName="gap-4 p-4 pb-8"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -64,95 +62,95 @@ export default function ProfileScreen() {
         }
       >
         {/* Profile Card */}
-        <View style={styles.userCard}>
-          <View style={styles.avatarBox}>
-            <Text style={styles.avatarText}>
+        <View className="items-center rounded-[18px] border border-slate-200 bg-white p-6 shadow-sm">
+          <View className="mb-3 h-16 w-16 items-center justify-center rounded-[20px] bg-primary shadow-md">
+            <Text className="text-[26px] font-extrabold text-white">
               {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
-          <Text style={styles.userName}>{user?.fullName || user?.username || 'Người dùng'}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>{user?.role || 'PM'}</Text>
+          <Text className="mb-1.5 text-lg font-extrabold text-slate-900">{user?.fullName || user?.username || 'Người dùng'}</Text>
+          <View className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-[3px]">
+            <Text className="text-[11px] font-bold uppercase text-primary">{user?.role || 'PM'}</Text>
           </View>
         </View>
 
         {/* Contact Info Group */}
-        <View style={styles.sectionGroup}>
-          <Text style={styles.sectionLabel}>Thông tin tài khoản</Text>
+        <View className="gap-3.5 rounded-2xl border border-slate-200 bg-white p-4">
+          <Text className="mb-0.5 text-xs font-bold uppercase tracking-[0.5px] text-slate-400">Thông tin tài khoản</Text>
 
-          <View style={styles.infoRow}>
-            <View style={styles.iconBox}>
+          <View className="flex-row items-center gap-3">
+            <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-slate-50">
               <Feather name="user" size={16} color={BrandColors.primary} />
             </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.fieldLabel}>Tên tài khoản</Text>
-              <Text style={styles.fieldVal}>{user?.username || '-'}</Text>
+            <View className="flex-1">
+              <Text className="mb-0.5 text-[11px] text-slate-400">Tên tài khoản</Text>
+              <Text className="text-sm font-semibold text-slate-900">{user?.username || '-'}</Text>
             </View>
           </View>
 
           {user?.email ? (
-            <View style={styles.infoRow}>
-              <View style={styles.iconBox}>
+            <View className="flex-row items-center gap-3">
+              <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-slate-50">
                 <Feather name="mail" size={16} color="#3B82F6" />
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.fieldLabel}>Email doanh nghiệp</Text>
-                <Text style={styles.fieldVal}>{user.email}</Text>
+              <View className="flex-1">
+                <Text className="mb-0.5 text-[11px] text-slate-400">Email doanh nghiệp</Text>
+                <Text className="text-sm font-semibold text-slate-900">{user.email}</Text>
               </View>
             </View>
           ) : null}
 
           {user?.phoneNumber ? (
-            <View style={styles.infoRow}>
-              <View style={styles.iconBox}>
+            <View className="flex-row items-center gap-3">
+              <View className="h-9 w-9 items-center justify-center rounded-[10px] bg-slate-50">
                 <Feather name="phone" size={16} color="#10B981" />
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.fieldLabel}>Số điện thoại</Text>
-                <Text style={styles.fieldVal}>{user.phoneNumber}</Text>
+              <View className="flex-1">
+                <Text className="mb-0.5 text-[11px] text-slate-400">Số điện thoại</Text>
+                <Text className="text-sm font-semibold text-slate-900">{user.phoneNumber}</Text>
               </View>
             </View>
           ) : null}
         </View>
 
         {/* System & Support Group */}
-        <View style={styles.sectionGroup}>
-          <Text style={styles.sectionLabel}>Hệ thống & Trợ giúp</Text>
+        <View className="gap-3.5 rounded-2xl border border-slate-200 bg-white p-4">
+          <Text className="mb-0.5 text-xs font-bold uppercase tracking-[0.5px] text-slate-400">Hệ thống & Trợ giúp</Text>
 
           <TouchableOpacity
-            style={styles.menuItem}
+            className="flex-row items-center justify-between py-1"
             activeOpacity={0.7}
             onPress={() => Alert.alert('Thông tin phiên bản', 'Getvini ERP Mobile v1.0.0 (Build 2026)')}
           >
-            <View style={styles.menuLeft}>
+            <View className="flex-row items-center gap-2.5">
               <Feather name="info" size={16} color="#64748B" />
-              <Text style={styles.menuText}>Phiên bản ứng dụng</Text>
+              <Text className="text-sm font-medium text-slate-700">Phiên bản ứng dụng</Text>
             </View>
-            <Text style={styles.versionBadge}>v1.0.0</Text>
+            <Text className="text-xs font-semibold text-slate-400">v1.0.0</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.menuItem}
+            className="flex-row items-center justify-between py-1"
             activeOpacity={0.7}
             onPress={() =>
               Alert.alert('Hỗ trợ kỹ thuật', 'Vui lòng liên hệ Quản trị viên IT nội bộ Getvini.')
             }
           >
-            <View style={styles.menuLeft}>
+            <View className="flex-row items-center gap-2.5">
               <Feather name="headphones" size={16} color="#64748B" />
-              <Text style={styles.menuText}>Hỗ trợ IT nội bộ</Text>
+              <Text className="text-sm font-medium text-slate-700">Hỗ trợ IT nội bộ</Text>
             </View>
             <Feather name="chevron-right" size={16} color="#CBD5E1" />
           </TouchableOpacity>
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
+        <TouchableOpacity className="mt-2 flex-row items-center justify-center gap-2 rounded-[14px] border border-red-100 bg-red-50 py-3.5" onPress={handleLogout} activeOpacity={0.85}>
           <Feather name="log-out" size={18} color="#EF4444" />
-          <Text style={styles.logoutBtnText}>Đăng xuất tài khoản</Text>
+          <Text className="text-[15px] font-bold text-red-500">Đăng xuất tài khoản</Text>
         </TouchableOpacity>
 
-        <Text style={styles.footerBranding}>
+        <Text className="mt-2 text-center text-[11px] text-slate-400">
           Getvini • Make a sustainable brand
         </Text>
       </ScrollView>
@@ -162,166 +160,3 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  scrollContent: {
-    padding: 16,
-    gap: 16,
-    paddingBottom: 32,
-  },
-  userCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  avatarBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: BrandColors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    shadowColor: BrandColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: '800',
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 6,
-  },
-  roleBadge: {
-    backgroundColor: '#FFF4EA',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FDCB9E',
-  },
-  roleBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: BrandColors.primary,
-    textTransform: 'uppercase',
-  },
-  sectionGroup: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 14,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoContent: {
-    flex: 1,
-  },
-  fieldLabel: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginBottom: 2,
-  },
-  fieldVal: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  menuLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  menuText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#334155',
-  },
-  versionBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
-  },
-  logoutBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#EF4444',
-  },
-  footerBranding: {
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 8,
-  },
-});

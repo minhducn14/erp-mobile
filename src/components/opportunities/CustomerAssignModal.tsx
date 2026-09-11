@@ -5,7 +5,6 @@ import {
   Modal,
   TouchableOpacity,
   TextInput,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   Platform,
@@ -61,20 +60,12 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
 }) => {
   const { height } = useWindowDimensions();
 
-  // 1. Loại khách hàng (DIRECT: Trực tiếp | REFERRAL: Liên kết)
   const [customerType, setCustomerType] = useState<'DIRECT' | 'REFERRAL'>('DIRECT');
-
-  // 2. Đối tác giới thiệu
   const [selectedReferralPartnerId, setSelectedReferralPartnerId] = useState<string>('');
-
-  // 3. Trạng thái khách hàng: Mặc định rỗng '' theo Web ('POTENTIAL' | 'EXISTING')
   const [customerStatus, setCustomerStatus] = useState<'' | 'EXISTING' | 'POTENTIAL'>('');
-
-  // 4. Danh sách khách hàng (Hệ thống vs Khách hàng của đối tác)
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
 
-  // TanStack Queries for catalogs & partner details
   const { data: allCustomersData, isLoading: isLoadingCustomers } = useCustomersQuery();
   const allCustomers: CustomerItem[] = allCustomersData || [];
 
@@ -88,7 +79,6 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
     );
   const partnerCustomers: CustomerItem[] = (partnerDetailData?.customers as CustomerItem[]) || [];
 
-  // 5. Thông tin khách hàng tiềm năng (Lead)
   const [leadTaxId, setLeadTaxId] = useState('');
   const [leadName, setLeadName] = useState('');
   const [leadPhone, setLeadPhone] = useState('');
@@ -97,28 +87,21 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
   const [isFetchingTax, setIsFetchingTax] = useState(false);
   const [autoTaxSuccess, setAutoTaxSuccess] = useState(false);
 
-  // Refs cho ô nhập liệu để tự động chuyển ô (focus next)
   const leadTaxIdRef = useRef<TextInput>(null);
   const leadNameRef = useRef<TextInput>(null);
   const leadPhoneRef = useRef<TextInput>(null);
   const leadEmailRef = useRef<TextInput>(null);
   const leadAddressRef = useRef<TextInput>(null);
 
-  // Dropdown mở/đóng các picker
   const [openPicker, setOpenPicker] = useState<'TYPE' | 'PARTNER' | 'STATUS' | null>(null);
-
-  // Submitting
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load Catalogs (Đối tác & Tất cả khách hàng)
   useEffect(() => {
     if (!visible) return;
 
-    // Reset picker state
     setOpenPicker(null);
     setAutoTaxSuccess(false);
 
-    // Prefill nếu đã có initialData
     if (initialData?.customerType === 'REFERRAL') {
       setCustomerType('REFERRAL');
     } else {
@@ -147,7 +130,6 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
     }
   }, [visible, initialData]);
 
-  // Tự động tra cứu MST khi gõ đủ 10 hoặc 13 số (Debounce 500ms chuẩn Web)
   useEffect(() => {
     const cleanTax = leadTaxId.replace(/[\s-]/g, '');
     if (visible && customerStatus === 'POTENTIAL' && (cleanTax.length === 10 || cleanTax.length === 13)) {
@@ -173,12 +155,10 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
     }
   }, [leadTaxId, visible, customerStatus]);
 
-  // Danh sách khách hàng hiển thị theo loại
   const displayCustomers = useMemo(() => {
     return customerType === 'REFERRAL' ? partnerCustomers : allCustomers;
   }, [customerType, partnerCustomers, allCustomers]);
 
-  // Lọc theo thanh tìm kiếm
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return displayCustomers;
     const lower = customerSearch.toLowerCase();
@@ -191,14 +171,12 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
     );
   }, [displayCustomers, customerSearch]);
 
-  // Điều kiện Disabled nút Lưu chuẩn Web
   const isSaveDisabled =
     isSubmitting ||
     !customerStatus ||
     (customerStatus === 'EXISTING' && !selectedCustomerId) ||
     (customerType === 'REFERRAL' && !selectedReferralPartnerId);
 
-  // Submit Handler
   const handleSave = async () => {
     if (customerStatus === 'POTENTIAL') {
       if (!leadName.trim()) {
@@ -244,43 +222,40 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
   };
 
   const selectedPartnerObj = referralPartners.find((p) => p.id === selectedReferralPartnerId);
-  const selectedCustomerObj = displayCustomers.find((c) => c.id === selectedCustomerId);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={[styles.sheetContainer, { height: height * 0.82, maxHeight: height * 0.90 }]}>
+      <View className="flex-1 bg-slate-900/65 justify-end">
+        <View className="bg-surface rounded-t-3xl overflow-hidden" style={{ height: height * 0.82, maxHeight: height * 0.90 }}>
           {/* Header */}
-          <View style={styles.sheetHeader}>
+          <View className="flex-row justify-between items-center px-5 py-4 border-b border-border">
             <View>
-              <Text style={styles.sheetTitle}>Thêm thông tin khách hàng</Text>
-              <Text style={styles.sheetSub}>Gắn khách hàng trực tiếp hoặc khách hàng liên kết</Text>
+              <Text className="text-xl font-bold text-text-primary">Thêm thông tin khách hàng</Text>
+              <Text className="text-xs text-text-secondary mt-0.5">Gắn khách hàng trực tiếp hoặc khách hàng liên kết</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
+            <TouchableOpacity onPress={onClose} className="w-[34px] h-[34px] rounded-full bg-slate-100 justify-center items-center" activeOpacity={0.7}>
               <Feather name="x" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          {/* Android already resizes the modal for the keyboard; a second offset
-              from KeyboardAwareScrollView would over-scroll the focused field. */}
           <KeyboardAwareScrollView
-            style={styles.sheetBody}
-            contentContainerStyle={styles.sheetBodyContent}
+            className="flex-1"
+            contentContainerStyle={{ padding: 20 }}
             enableOnAndroid={false}
             enableAutomaticScroll={Platform.OS === 'ios'}
             extraScrollHeight={Platform.OS === 'ios' ? 40 : 0}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={true}
           >
-            {/* 1. LOẠI KHÁCH HÀNG: Select Dropdown */}
-            <View style={styles.formGroup}>
-              <Text style={styles.groupLabel}>Loại khách hàng:</Text>
+            {/* 1. LOẠI KHÁCH HÀNG */}
+            <View className="mb-4">
+              <Text className="text-xs font-semibold text-slate-700 mb-2">Loại khách hàng:</Text>
               <TouchableOpacity
-                style={styles.dropdownSelector}
+                className="flex-row items-center justify-between bg-surface border border-slate-300 rounded-xl px-3.5 py-2.75"
                 onPress={() => setOpenPicker(openPicker === 'TYPE' ? null : 'TYPE')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.dropdownValueText}>
+                <Text className="text-sm text-text-primary font-medium flex-1">
                   {customerType === 'DIRECT' ? 'Khách hàng trực tiếp' : 'Khách hàng liên kết'}
                 </Text>
                 <Feather
@@ -290,11 +265,10 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                 />
               </TouchableOpacity>
 
-              {/* Menu options cho Loại khách hàng */}
               {openPicker === 'TYPE' && (
-                <View style={styles.dropdownMenu}>
+                <View className="mt-1.5 bg-surface rounded-xl border border-border shadow-md overflow-hidden">
                   <TouchableOpacity
-                    style={[styles.dropdownMenuItem, customerType === 'DIRECT' && styles.dropdownMenuItemActive]}
+                    className={`flex-row items-center justify-between px-3.5 py-3 border-b border-slate-100 ${customerType === 'DIRECT' ? 'bg-blue-50' : ''}`}
                     onPress={() => {
                       setCustomerType('DIRECT');
                       setCustomerStatus('');
@@ -303,14 +277,14 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                       setOpenPicker(null);
                     }}
                   >
-                    <Text style={[styles.dropdownMenuItemText, customerType === 'DIRECT' && styles.dropdownMenuItemTextActive]}>
+                    <Text className={`text-xs ${customerType === 'DIRECT' ? 'text-blue-700 font-bold' : 'text-slate-700'}`}>
                       Khách hàng trực tiếp
                     </Text>
                     {customerType === 'DIRECT' && <Feather name="check" size={16} color="#2563EB" />}
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.dropdownMenuItem, customerType === 'REFERRAL' && styles.dropdownMenuItemActive]}
+                    className={`flex-row items-center justify-between px-3.5 py-3 ${customerType === 'REFERRAL' ? 'bg-blue-50' : ''}`}
                     onPress={() => {
                       setCustomerType('REFERRAL');
                       setCustomerStatus('');
@@ -319,7 +293,7 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                       setOpenPicker(null);
                     }}
                   >
-                    <Text style={[styles.dropdownMenuItemText, customerType === 'REFERRAL' && styles.dropdownMenuItemTextActive]}>
+                    <Text className={`text-xs ${customerType === 'REFERRAL' ? 'text-blue-700 font-bold' : 'text-slate-700'}`}>
                       Khách hàng liên kết
                     </Text>
                     {customerType === 'REFERRAL' && <Feather name="check" size={16} color="#2563EB" />}
@@ -328,27 +302,19 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
               )}
             </View>
 
-            {/* 2. ĐỐI TÁC GIỚI THIỆU (NẾU CHỌN KHÁCH HÀNG LIÊN KẾT) */}
+            {/* 2. ĐỐI TÁC GIỚI THIỆU */}
             {customerType === 'REFERRAL' && (
-              <View style={styles.formGroup}>
-                <Text style={styles.groupLabel}>
-                  Đối tác giới thiệu: <Text style={styles.reqStar}>*</Text>
+              <View className="mb-4">
+                <Text className="text-xs font-semibold text-slate-700 mb-2">
+                  Đối tác giới thiệu: <Text className="text-rose-500">*</Text>
                 </Text>
 
                 <TouchableOpacity
-                  style={[
-                    styles.dropdownSelector,
-                    !selectedReferralPartnerId && styles.dropdownSelectorWarning,
-                  ]}
+                  className={`flex-row items-center justify-between bg-surface border rounded-xl px-3.5 py-[11px] ${!selectedReferralPartnerId ? 'border-orange-400 bg-orange-50' : 'border-slate-300'}`}
                   onPress={() => setOpenPicker(openPicker === 'PARTNER' ? null : 'PARTNER')}
                   activeOpacity={0.8}
                 >
-                  <Text
-                    style={[
-                      styles.dropdownValueText,
-                      !selectedReferralPartnerId && styles.dropdownPlaceholderText,
-                    ]}
-                  >
+                  <Text className={`text-sm flex-1 ${!selectedReferralPartnerId ? 'text-text-muted italic' : 'text-text-primary font-medium'}`}>
                     {selectedPartnerObj
                       ? `${selectedPartnerObj.name} ${selectedPartnerObj.taxId ? `- ${selectedPartnerObj.taxId}` : ''}`
                       : 'Chọn đối tác giới thiệu'}
@@ -360,35 +326,28 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                   />
                 </TouchableOpacity>
 
-                {/* Cảnh báo cam nếu chưa chọn đối tác chuẩn Web */}
                 {!selectedReferralPartnerId && (
-                  <Text style={styles.partnerWarningText}>
+                  <Text className="text-xs text-orange-600 mt-[5px] italic">
                     Vui lòng chọn đối tác giới thiệu trước
                   </Text>
                 )}
 
-                {/* Menu chọn đối tác */}
                 {openPicker === 'PARTNER' && (
-                  <View style={styles.dropdownMenu}>
+                  <View className="mt-1.5 bg-surface rounded-xl border border-border shadow-md overflow-hidden">
                     {referralPartners.length > 0 ? (
                       referralPartners.map((p) => {
                         const isSelected = selectedReferralPartnerId === p.id;
                         return (
                           <TouchableOpacity
                             key={p.id}
-                            style={[styles.dropdownMenuItem, isSelected && styles.dropdownMenuItemActive]}
+                            className={`flex-row items-center justify-between px-3.5 py-3 border-b border-slate-100 ${isSelected ? 'bg-blue-50' : ''}`}
                             onPress={() => {
                               setSelectedReferralPartnerId(p.id);
                               setSelectedCustomerId('');
                               setOpenPicker(null);
                             }}
                           >
-                            <Text
-                              style={[
-                                styles.dropdownMenuItemText,
-                                isSelected && styles.dropdownMenuItemTextActive,
-                              ]}
-                            >
+                            <Text className={`text-xs ${isSelected ? 'text-blue-700 font-bold' : 'text-slate-700'}`}>
                               {p.name} {p.taxId ? `- ${p.taxId}` : ''}
                             </Text>
                             {isSelected && <Feather name="check" size={16} color="#2563EB" />}
@@ -396,8 +355,8 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                         );
                       })
                     ) : (
-                      <View style={styles.emptyPickerBox}>
-                        <Text style={styles.emptyPickerText}>Chưa có đối tác giới thiệu nào trong hệ thống.</Text>
+                      <View className="p-4 items-center">
+                        <Text className="text-xs text-text-muted italic text-center">Chưa có đối tác giới thiệu nào trong hệ thống.</Text>
                       </View>
                     )}
                   </View>
@@ -405,24 +364,16 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
               </View>
             )}
 
-            {/* 3. TRẠNG THÁI KHÁCH HÀNG: Select Dropdown */}
-            <View style={styles.formGroup}>
-              <Text style={styles.groupLabel}>Trạng thái khách hàng:</Text>
+            {/* 3. TRẠNG THÁI KHÁCH HÀNG */}
+            <View className="mb-4">
+              <Text className="text-xs font-semibold text-slate-700 mb-2">Trạng thái khách hàng:</Text>
               <TouchableOpacity
-                style={[
-                  styles.dropdownSelector,
-                  customerType === 'REFERRAL' && !selectedReferralPartnerId && styles.dropdownSelectorDisabled,
-                ]}
+                className={`flex-row items-center justify-between bg-surface border border-slate-300 rounded-xl px-3.5 py-[11px] ${customerType === 'REFERRAL' && !selectedReferralPartnerId ? 'bg-slate-100 border-slate-200' : ''}`}
                 disabled={customerType === 'REFERRAL' && !selectedReferralPartnerId}
                 onPress={() => setOpenPicker(openPicker === 'STATUS' ? null : 'STATUS')}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.dropdownValueText,
-                    !customerStatus && styles.dropdownPlaceholderText,
-                  ]}
-                >
+                <Text className={`text-sm flex-1 ${!customerStatus ? 'text-text-muted italic' : 'text-text-primary font-medium'}`}>
                   {customerStatus === 'POTENTIAL'
                     ? 'Khách hàng tiềm năng'
                     : customerStatus === 'EXISTING'
@@ -436,31 +387,30 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                 />
               </TouchableOpacity>
 
-              {/* Menu options Trạng thái */}
               {openPicker === 'STATUS' && (
-                <View style={styles.dropdownMenu}>
+                <View className="mt-1.5 bg-surface rounded-xl border border-border shadow-md overflow-hidden">
                   <TouchableOpacity
-                    style={[styles.dropdownMenuItem, customerStatus === 'POTENTIAL' && styles.dropdownMenuItemActive]}
+                    className={`flex-row items-center justify-between px-3.5 py-3 border-b border-slate-100 ${customerStatus === 'POTENTIAL' ? 'bg-blue-50' : ''}`}
                     onPress={() => {
                       setCustomerStatus('POTENTIAL');
                       setSelectedCustomerId('');
                       setOpenPicker(null);
                     }}
                   >
-                    <Text style={[styles.dropdownMenuItemText, customerStatus === 'POTENTIAL' && styles.dropdownMenuItemTextActive]}>
+                    <Text className={`text-xs ${customerStatus === 'POTENTIAL' ? 'text-blue-700 font-bold' : 'text-slate-700'}`}>
                       Khách hàng tiềm năng
                     </Text>
                     {customerStatus === 'POTENTIAL' && <Feather name="check" size={16} color="#2563EB" />}
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.dropdownMenuItem, customerStatus === 'EXISTING' && styles.dropdownMenuItemActive]}
+                    className={`flex-row items-center justify-between px-3.5 py-3 ${customerStatus === 'EXISTING' ? 'bg-blue-50' : ''}`}
                     onPress={() => {
                       setCustomerStatus('EXISTING');
                       setOpenPicker(null);
                     }}
                   >
-                    <Text style={[styles.dropdownMenuItemText, customerStatus === 'EXISTING' && styles.dropdownMenuItemTextActive]}>
+                    <Text className={`text-xs ${customerStatus === 'EXISTING' ? 'text-blue-700 font-bold' : 'text-slate-700'}`}>
                       Khách hàng hiện hữu
                     </Text>
                     {customerStatus === 'EXISTING' && <Feather name="check" size={16} color="#2563EB" />}
@@ -469,22 +419,22 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
               )}
             </View>
 
-            {/* --- NHÁNH 1: KHÁCH HÀNG HIỆN HỮU (EXISTING) --- */}
+            {/* KHÁCH HÀNG HIỆN HỮU */}
             {customerStatus === 'EXISTING' && (
-              <View style={styles.formGroup}>
-                <Text style={styles.groupLabel}>
-                  Chọn khách hàng hiện hữu: <Text style={styles.reqStar}>*</Text>
+              <View className="mb-4">
+                <Text className="text-xs font-semibold text-slate-700 mb-2">
+                  Chọn khách hàng hiện hữu: <Text className="text-rose-500">*</Text>
                 </Text>
 
                 {isLoadingCustomers || isLoadingPartnerDetails ? (
-                  <View style={styles.loadingBox}>
+                  <View className="py-5 items-center gap-1.5">
                     <ActivityIndicator size="small" color={BrandColors.primary} />
-                    <Text style={styles.loadingText}>Đang tải danh sách khách hàng...</Text>
+                    <Text className="text-xs text-text-secondary">Đang tải danh sách khách hàng...</Text>
                   </View>
                 ) : displayCustomers.length === 0 ? (
-                  <View style={styles.noCustomerRedBox}>
+                  <View className="flex-row items-center bg-rose-50 border border-rose-300 rounded-xl px-3.5 py-3 gap-2 mt-1">
                     <Feather name="alert-circle" size={16} color="#DC2626" />
-                    <Text style={styles.noCustomerRedText}>
+                    <Text className="text-xs font-semibold text-rose-600 flex-1">
                       {customerType === 'REFERRAL'
                         ? 'Đối tác này chưa có khách hàng liên kết nào.'
                         : 'Không có khách hàng hiện hữu nào trong hệ thống.'}
@@ -492,11 +442,10 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                   </View>
                 ) : (
                   <>
-                    {/* Search input - Chỉ hiện khi có danh sách khách hàng */}
-                    <View style={styles.searchBoxWrap}>
+                    <View className="flex-row items-center bg-background rounded-xl border border-border px-3 h-[42px] mb-2.5 gap-2">
                       <Feather name="search" size={16} color="#94A3B8" />
                       <TextInput
-                        style={styles.searchTextInput}
+                        className="flex-1 text-xs text-text-primary"
                         placeholder="Tìm theo tên công ty, MST, SĐT..."
                         placeholderTextColor="#94A3B8"
                         value={customerSearch}
@@ -509,36 +458,27 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                       )}
                     </View>
 
-                    {/* Danh sách chọn khách hàng */}
-                    <ScrollView
-                      style={styles.customerSelectList}
-                      contentContainerStyle={styles.customerSelectListContent}
-                      keyboardShouldPersistTaps="handled"
-                      nestedScrollEnabled={true}
-                    >
+                    <ScrollView className="max-h-[220px]" contentContainerStyle={{ gap: 6, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
                       {filteredCustomers.slice(0, 30).map((c) => {
                         const isSelected = selectedCustomerId === c.id;
                         const displayPhone = c.phoneNumber || c.phone;
                         return (
                           <TouchableOpacity
                             key={c.id}
-                            style={[styles.customerOptionCard, isSelected && styles.customerOptionCardSelected]}
+                            className={`flex-row items-center p-3 rounded-xl bg-background border gap-2.5 ${isSelected ? 'bg-blue-50 border-blue-500' : 'border-border'}`}
                             onPress={() => setSelectedCustomerId(c.id)}
                             activeOpacity={0.8}
                           >
-                            <View style={[styles.customerRadio, isSelected && styles.customerRadioSelected]}>
-                              {isSelected && <View style={styles.customerRadioDot} />}
+                            <View className={`w-[18px] h-[18px] rounded-full border-[1.5px] border-slate-400 justify-center items-center ${isSelected ? 'border-blue-600' : ''}`}>
+                              {isSelected && <View className="w-[9px] h-[9px] rounded-full bg-blue-600" />}
                             </View>
-                            <View style={styles.customerMetaBox}>
-                              <Text
-                                style={[styles.customerOptionName, isSelected && styles.customerOptionNameSelected]}
-                                numberOfLines={1}
-                              >
+                            <View className="flex-1">
+                              <Text className={`text-xs font-semibold ${isSelected ? 'text-blue-700 font-bold' : 'text-slate-800'}`} numberOfLines={1}>
                                 {c.name}
                               </Text>
-                              <View style={styles.customerOptionSubRow}>
-                                {c.taxId ? <Text style={styles.customerOptionBadge}>MST: {c.taxId}</Text> : null}
-                                {displayPhone ? <Text style={styles.customerOptionSubText}>SĐT: {displayPhone}</Text> : null}
+                              <View className="flex-row items-center gap-2 mt-[3px]">
+                                {c.taxId ? <Text className="text-[11px] font-semibold text-slate-600 bg-slate-200 px-1.5 py-px rounded">MST: {c.taxId}</Text> : null}
+                                {displayPhone ? <Text className="text-[11px] text-text-secondary">SĐT: {displayPhone}</Text> : null}
                               </View>
                             </View>
                           </TouchableOpacity>
@@ -546,11 +486,9 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                       })}
 
                       {displayCustomers.length > 0 && filteredCustomers.length === 0 && (
-                        <View style={styles.emptyCustomerBox}>
+                        <View className="py-6 items-center gap-1.5">
                           <Feather name="inbox" size={20} color="#CBD5E1" />
-                          <Text style={styles.emptyCustomerText}>
-                            Không tìm thấy khách hàng nào phù hợp với từ khóa.
-                          </Text>
+                          <Text className="text-xs text-text-muted text-center italic">Không tìm thấy khách hàng nào phù hợp với từ khóa.</Text>
                         </View>
                       )}
                     </ScrollView>
@@ -559,30 +497,29 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
               </View>
             )}
 
-            {/* --- NHÁNH 2: KHÁCH HÀNG TIỀM NĂNG (POTENTIAL) --- */}
+            {/* KHÁCH HÀNG TIỀM NĂNG */}
             {customerStatus === 'POTENTIAL' && (
-              <View style={styles.potentialFormContainer}>
-                {/* 1. Mã số thuế */}
-                <View style={styles.formGroup}>
-                  <View style={styles.labelWithIndicatorRow}>
-                    <Text style={styles.groupLabel}>Mã số thuế:</Text>
+              <View className="gap-0.5">
+                <View className="mb-4">
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-xs font-semibold text-slate-700">Mã số thuế:</Text>
                     {isFetchingTax && (
-                      <View style={styles.fetchingTag}>
+                      <View className="flex-row items-center gap-1">
                         <ActivityIndicator size="small" color="#2563EB" />
-                        <Text style={styles.fetchingTagText}>Đang tra cứu thuế...</Text>
+                        <Text className="text-[11px] text-blue-600 italic">Đang tra cứu thuế...</Text>
                       </View>
                     )}
                     {autoTaxSuccess && !isFetchingTax && (
-                      <View style={styles.successTag}>
+                      <View className="flex-row items-center gap-1 bg-emerald-50 px-1.5 py-px rounded">
                         <Feather name="check" size={12} color="#059669" />
-                        <Text style={styles.successTagText}>Đã tự động điền</Text>
+                        <Text className="text-[11px] text-emerald-600 font-semibold">Đã tự động điền</Text>
                       </View>
                     )}
                   </View>
 
                   <TextInput
                     ref={leadTaxIdRef}
-                    style={styles.textInput}
+                    className="bg-surface rounded-xl border border-slate-300 px-3 py-2.5 text-xs text-text-primary"
                     placeholder="Nhập mã số thuế (10 hoặc 13 số)"
                     placeholderTextColor="#94A3B8"
                     keyboardType="numeric"
@@ -592,19 +529,18 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                     value={leadTaxId}
                     onChangeText={setLeadTaxId}
                   />
-                  <Text style={styles.inputHelpText}>
+                  <Text className="text-[11px] text-text-muted mt-1 italic">
                     Hệ thống sẽ tự động tra cứu tên và địa chỉ công ty sau khi gõ đủ MST.
                   </Text>
                 </View>
 
-                {/* 2. Tên khách hàng */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.groupLabel}>
-                    Tên khách hàng: <Text style={styles.reqStar}>*</Text>
+                <View className="mb-4">
+                  <Text className="text-xs font-semibold text-slate-700 mb-2">
+                    Tên khách hàng: <Text className="text-rose-500">*</Text>
                   </Text>
                   <TextInput
                     ref={leadNameRef}
-                    style={[styles.textInput, isFetchingTax && styles.textInputLoading]}
+                    className={`bg-surface rounded-xl border border-slate-300 px-3 py-2.5 text-xs text-text-primary ${isFetchingTax ? 'bg-slate-100' : ''}`}
                     placeholder={isFetchingTax ? 'Đang tải tên doanh nghiệp...' : 'Nhập tên khách hàng'}
                     placeholderTextColor="#94A3B8"
                     returnKeyType="next"
@@ -615,12 +551,11 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                   />
                 </View>
 
-                {/* 3. Điện thoại */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.groupLabel}>Điện thoại:</Text>
+                <View className="mb-4">
+                  <Text className="text-xs font-semibold text-slate-700 mb-2">Điện thoại:</Text>
                   <TextInput
                     ref={leadPhoneRef}
-                    style={styles.textInput}
+                    className="bg-surface rounded-xl border border-slate-300 px-3 py-2.5 text-xs text-text-primary"
                     placeholder="Nhập số điện thoại"
                     placeholderTextColor="#94A3B8"
                     keyboardType="phone-pad"
@@ -632,12 +567,11 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                   />
                 </View>
 
-                {/* 4. Email */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.groupLabel}>Email:</Text>
+                <View className="mb-4">
+                  <Text className="text-xs font-semibold text-slate-700 mb-2">Email:</Text>
                   <TextInput
                     ref={leadEmailRef}
-                    style={styles.textInput}
+                    className="bg-surface rounded-xl border border-slate-300 px-3 py-2.5 text-xs text-text-primary"
                     placeholder="Nhập email"
                     placeholderTextColor="#94A3B8"
                     keyboardType="email-address"
@@ -650,12 +584,11 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
                   />
                 </View>
 
-                {/* 5. Địa chỉ */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.groupLabel}>Địa chỉ:</Text>
+                <View className="mb-4">
+                  <Text className="text-xs font-semibold text-slate-700 mb-2">Địa chỉ:</Text>
                   <TextInput
                     ref={leadAddressRef}
-                    style={[styles.textInput, styles.textAreaInput]}
+                    className="bg-surface rounded-xl border border-slate-300 px-3 py-2.5 text-xs text-text-primary min-h-[64px]"
                     placeholder="Nhập địa chỉ"
                     placeholderTextColor="#94A3B8"
                     multiline
@@ -669,13 +602,13 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
               </View>
             )}
 
-            <View style={{ height: 24 }} />
+            <View className="h-6" />
           </KeyboardAwareScrollView>
 
-          {/* Footer Actions: Tự động Disabled chuẩn Web */}
-          <View style={styles.sheetFooter}>
+          {/* Footer Actions */}
+          <View className="flex-row p-4 border-t border-border gap-2.5 bg-surface">
             <TouchableOpacity
-              style={[styles.submitBtn, isSaveDisabled && styles.submitBtnDisabled]}
+              className={`flex-1 bg-blue-600 py-3 rounded-xl items-center justify-center ${isSaveDisabled ? 'bg-blue-300 opacity-60' : ''}`}
               onPress={handleSave}
               disabled={isSaveDisabled}
               activeOpacity={0.85}
@@ -683,12 +616,12 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitBtnText}>Lưu</Text>
+                <Text className="text-sm font-bold text-white">Lưu</Text>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.8}>
-              <Text style={styles.cancelBtnText}>Hủy</Text>
+            <TouchableOpacity className="py-3 px-5 rounded-xl bg-slate-100 items-center justify-center" onPress={onClose} activeOpacity={0.8}>
+              <Text className="text-sm font-semibold text-slate-600">Hủy</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -696,358 +629,3 @@ export const CustomerAssignModal: React.FC<CustomerAssignModalProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  sheetTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  sheetSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sheetBody: {
-    flex: 1,
-  },
-  sheetBodyContent: {
-    padding: 20,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  groupLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  reqStar: {
-    color: '#EF4444',
-  },
-  dropdownSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  dropdownSelectorWarning: {
-    borderColor: '#FB923C',
-    backgroundColor: '#FFF7ED',
-  },
-  dropdownSelectorDisabled: {
-    backgroundColor: '#F1F5F9',
-    borderColor: '#E2E8F0',
-  },
-  dropdownValueText: {
-    fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '500',
-    flex: 1,
-  },
-  dropdownPlaceholderText: {
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  partnerWarningText: {
-    fontSize: 12,
-    color: '#EA580C',
-    marginTop: 5,
-    fontStyle: 'italic',
-  },
-  dropdownMenu: {
-    marginTop: 6,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  dropdownMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  dropdownMenuItemActive: {
-    backgroundColor: '#EFF6FF',
-  },
-  dropdownMenuItemText: {
-    fontSize: 13,
-    color: '#334155',
-  },
-  dropdownMenuItemTextActive: {
-    color: '#1D4ED8',
-    fontWeight: '700',
-  },
-  emptyPickerBox: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  emptyPickerText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  searchBoxWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    height: 42,
-    marginBottom: 10,
-    gap: 8,
-  },
-  searchTextInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  loadingBox: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    gap: 6,
-  },
-  loadingText: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  customerSelectList: {
-    maxHeight: 220,
-  },
-  customerSelectListContent: {
-    gap: 6,
-    paddingBottom: 8,
-  },
-  customerOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 10,
-  },
-  customerOptionCardSelected: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
-  },
-  customerRadio: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: '#94A3B8',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  customerRadioSelected: {
-    borderColor: '#2563EB',
-  },
-  customerRadioDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: '#2563EB',
-  },
-  customerMetaBox: {
-    flex: 1,
-  },
-  customerOptionName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  customerOptionNameSelected: {
-    color: '#1D4ED8',
-    fontWeight: '700',
-  },
-  customerOptionSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 3,
-  },
-  customerOptionBadge: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  customerOptionSubText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  noCustomerRedBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 8,
-    marginTop: 4,
-  },
-  noCustomerRedText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#DC2626',
-    flex: 1,
-  },
-  emptyCustomerBox: {
-    paddingVertical: 24,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyCustomerText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  potentialFormContainer: {
-    gap: 2,
-  },
-  labelWithIndicatorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  fetchingTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  fetchingTagText: {
-    fontSize: 11,
-    color: '#2563EB',
-    fontStyle: 'italic',
-  },
-  successTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  successTagText: {
-    fontSize: 11,
-    color: '#059669',
-    fontWeight: '600',
-  },
-  textInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  textInputLoading: {
-    backgroundColor: '#F1F5F9',
-  },
-  textAreaInput: {
-    minHeight: 64,
-  },
-  inputHelpText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  sheetFooter: {
-    flexDirection: 'row',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  submitBtn: {
-    flex: 1,
-    backgroundColor: '#2563EB',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtnDisabled: {
-    backgroundColor: '#93C5FD',
-    opacity: 0.6,
-  },
-  submitBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  cancelBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
-  },
-});

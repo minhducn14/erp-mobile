@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -17,7 +16,6 @@ import {
   ProjectItem,
   PROJECT_STATUS_CONFIG,
 } from '@/services/projectService';
-import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 import { formatNumber } from '@/utils/formatters';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
@@ -81,59 +79,57 @@ export default function ProjectsScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        className="bg-surface rounded-2xl p-4 border border-border shadow-xs"
         activeOpacity={0.8}
         onPress={() => router.push(`/projects/${item.id}` as any)}
       >
-        <View style={styles.cardTop}>
-          <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
-            <Text style={[styles.statusText, { color: status.text }]}>{status.label}</Text>
+        <View className="flex-row justify-between items-center mb-2">
+          <View className="px-2 py-0.5 rounded-md" style={{ backgroundColor: status.bg }}>
+            <Text className="text-[11px] font-bold" style={{ color: status.text }}>{status.label}</Text>
           </View>
           {item.contract?.contractCode && (
-            <Text style={styles.contractCode}>#{item.contract.contractCode}</Text>
+            <Text className="text-xs color-slate-400 font-semibold">#{item.contract.contractCode}</Text>
           )}
         </View>
 
-        <Text style={styles.projectName} numberOfLines={2}>
+        <Text className="text-base font-bold text-text-primary leading-5 mb-1.5" numberOfLines={2}>
           {item.name}
         </Text>
 
         {item.contract?.customer?.name && (
-          <View style={styles.customerRow}>
+          <View className="flex-row items-center gap-1.5 mb-3">
             <Feather name="briefcase" size={13} color="#64748B" />
-            <Text style={styles.customerName} numberOfLines={1}>
+            <Text className="text-xs text-slate-500 font-medium flex-1" numberOfLines={1}>
               {item.contract.customer.name}
             </Text>
           </View>
         )}
 
         {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressLabel}>Tiến độ hoàn thành</Text>
-            <Text style={styles.progressVal}>{progress}%</Text>
+        <View className="bg-background rounded-xl p-2.5 mb-3">
+          <View className="flex-row justify-between items-center mb-1.5">
+            <Text className="text-[11px] text-slate-500 font-medium">Tiến độ hoàn thành</Text>
+            <Text className="text-xs font-bold text-primary">{progress}%</Text>
           </View>
-          <View style={styles.progressBarBg}>
+          <View className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
             <View
-              style={[
-                styles.progressBarFill,
-                { width: `${Math.min(100, Math.max(0, progress))}%` },
-              ]}
+              className="h-full bg-primary rounded-full"
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
             />
           </View>
         </View>
 
         {/* Card Footer */}
-        <View style={styles.cardFooter}>
-          <View style={styles.teamInfo}>
+        <View className="flex-row justify-between items-center border-t border-slate-100 pt-2.5">
+          <View className="flex-row items-center gap-1.5 flex-1 mr-2 overflow-hidden">
             <Feather name="users" size={13} color="#64748B" />
-            <Text style={styles.teamText} numberOfLines={1}>
+            <Text className="text-xs text-slate-500 flex-1" numberOfLines={1}>
               {item.team?.name || 'Nhóm dự án Getvini'}
             </Text>
           </View>
 
           {item.contract?.sellingPrice ? (
-            <Text style={styles.priceText}>
+            <Text className="text-xs font-bold text-text-primary flex-shrink-0">
               {formatNumber(item.contract.sellingPrice)} đ
             </Text>
           ) : null}
@@ -143,26 +139,26 @@ export default function ProjectsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View className="flex-row items-center justify-between px-4 py-3 bg-surface border-b border-border">
         <TouchableOpacity
-          style={styles.backBtn}
+          className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center"
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Dự án Doanh nghiệp</Text>
-        <View style={{ width: 40 }} />
+        <Text className="text-base font-bold text-text-primary">Dự án Doanh nghiệp</Text>
+        <View className="w-10" />
       </View>
 
       {/* Search Input */}
-      <View style={styles.searchWrapper}>
-        <View style={styles.searchBox}>
+      <View className="px-4 pt-3 pb-2 bg-surface border-b border-border gap-2.5">
+        <View className="flex-row items-center bg-slate-100 rounded-xl px-3 h-10.5">
           <Feather name="search" size={18} color="#94A3B8" />
           <TextInput
-            style={styles.searchInput}
+            className="flex-1 ml-2 text-sm text-text-primary"
             placeholder="Tìm theo tên dự án, đối tác, mã HĐ..."
             placeholderTextColor="#94A3B8"
             value={searchQuery}
@@ -179,25 +175,25 @@ export default function ProjectsScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScrollContent}
+          contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
         >
           {STATUS_FILTERS.map((f) => {
             const isActive = selectedStatusFilter === f.key;
             return (
               <TouchableOpacity
                 key={f.key}
-                style={[
-                  styles.filterPill,
-                  isActive && styles.filterPillActive,
-                ]}
+                className={`px-3 py-1.5 rounded-full border ${
+                  isActive
+                    ? 'bg-primary border-primary'
+                    : 'bg-slate-100 border-border'
+                }`}
                 onPress={() => setSelectedStatusFilter(f.key)}
                 activeOpacity={0.7}
               >
                 <Text
-                  style={[
-                    styles.filterText,
-                    isActive && styles.filterTextActive,
-                  ]}
+                  className={`text-xs ${
+                    isActive ? 'font-bold text-white' : 'font-semibold text-slate-500'
+                  }`}
                 >
                   {f.label}
                 </Text>
@@ -209,30 +205,30 @@ export default function ProjectsScreen() {
 
       {/* Content List */}
       {isLoading && !isFetching ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={BrandColors.primary} />
-          <Text style={styles.loadingText}>Đang tải dữ liệu dự án Getvini...</Text>
+        <View className="flex-1 justify-center items-center gap-2.5">
+          <ActivityIndicator size="large" color="#F38820" />
+          <Text className="text-xs text-slate-400">Đang tải dữ liệu dự án Getvini...</Text>
         </View>
       ) : (
         <FlatList
           data={filteredProjects}
           keyExtractor={(item) => item.id}
           renderItem={renderProjectCard}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={isFetching}
               onRefresh={handleRefresh}
-              colors={[BrandColors.primary]}
-              tintColor={BrandColors.primary}
+              colors={['#F38820']}
+              tintColor="#F38820"
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
+            <View className="py-15 items-center justify-center gap-2.5">
               <Feather name="folder" size={44} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>Chưa có dự án nào</Text>
-              <Text style={styles.emptyDesc}>
+              <Text className="text-base font-bold text-slate-600">Chưa có dự án nào</Text>
+              <Text className="text-xs text-slate-400 text-center max-w-[260px]">
                 {searchQuery || selectedStatusFilter !== 'ALL'
                   ? 'Không tìm thấy dự án phù hợp với bộ lọc.'
                   : 'Hiện tại chưa có dự án nào được giao kết.'}
@@ -248,222 +244,3 @@ export default function ProjectsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  searchWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    gap: 10,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 42,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#0F172A',
-  },
-  filterScrollContent: {
-    gap: 8,
-    paddingVertical: 4,
-  },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  filterPillActive: {
-    backgroundColor: BrandColors.primary,
-    borderColor: BrandColors.primary,
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  filterTextActive: {
-    color: '#FFFFFF',
-  },
-  listContent: {
-    padding: 16,
-    gap: 14,
-    paddingBottom: 24,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 1,
-  },
-  cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  contractCode: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '600',
-  },
-  projectName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    lineHeight: 22,
-    marginBottom: 6,
-  },
-  customerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-  },
-  customerName: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '500',
-    flex: 1,
-  },
-  progressContainer: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 12,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  progressLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  progressVal: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: BrandColors.primary,
-    borderRadius: 3,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 10,
-  },
-  teamInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-    marginRight: 8,
-    overflow: 'hidden',
-  },
-  teamText: {
-    fontSize: 12,
-    color: '#64748B',
-    flex: 1,
-  },
-  priceText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    flexShrink: 0,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#94A3B8',
-  },
-  emptyContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  emptyDesc: {
-    fontSize: 13,
-    color: '#94A3B8',
-    textAlign: 'center',
-    maxWidth: 260,
-  },
-});

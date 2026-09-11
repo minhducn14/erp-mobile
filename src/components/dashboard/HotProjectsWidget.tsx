@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { BrandColors } from '@/constants/colors';
 
 interface HotProjectItem {
@@ -29,45 +28,45 @@ export const HotProjectsWidget: React.FC<HotProjectsWidgetProps> = ({
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <View style={styles.dot} />
-          <Text style={styles.title}>Dự án tiêu điểm ({projects.length})</Text>
+    <View className="bg-surface rounded-[18px] p-4 border border-border mb-4">
+      <View className="flex-row justify-between items-center mb-3">
+        <View className="flex-row items-center gap-2">
+          <View className="w-2 h-2 rounded-full bg-info" />
+          <Text className="text-[15px] font-bold text-text-primary">Dự án tiêu điểm ({projects.length})</Text>
         </View>
         {onViewAll && (
           <TouchableOpacity onPress={onViewAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.viewAllText}>Xem tất cả</Text>
+            <Text className="text-xs font-semibold text-primary">Xem tất cả</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <View style={styles.list}>
+      <View className="gap-2.5">
         {projects.slice(0, 3).map((p) => {
           const progress = p.progress ?? 50;
           return (
             <TouchableOpacity
               key={p.id}
-              style={styles.card}
+              className="bg-background rounded-xl p-3 border border-slate-100"
               onPress={() => onProjectPress && onProjectPress(p)}
               activeOpacity={0.7}
             >
-              <View style={styles.cardHeader}>
-                <Text style={styles.projectName} numberOfLines={1}>
+              <View className="flex-row justify-between items-center mb-1">
+                <Text className="text-sm font-bold text-text-primary flex-1 mr-2.5" numberOfLines={1} ellipsizeMode="tail">
                   {p.name}
                 </Text>
-                <Text style={styles.progressVal}>{progress}%</Text>
+                <Text className="text-xs font-extrabold text-primary">{progress}%</Text>
               </View>
 
               {p.clientName && (
-                <Text style={styles.clientText} numberOfLines={1}>
+                <Text className="text-[11px] text-text-secondary mb-2" numberOfLines={1} ellipsizeMode="tail">
                   Khách hàng: {p.clientName}
                 </Text>
               )}
 
               {/* Progress Bar */}
-              <View style={styles.barBg}>
-                <View style={[styles.barFill, { width: `${Math.min(100, Math.max(0, progress))}%` }]} />
+              <View className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <View className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
               </View>
             </TouchableOpacity>
           );
@@ -76,85 +75,3 @@ export const HotProjectsWidget: React.FC<HotProjectsWidgetProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#3B82F6',
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  viewAllText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: BrandColors.primary,
-  },
-  list: {
-    gap: 10,
-  },
-  card: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  projectName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    flex: 1,
-    marginRight: 10,
-  },
-  progressVal: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: BrandColors.primary,
-  },
-  clientText: {
-    fontSize: 11,
-    color: '#64748B',
-    marginBottom: 8,
-  },
-  barBg: {
-    height: 5,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    backgroundColor: BrandColors.primary,
-    borderRadius: 3,
-  },
-});

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatCard } from '../StatCard';
 import { HotProjectsWidget } from '../HotProjectsWidget';
@@ -29,9 +29,9 @@ export const SalesDashboardView: React.FC<SalesDashboardViewProps> = ({ saleMetr
   const saleProjects = saleMetrics?.projects || [];
 
   return (
-    <View style={styles.container}>
+    <View className="gap-4">
       {/* 4 Core Sales Metrics */}
-      <View style={styles.statsGrid}>
+      <View className="flex-row flex-wrap justify-between gap-2.5">
         <StatCard
           title="Khách hàng phụ trách"
           value={saleMetrics?.totalCustomers ?? 0}
@@ -77,15 +77,3 @@ export const SalesDashboardView: React.FC<SalesDashboardViewProps> = ({ saleMetr
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-});

@@ -213,6 +213,37 @@ export function useCreateProductDescriptionMutation() {
 }
 
 /**
+ * Hook to update a draft product description submission
+ */
+export function useUpdateProductDescriptionMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      projectId,
+      submissionId,
+      payload,
+    }: {
+      projectId: string;
+      submissionId: string;
+      payload: { items: any[] };
+    }) => {
+      const res = await productDescriptionService.updateSubmission(projectId, submissionId, payload);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.projects.productDescriptions(variables.projectId),
+      });
+    },
+  });
+}
+
+
+/**
  * Hook to submit product description for approval
  */
 export function useSubmitProductDescriptionMutation() {

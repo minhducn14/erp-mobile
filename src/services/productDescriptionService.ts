@@ -24,6 +24,7 @@ export interface ProductDescriptionSubmission {
     id: string;
     fullName: string;
   };
+  reviewedAt?: string;
   items: ProductDescriptionItem[];
   createdAt?: string;
   updatedAt?: string;

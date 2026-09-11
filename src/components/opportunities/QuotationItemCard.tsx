@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { QuotationItem, QuotationStatus } from '@/services/quotationService';
 import { formatVND } from '@/utils/formatters';
@@ -54,86 +54,86 @@ export const QuotationItemCard: React.FC<QuotationItemCardProps> = ({
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      className="bg-surface rounded-xl p-3.5 mb-2.5 border border-border"
       activeOpacity={onPress ? 0.7 : 1}
       onPress={() => onPress && onPress(item)}
       disabled={!onPress}
     >
-      <View style={styles.topRow}>
-        <View style={styles.versionBadge}>
-          <Text style={styles.versionText}>Báo giá lần {item.version || 1}</Text>
+      <View className="flex-row justify-between items-center mb-2.5">
+        <View className="bg-blue-50 px-2 py-[3px] rounded-md border border-blue-200">
+          <Text className="text-xs font-bold text-blue-600">Báo giá lần {item.version || 1}</Text>
         </View>
 
-        <View style={styles.topRightRow}>
-          <View style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}>
-            <Text style={[styles.statusText, { color: statusMeta.color }]}>
+        <View className="flex-row items-center">
+          <View className="px-2 py-[3px] rounded-md" style={{ backgroundColor: statusMeta.bg }}>
+            <Text className="text-[11px] font-bold" style={{ color: statusMeta.color }}>
               {statusMeta.label}
             </Text>
           </View>
           {onPress && (
-            <Feather name="chevron-right" size={16} color="#94A3B8" style={{ marginLeft: 6 }} />
+            <Feather name="chevron-right" size={16} color="#94A3B8" className="ml-1.5" />
           )}
         </View>
       </View>
 
-      <View style={styles.amountRow}>
-        <Text style={styles.amountLabel}>Tổng giá trị báo giá:</Text>
-        <Text style={styles.amountValue}>{formatMoney(item.totalAmount)}</Text>
+      <View className="flex-row justify-between items-baseline mb-1.5">
+        <Text className="text-xs text-text-secondary font-semibold">Tổng giá trị báo giá:</Text>
+        <Text className="text-base font-extrabold text-text-primary">{formatMoney(item.totalAmount)}</Text>
       </View>
 
       {item.note ? (
-        <Text style={styles.noteText} numberOfLines={2}>
+        <Text className="text-xs text-text-secondary italic mb-2" numberOfLines={2}>
           Ghi chú: {item.note}
         </Text>
       ) : null}
 
       {!isExpired && item.status === QuotationStatus.REJECTED && !!item.description && (
-        <View style={styles.rejectReasonBox}>
-          <Text style={styles.rejectReasonLabel}>Lý do từ chối:</Text>
-          <Text style={styles.rejectReasonText}>{item.description}</Text>
+        <View className="bg-rose-50 rounded-lg p-2 mb-2 border border-rose-200">
+          <Text className="text-[11px] font-bold text-rose-600 mb-0.5">Lý do từ chối:</Text>
+          <Text className="text-xs text-rose-700">{item.description}</Text>
         </View>
       )}
 
-      <View style={styles.footerRow}>
-        <Text style={styles.dateText}>
+      <View className="flex-row justify-between items-center pt-2 border-t border-slate-100">
+        <Text className="text-[11px] text-text-muted">
           {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : ''}
         </Text>
 
         {!isExpired && isAdminOrBod && isPending && (
-          <View style={styles.actionsRow}>
+          <View className="flex-row gap-2">
             {onReject && (
               <TouchableOpacity
-                style={styles.rejectBtn}
+                className="flex-row items-center gap-1 bg-rose-100 px-2.5 py-[5px] rounded-md"
                 onPress={() => onReject(item.id)}
                 activeOpacity={0.75}
               >
                 <Feather name="x" size={14} color="#DC2626" />
-                <Text style={styles.rejectText}>Từ chối</Text>
+                <Text className="text-xs font-bold text-rose-600">Từ chối</Text>
               </TouchableOpacity>
             )}
 
             {onApprove && (
               <TouchableOpacity
-                style={styles.approveBtn}
+                className="flex-row items-center gap-1 bg-emerald-500 px-3 py-[5px] rounded-md"
                 onPress={() => onApprove(item.id)}
                 activeOpacity={0.75}
               >
                 <Feather name="check" size={14} color="#FFFFFF" />
-                <Text style={styles.approveText}>Duyệt</Text>
+                <Text className="text-xs font-bold text-white">Duyệt</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
         {!isExpired && item.status === QuotationStatus.REJECTED && onEdit && (
-          <View style={styles.actionsRow}>
+          <View className="flex-row gap-2">
             <TouchableOpacity
-              style={styles.editCardBtn}
+              className="flex-row items-center gap-1 bg-blue-50 px-2.5 py-[5px] rounded-md border border-blue-200"
               onPress={() => onEdit(item)}
               activeOpacity={0.75}
             >
               <Feather name="edit-2" size={13} color="#2563EB" />
-              <Text style={styles.editCardText}>Sửa báo giá</Text>
+              <Text className="text-xs font-bold text-blue-600">Sửa báo giá</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -141,146 +141,3 @@ export const QuotationItemCard: React.FC<QuotationItemCardProps> = ({
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  topRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  versionBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  versionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  amountRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 6,
-  },
-  amountLabel: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  amountValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  noteText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontStyle: 'italic',
-    marginBottom: 8,
-  },
-  rejectReasonBox: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  rejectReasonLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#DC2626',
-    marginBottom: 2,
-  },
-  rejectReasonText: {
-    fontSize: 12,
-    color: '#B91C1C',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  dateText: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  rejectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  rejectText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-  approveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#10B981',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  approveText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  editCardBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  editCardText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-});

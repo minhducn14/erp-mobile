@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -81,50 +80,50 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        className="flex-1 bg-white"
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerClassName="flex-grow bg-white"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
           {/* Top Brand Banner with original crisp bg.jpg */}
-          <View style={styles.bannerContainer}>
-            <ImageBackground source={bg} style={styles.bannerBg} resizeMode="cover" />
+          <View className="h-[220px] w-full">
+            <ImageBackground source={bg} className="h-full w-full flex-1" resizeMode="cover" />
           </View>
 
           {/* Clean Edge-to-Edge Sheet */}
-          <View style={styles.formContainer}>
+          <View className="-mt-7 min-h-full flex-1 rounded-t-[28px] bg-white px-[22px] pb-9 pt-[26px]">
             {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Đăng nhập hệ thống</Text>
-              <Text style={styles.subtitle}>
+            <View className="mb-[22px] items-center">
+              <Text className="text-center text-2xl font-bold text-slate-950">Đăng nhập hệ thống</Text>
+              <Text className="mt-1.5 text-center text-sm text-slate-500">
                 Nhập thông tin tài khoản doanh nghiệp của bạn
               </Text>
             </View>
 
             {/* Error Message */}
             {!!error && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View className="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3">
+                <Text className="text-sm leading-5 text-red-700">{error}</Text>
               </View>
             )}
 
             {/* Form */}
-            <View style={styles.form}>
+            <View className="gap-4">
               {/* Username Field */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Tên tài khoản</Text>
-                <View style={styles.inputWrapper}>
-                  <View style={styles.iconContainer}>
+              <View className="gap-1.5">
+                <Text className="text-sm font-semibold text-slate-800">Tên tài khoản</Text>
+                <View className="h-[50px] flex-row items-center overflow-hidden rounded-[10px] border border-slate-300 bg-white">
+                  <View className="items-center justify-center pl-4 pr-1">
                     <Feather name="user" size={20} color="#94A3B8" />
                   </View>
                   <TextInput
-                    style={styles.input}
+                    className="h-full flex-1 px-3 text-[15px] text-slate-950"
                     placeholder="Nhập tên tài khoản"
                     placeholderTextColor="#94A3B8"
                     value={username}
@@ -139,14 +138,14 @@ export default function LoginScreen() {
               </View>
 
               {/* Password Field */}
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Mật khẩu</Text>
-                <View style={styles.inputWrapper}>
-                  <View style={styles.iconContainer}>
+              <View className="gap-1.5">
+                <Text className="text-sm font-semibold text-slate-800">Mật khẩu</Text>
+                <View className="h-[50px] flex-row items-center overflow-hidden rounded-[10px] border border-slate-300 bg-white">
+                  <View className="items-center justify-center pl-4 pr-1">
                     <Feather name="lock" size={20} color="#94A3B8" />
                   </View>
                   <TextInput
-                    style={styles.input}
+                    className="h-full flex-1 px-3 text-[15px] text-slate-950"
                     placeholder="••••••••"
                     placeholderTextColor="#94A3B8"
                     value={password}
@@ -158,9 +157,11 @@ export default function LoginScreen() {
                     autoCapitalize="none"
                   />
                   <TouchableOpacity
-                    style={styles.eyeBtn}
+                    className="h-full min-w-12 items-center justify-center px-4"
                     onPress={() => setShowPassword(!showPassword)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     <Feather
                       name={showPassword ? 'eye-off' : 'eye'}
@@ -172,58 +173,68 @@ export default function LoginScreen() {
               </View>
 
               {/* Checkbox: Remember me */}
-              <View style={styles.rememberRow}>
+              <View className="mt-0.5 flex-row items-center justify-between">
                 <TouchableOpacity
-                  style={styles.checkboxTouch}
+                  className="min-h-11 flex-row items-center gap-2"
                   onPress={() => setRememberMe(!rememberMe)}
                   activeOpacity={0.7}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: rememberMe }}
                 >
-                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  <View
+                    className={`h-[18px] w-[18px] items-center justify-center rounded-[5px] border bg-white ${
+                      rememberMe ? 'border-primary bg-primary' : 'border-slate-300'
+                    }`}
+                  >
                     {rememberMe && <Feather name="check" size={12} color="#FFFFFF" />}
                   </View>
-                  <Text style={styles.rememberText}>Ghi nhớ đăng nhập</Text>
+                  <Text className="text-sm text-slate-700">Ghi nhớ đăng nhập</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Submit Button */}
               <TouchableOpacity
-                style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
+                className={`mt-1.5 h-[50px] items-center justify-center rounded-[10px] bg-primary shadow-md ${
+                  isLoading ? 'opacity-60' : ''
+                }`}
                 onPress={handleSubmit}
                 disabled={isLoading}
                 activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLoading }}
               >
                 {isLoading ? (
-                  <View style={styles.btnRow}>
-                    <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.submitBtnText}>Đang đăng nhập...</Text>
+                  <View className="flex-row items-center justify-center gap-2">
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text className="text-base font-bold text-white">Đang đăng nhập...</Text>
                   </View>
                 ) : (
-                  <Text style={styles.submitBtnText}>Đăng nhập</Text>
+                  <Text className="text-base font-bold text-white">Đăng nhập</Text>
                 )}
               </TouchableOpacity>
             </View>
 
             {/* IT Support & Enterprise Trust Section */}
-            <View style={styles.bottomSection}>
+            <View className="mt-6">
               {/* IT Support Card */}
-              <View style={styles.itSupportCard}>
-                <View style={styles.itIconBox}>
+              <View className="flex-row items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+                <View className="h-9 w-9 items-center justify-center rounded-lg bg-orange-50">
                   <Feather name="headphones" size={18} color={PRIMARY_COLOR} />
                 </View>
-                <View style={styles.itTextBox}>
-                  <Text style={styles.itTitle}>Cần hỗ trợ đăng nhập?</Text>
-                  <Text style={styles.itDesc}>
+                <View className="flex-1">
+                  <Text className="text-[13px] font-bold text-slate-800">Cần hỗ trợ đăng nhập?</Text>
+                  <Text className="mt-0.5 text-[11px] leading-4 text-slate-500">
                     Quên mật khẩu hoặc sự cố tài khoản? Vui lòng liên hệ Quản trị viên IT nội bộ
                   </Text>
                 </View>
               </View>
 
               {/* Security & Version Footnotes */}
-              <View style={styles.trustRow}>
+              <View className="mt-5 flex-row items-center justify-center gap-2">
                 <Feather name="shield" size={13} color="#10B981" />
-                <Text style={styles.trustText}>Bảo mật SSL 256-bit</Text>
-                <Text style={styles.trustDivider}>•</Text>
-                <Text style={styles.trustText}>Getvini ERP v1.0.0</Text>
+                <Text className="text-[11px] font-medium text-slate-500">Bảo mật SSL 256-bit</Text>
+                <Text className="text-[11px] text-slate-300">•</Text>
+                <Text className="text-[11px] font-medium text-slate-500">Getvini ERP v1.0.0</Text>
               </View>
             </View>
           </View>
@@ -232,218 +243,3 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  keyboardView: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  bannerContainer: {
-    height: 220,
-    width: '100%',
-  },
-  bannerBg: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  formContainer: {
-    flex: 1,
-    width: '100%',
-    marginTop: -28,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 22,
-    paddingTop: 26,
-    paddingBottom: 36,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 22,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.4,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  errorBox: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#B91C1C',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  form: {
-    gap: 16,
-  },
-  fieldGroup: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.2,
-    borderColor: '#CBD5E1',
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    height: 50,
-    overflow: 'hidden',
-  },
-  iconContainer: {
-    paddingLeft: 16,
-    paddingRight: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  input: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 12,
-    fontSize: 15,
-    color: '#0F172A',
-  },
-  eyeBtn: {
-    paddingHorizontal: 16,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  checkboxTouch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  checkboxChecked: {
-    backgroundColor: PRIMARY_COLOR,
-    borderColor: PRIMARY_COLOR,
-  },
-  rememberText: {
-    fontSize: 14,
-    color: '#334155',
-  },
-  submitBtn: {
-    backgroundColor: PRIMARY_COLOR,
-    height: 50,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-    shadowColor: PRIMARY_COLOR,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  btnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-
-  // Bottom Enterprise & IT Support Section
-  bottomSection: {
-    marginTop: 24,
-  },
-  itSupportCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  itIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#FFF4EA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itTextBox: {
-    flex: 1,
-  },
-  itTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  itDesc: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  trustRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    gap: 8,
-  },
-  trustText: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  trustDivider: {
-    fontSize: 11,
-    color: '#CBD5E1',
-  },
-});
