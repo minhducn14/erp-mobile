@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatCard } from '../StatCard';
 import { TodayTasksWidget } from '../TodayTasksWidget';
@@ -23,9 +23,9 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({
   const participatingProjects = memberMetrics?.participatingProjects || [];
 
   return (
-    <View style={styles.container}>
+    <View className="gap-4">
       {/* Member Key Metrics */}
-      <View style={styles.statsGrid}>
+      <View className="flex-row flex-wrap justify-between gap-2.5">
         <StatCard
           title="Việc cần làm"
           value={memberMetrics?.doingCount ?? todayTasks.length ?? 0}
@@ -79,15 +79,3 @@ export const MemberDashboardView: React.FC<MemberDashboardViewProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-});

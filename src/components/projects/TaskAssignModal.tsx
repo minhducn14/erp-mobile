@@ -4,7 +4,6 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   ScrollView,
   TextInput,
@@ -13,8 +12,16 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { taskService, TaskDetail } from '@/services/taskService';
-import { teamService, TEAM_MEMBER_ROLE_LABELS } from '@/services/teamService';
+import { TaskDetail } from '@/services/taskService';
+import { TEAM_MEMBER_ROLE_LABELS } from '@/services/teamService';
+import {
+  useAssignTaskMutation,
+  useBulkAssignTasksMutation,
+  useAssignSupportTeamMutation,
+  useRequestSupportMutation,
+  useVendorsByJobQuery,
+  useTeamsQuery,
+} from '@/hooks/queries/useTasks';
 import { uploadToCloudinary, PickedFile } from '@/services/cloudinaryService';
 import { BrandColors } from '@/constants/colors';
 import { isValidUrl, normalizeUrl } from '@/utils/validators';
@@ -56,9 +63,9 @@ const WheelPicker: React.FC<{
   };
 
   return (
-    <View style={wheelStyles.wheelContainer}>
+    <View className="h-[114px] w-[60px] overflow-hidden relative bg-slate-50 rounded-xl border border-slate-200">
       {/* Active selection background bar */}
-      <View pointerEvents="none" style={wheelStyles.selectionBand} />
+      <View pointerEvents="none" className="absolute top-[38px] left-0 right-0 h-[38px] bg-blue-50 border-y-[1.5px] border-primary z-0" />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -66,7 +73,7 @@ const WheelPicker: React.FC<{
         decelerationRate="fast"
         onMomentumScrollEnd={handleScrollEnd}
         onScrollEndDrag={handleScrollEnd}
-        style={{ flex: 1, zIndex: 2 }}
+        className="flex-1 z-10"
         contentContainerStyle={{
           paddingVertical: ITEM_HEIGHT,
         }}
@@ -76,13 +83,13 @@ const WheelPicker: React.FC<{
           return (
             <TouchableOpacity
               key={idx}
-              style={wheelStyles.wheelCell}
+              className="h-[38px] justify-center items-center z-20"
               onPress={() => {
                 onSelect(idx);
                 scrollRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: true });
               }}
             >
-              <Text style={[wheelStyles.wheelText, isSelected && wheelStyles.wheelTextSelected]}>
+              <Text className={`text-sm font-medium ${isSelected ? 'text-[17px] font-bold text-primary' : 'text-slate-400'}`}>
                 {item}
               </Text>
             </TouchableOpacity>
@@ -224,12 +231,6 @@ const CalendarPickerModal: React.FC<{
     onClose();
   };
 
-  const setPresetTime = (tStr: string) => {
-    const [h, m] = tStr.split(':');
-    setHour(h);
-    setMinute(m);
-  };
-
   const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayDate = new Date();
@@ -249,42 +250,42 @@ const CalendarPickerModal: React.FC<{
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={calStyles.modalOverlay}>
-        <View style={[calStyles.calendarModalContainer, { width: Math.min(width * 0.94, 380) }]}>
+      <View className="flex-1 bg-slate-900/60 justify-center items-center">
+        <View className="bg-white rounded-2xl p-4 shadow-xl" style={{ width: Math.min(width * 0.94, 380) }}>
           {/* Header */}
-          <View style={calStyles.calendarHeader}>
-            <Text style={calStyles.calendarTitle}>{title}</Text>
+          <View className="flex-row justify-between items-center mb-3 pb-2 border-b border-slate-100">
+            <Text className="text-[15px] font-bold text-slate-900">{title}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Feather name="x" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
           {/* Month Navigator */}
-          <View style={calStyles.calendarNavRow}>
-            <TouchableOpacity onPress={prevMonth} style={calStyles.calendarNavBtn}>
+          <View className="flex-row justify-between items-center mb-3">
+            <TouchableOpacity onPress={prevMonth} className="p-1.5 rounded-lg bg-slate-50">
               <Feather name="chevron-left" size={20} color="#1E293B" />
             </TouchableOpacity>
-            <Text style={calStyles.calendarMonthText}>
+            <Text className="text-sm font-bold text-slate-900">
               Tháng {month + 1}, {year}
             </Text>
-            <TouchableOpacity onPress={nextMonth} style={calStyles.calendarNavBtn}>
+            <TouchableOpacity onPress={nextMonth} className="p-1.5 rounded-lg bg-slate-50">
               <Feather name="chevron-right" size={20} color="#1E293B" />
             </TouchableOpacity>
           </View>
 
           {/* Day Headers */}
-          <View style={calStyles.calendarWeekRow}>
+          <View className="flex-row justify-between mb-2">
             {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, i) => (
-              <Text key={i} style={[calStyles.calendarWeekDayText, i >= 5 && { color: '#EF4444' }]}>
+              <Text key={i} className={`w-10 text-center text-xs font-bold ${i >= 5 ? 'text-red-500' : 'text-slate-500'}`}>
                 {d}
               </Text>
             ))}
           </View>
 
           {/* Days Grid */}
-          <View style={calStyles.calendarGrid}>
+          <View className="flex-row flex-wrap">
             {Array.from({ length: firstDayIndex }).map((_, i) => (
-              <View key={`empty-${i}`} style={calStyles.calendarCell} />
+              <View key={`empty-${i}`} className="w-[14.28%] h-[38px] justify-center items-center my-0.5" />
             ))}
 
             {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -295,20 +296,24 @@ const CalendarPickerModal: React.FC<{
               return (
                 <TouchableOpacity
                   key={`day-${dayNum}`}
-                  style={[
-                    calStyles.calendarCell,
-                    isSelected && calStyles.calendarCellSelected,
-                    !isSelected && isToday && calStyles.calendarCellToday,
-                  ]}
+                  className={`w-[14.28%] h-[38px] justify-center items-center my-0.5 rounded-lg ${
+                    isSelected
+                      ? 'bg-primary'
+                      : isToday
+                      ? 'bg-blue-50 border border-primary'
+                      : ''
+                  }`}
                   onPress={() => handleSelectDay(dayNum)}
                   activeOpacity={0.7}
                 >
                   <Text
-                    style={[
-                      calStyles.calendarDayText,
-                      isSelected && calStyles.calendarDayTextSelected,
-                      !isSelected && isToday && calStyles.calendarDayTextToday,
-                    ]}
+                    className={`text-[13px] font-semibold ${
+                      isSelected
+                        ? 'text-white font-bold'
+                        : isToday
+                        ? 'text-primary font-bold'
+                        : 'text-slate-800'
+                    }`}
                   >
                     {dayNum}
                   </Text>
@@ -317,19 +322,19 @@ const CalendarPickerModal: React.FC<{
             })}
           </View>
 
-          {/* Time Picker Section (Kéo con lăn chọn Giờ : Phút hoặc Nhập) */}
-          <View style={calStyles.timeSection}>
-            <View style={calStyles.timeSectionHeader}>
-              <View style={{ gap: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {/* Time Picker Section */}
+          <View className="mt-3 pt-3 border-t border-slate-200 gap-2.5">
+            <View className="flex-row items-center justify-between">
+              <View className="gap-1">
+                <View className="flex-row items-center gap-1.5">
                   <Feather name="clock" size={15} color={BrandColors.primary} />
-                  <Text style={calStyles.timeSectionTitle}>Giờ : Phút</Text>
+                  <Text className="text-[13px] font-bold text-slate-700">Giờ : Phút</Text>
                 </View>
 
                 {/* Direct TextInput fields for hour and minute */}
-                <View style={calStyles.timeInputBoxRow}>
+                <View className="flex-row items-center gap-1 mt-0.5">
                   <TextInput
-                    style={calStyles.timeMiniInput}
+                    className="w-[38px] h-8 border border-slate-300 rounded-lg text-center text-[13px] font-bold text-primary bg-slate-50 p-0"
                     value={hour}
                     onChangeText={(val) => {
                       const cleaned = val.replace(/[^0-9]/g, '');
@@ -344,9 +349,9 @@ const CalendarPickerModal: React.FC<{
                     maxLength={2}
                     selectTextOnFocus
                   />
-                  <Text style={calStyles.timeMiniColon}>:</Text>
+                  <Text className="text-7xl" style={{ fontSize: 14, fontWeight: '800', color: '#64748B' }}>:</Text>
                   <TextInput
-                    style={calStyles.timeMiniInput}
+                    className="w-[38px] h-8 border border-slate-300 rounded-lg text-center text-[13px] font-bold text-primary bg-slate-50 p-0"
                     value={minute}
                     onChangeText={(val) => {
                       const cleaned = val.replace(/[^0-9]/g, '');
@@ -365,13 +370,13 @@ const CalendarPickerModal: React.FC<{
               </View>
 
               {/* Scrollable Wheel Picker for Hour and Minute */}
-              <View style={calStyles.wheelPickerRow}>
+              <View className="flex-row items-center gap-2">
                 <WheelPicker
                   data={hoursData}
                   selectedIndex={selectedHourIndex >= 0 ? selectedHourIndex : 17}
                   onSelect={(idx) => setHour(hoursData[idx])}
                 />
-                <Text style={calStyles.wheelColon}>:</Text>
+                <Text className="text-lg font-extrabold text-primary">:</Text>
                 <WheelPicker
                   data={minutesData}
                   selectedIndex={selectedMinuteIndex >= 0 ? selectedMinuteIndex : 0}
@@ -379,17 +384,16 @@ const CalendarPickerModal: React.FC<{
                 />
               </View>
             </View>
-
           </View>
 
           {/* Footer actions */}
-          <View style={calStyles.calendarFooter}>
-            <TouchableOpacity onPress={handleSelectToday} style={calStyles.calendarTodayBtn}>
-              <Text style={calStyles.calendarTodayBtnText}>Hôm nay</Text>
+          <View className="flex-row justify-between items-center mt-3 pt-2.5 border-t border-slate-100">
+            <TouchableOpacity onPress={handleSelectToday} className="py-2 px-3.5 rounded-lg bg-blue-50">
+              <Text className="text-xs font-bold text-primary">Hôm nay</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleConfirm} style={calStyles.calendarConfirmBtn}>
-              <Text style={calStyles.calendarConfirmBtnText}>Xác nhận</Text>
+            <TouchableOpacity onPress={handleConfirm} className="py-2 px-4 rounded-lg bg-primary">
+              <Text className="text-xs font-bold text-white">Xác nhận</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -436,7 +440,6 @@ export default function TaskAssignModal({
   const [dueDate, setDueDate] = useState<string>('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Auto-format date-time input mask as user types digits: "300920261700" -> "30/09/2026 17:00"
   const handleDueDateChange = (text: string) => {
     if (text.length < dueDate.length) {
       setDueDate(text);
@@ -461,20 +464,39 @@ export default function TaskAssignModal({
   const [links, setLinks] = useState<string[]>(['']);
   const [files, setFiles] = useState<PickedFile[]>([]);
 
-  // Auxiliary data
-  const [allTeams, setAllTeams] = useState<any[]>([]);
-  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [isLoadingVendors, setIsLoadingVendors] = useState(false);
-
   const [uploadProgress, setUploadProgress] = useState<Record<number, number>>({});
   const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const assignTaskMutation = useAssignTaskMutation();
+  const bulkAssignMutation = useBulkAssignTasksMutation();
+  const assignSupportTeamMutation = useAssignSupportTeamMutation();
+  const requestSupportMutation = useRequestSupportMutation();
+
+  const isPending =
+    assignTaskMutation.isPending ||
+    bulkAssignMutation.isPending ||
+    assignSupportTeamMutation.isPending ||
+    requestSupportMutation.isPending ||
+    isUploading;
 
   const isSupportRequested = !isBulk && representativeTask ? (representativeTask as any).isSupportRequested : false;
   const isSupportMode = !isBulk && representativeTask ? !isSupportRequested && (representativeTask.status === 'DOING' || representativeTask.status === 'REWORKING') : false;
 
-  // Initial load when modal becomes visible
+  const jobId =
+    representativeTask?.jobId ||
+    representativeTask?.job?.id ||
+    (representativeTask as any)?.contractService?.jobId ||
+    (representativeTask as any)?.contractService?.job?.id ||
+    '';
+
+  const { data: vendorsData, isLoading: isLoadingVendors } = useVendorsByJobQuery(
+    performerType === 'VENDOR' ? jobId : ''
+  );
+  const vendors = vendorsData || [];
+
+  const { data: teamsData, isLoading: isLoadingTeams } = useTeamsQuery();
+  const allTeams = teamsData || [];
+
   useEffect(() => {
     if (visible && representativeTask) {
       setSelectedAssigneeId(representativeTask.assigneeId || representativeTask.assignee?.id || '');
@@ -488,58 +510,13 @@ export default function TaskAssignModal({
       setLinks(['']);
       setFiles([]);
       setUploadProgress({});
-
-      if (defaultPerfType === 'VENDOR') {
-        loadVendors();
-      }
     }
   }, [visible, representativeTask]);
-
-  // Load vendors for job/vendor selection (Matches Web useGetVendorsByJobQuery)
-  const loadVendors = useCallback(async () => {
-    const jobId =
-      representativeTask?.jobId ||
-      representativeTask?.job?.id ||
-      (representativeTask as any)?.contractService?.jobId ||
-      (representativeTask as any)?.contractService?.job?.id;
-
-    if (!jobId) {
-      setVendors([]);
-      return;
-    }
-
-    setIsLoadingVendors(true);
-    try {
-      const res = await taskService.getVendorsByJob(jobId);
-      setVendors(res?.data || []);
-    } catch {
-      setVendors([]);
-    } finally {
-      setIsLoadingVendors(false);
-    }
-  }, [task]);
-
-  // Load teams when Support Team switch is activated
-  const loadTeams = useCallback(async () => {
-    if (allTeams.length > 0) return;
-    setIsLoadingTeams(true);
-    try {
-      const res = await teamService.getTeams();
-      setAllTeams(res.data || []);
-    } catch {
-      setAllTeams([]);
-    } finally {
-      setIsLoadingTeams(false);
-    }
-  }, [allTeams.length]);
 
   const handlePerformerTypeChange = (type: 'INTERNAL' | 'VENDOR') => {
     setPerformerType(type);
     setSelectedAssigneeId('');
     setSelectedVendorId('');
-    if (type === 'VENDOR') {
-      loadVendors();
-    }
   };
 
   const handleToggleTeamAssignment = () => {
@@ -548,12 +525,8 @@ export default function TaskAssignModal({
     setSelectedAssigneeId('');
     setSelectedTeamId('');
     setSelectedVendorId('');
-    if (nextVal) {
-      loadTeams();
-    }
   };
 
-  // Link helper actions
   const handleAddLink = () => {
     setLinks((prev) => [...prev, '']);
   };
@@ -570,7 +543,6 @@ export default function TaskAssignModal({
     });
   };
 
-  // File attachment actions
   const handlePickFile = async () => {
     if (files.length >= 5) {
       Alert.alert('Cảnh báo', 'Chỉ được chọn tối đa 5 file đính kèm.');
@@ -612,7 +584,6 @@ export default function TaskAssignModal({
   if (!task) return null;
 
   const handleSubmit = async () => {
-    // Form validation
     if (isTeamAssignment) {
       if (!selectedTeamId) {
         Alert.alert('Cảnh báo', 'Vui lòng chọn Team hỗ trợ.');
@@ -629,11 +600,9 @@ export default function TaskAssignModal({
       }
     }
 
-    setIsSubmitting(true);
     try {
       const attachmentsList: Array<{ type: string; name: string; url: string; size?: number }> = [];
 
-      // 1. Process valid URL links
       for (const l of links) {
         const trimmed = l.trim();
         if (trimmed) {
@@ -642,7 +611,6 @@ export default function TaskAssignModal({
               'Liên kết không hợp lệ',
               `Đường dẫn "${trimmed}" không đúng định dạng. Vui lòng kiểm tra lại (Ví dụ: google.com hoặc https://example.com).`
             );
-            setIsSubmitting(false);
             return;
           }
           const formattedUrl = normalizeUrl(trimmed);
@@ -654,7 +622,6 @@ export default function TaskAssignModal({
         }
       }
 
-      // 2. Upload files to Cloudinary if picked
       if (files.length > 0) {
         setIsUploading(true);
         for (let i = 0; i < files.length; i++) {
@@ -677,10 +644,9 @@ export default function TaskAssignModal({
       const projectId = project?.id || (representativeTask as any)?.projectId;
       const formattedPlannedEndDate = formatDueDateToISO(dueDate);
 
-      // 3. Execute assignment logic
       if (isBulk) {
         const finalAssigneeId = performerType === 'INTERNAL' ? selectedAssigneeId : selectedVendorId;
-        const res = await taskService.bulkAssignTasks({
+        await bulkAssignMutation.mutateAsync({
           taskIds: tasks.map((t) => t.id),
           assigneeId: finalAssigneeId,
           performerType,
@@ -691,41 +657,36 @@ export default function TaskAssignModal({
           projectId,
         });
 
-        if (res.error) {
-          Alert.alert('Lỗi', res.error || 'Phân công hàng loạt không thành công.');
-          return;
-        }
         Alert.alert('Thành công', `Đã phân công ${tasks.length} công việc hàng loạt thành công!`);
       } else if (isTeamAssignment) {
         if (representativeTask && representativeTask.status === 'DOING' && !isSupportRequested) {
-          await taskService.requestSupport(
-            representativeTask.id,
-            description || 'Cần hỗ trợ thực hiện công việc này',
-            projectId
-          );
+          await requestSupportMutation.mutateAsync({
+            taskId: representativeTask.id,
+            reason: description || 'Cần hỗ trợ thực hiện công việc này',
+            projectId,
+          });
         }
 
-        const supportRes = await taskService.assignSupportTeam(representativeTask?.id || '', selectedTeamId, projectId);
-        if (supportRes.error) {
-          Alert.alert('Lỗi', supportRes.error || 'Phân công hỗ trợ team thất bại.');
-          return;
-        }
+        await assignSupportTeamMutation.mutateAsync({
+          taskId: representativeTask?.id || '',
+          teamId: selectedTeamId,
+          projectId,
+        });
         Alert.alert('Thành công', 'Đã phân công Team hỗ trợ thực hiện công việc thành công!');
       } else {
         const finalAssigneeId = performerType === 'INTERNAL' ? selectedAssigneeId : selectedVendorId;
-        const res = await taskService.assignTask(representativeTask?.id || '', {
-          assigneeId: finalAssigneeId,
-          performerType,
-          plannedEndDate: formattedPlannedEndDate,
-          description: description.trim() || undefined,
-          attachments: attachmentsList,
-          projectId,
+        await assignTaskMutation.mutateAsync({
+          id: representativeTask?.id || '',
+          payload: {
+            assigneeId: finalAssigneeId,
+            performerType,
+            plannedEndDate: formattedPlannedEndDate,
+            description: description.trim() || undefined,
+            attachments: attachmentsList,
+            projectId,
+          },
         });
 
-        if (res.error) {
-          Alert.alert('Lỗi', res.error || 'Phân công công việc không thành công.');
-          return;
-        }
         Alert.alert('Thành công', `Đã phân công công việc "${representativeTask?.name}" thành công!`);
       }
 
@@ -734,8 +695,6 @@ export default function TaskAssignModal({
     } catch (err: any) {
       setIsUploading(false);
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi phân công công việc.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -744,37 +703,41 @@ export default function TaskAssignModal({
   return (
     <>
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <View style={styles.overlay}>
-          <View style={styles.modalCard}>
+        <View className="flex-1 bg-slate-900/60 justify-end">
+          <View className="bg-white rounded-t-[24px] p-5 maxHeight-[90%] gap-3">
             {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.headerTitleBox}>
-                <Text style={styles.title}>
+            <View className="flex-row justify-between items-start pb-2.5 border-b border-slate-100">
+              <View className="flex-1 gap-0.5">
+                <Text className="text-lg font-bold text-slate-900">
                   {isBulk
                     ? `Phân công (${tasks.length}) công việc`
                     : representativeTask?.assigneeId
                     ? 'Đổi người thực hiện'
                     : 'Phân công công việc'}
                 </Text>
-                <Text style={styles.taskCode} numberOfLines={1}>
+                <Text className="text-xs font-semibold text-slate-500" numberOfLines={1}>
                   {isBulk
                     ? `Đang gán hàng loạt cho ${tasks.length} công việc đã chọn`
                     : `#${representativeTask?.code || 'TASK'} • ${representativeTask?.name}`}
                 </Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+              <TouchableOpacity onPress={onClose} className="p-1.5 rounded-lg bg-slate-100">
                 <Feather name="x" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.bodyScroll}>
+            <ScrollView showsVerticalScrollIndicator={false} className="max-h-[460px]">
               {/* Performer Type Selector (Internal vs Vendor) */}
               {!isTeamAssignment && (
                 <>
-                  <Text style={styles.label}>1. Hình thức thực hiện</Text>
-                  <View style={styles.typeRow}>
+                  <Text className="text-xs font-bold text-slate-700 mt-3 mb-1.5">1. Hình thức thực hiện</Text>
+                  <View className="flex-row gap-2.5 mb-1">
                     <TouchableOpacity
-                      style={[styles.typeBtn, performerType === 'INTERNAL' && styles.typeBtnActive]}
+                      className={`flex-1 flex-row items-center justify-center gap-1.5 border rounded-xl py-2.5 ${
+                        performerType === 'INTERNAL'
+                          ? 'border-primary bg-teal-50/50'
+                          : 'border-slate-200 bg-slate-50'
+                      }`}
                       onPress={() => handlePerformerTypeChange('INTERNAL')}
                       activeOpacity={0.8}
                     >
@@ -784,14 +747,20 @@ export default function TaskAssignModal({
                         color={performerType === 'INTERNAL' ? BrandColors.primary : '#64748B'}
                       />
                       <Text
-                        style={[styles.typeBtnText, performerType === 'INTERNAL' && styles.typeBtnTextActive]}
+                        className={`text-[13px] ${
+                          performerType === 'INTERNAL' ? 'font-bold text-primary' : 'font-semibold text-slate-500'
+                        }`}
                       >
                         Nội bộ
                       </Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.typeBtn, performerType === 'VENDOR' && styles.typeBtnActive]}
+                      className={`flex-1 flex-row items-center justify-center gap-1.5 border rounded-xl py-2.5 ${
+                        performerType === 'VENDOR'
+                          ? 'border-primary bg-teal-50/50'
+                          : 'border-slate-200 bg-slate-50'
+                      }`}
                       onPress={() => handlePerformerTypeChange('VENDOR')}
                       activeOpacity={0.8}
                     >
@@ -801,7 +770,9 @@ export default function TaskAssignModal({
                         color={performerType === 'VENDOR' ? BrandColors.primary : '#64748B'}
                       />
                       <Text
-                        style={[styles.typeBtnText, performerType === 'VENDOR' && styles.typeBtnTextActive]}
+                        className={`text-[13px] ${
+                          performerType === 'VENDOR' ? 'font-bold text-primary' : 'font-semibold text-slate-500'
+                        }`}
                       >
                         Vendor
                       </Text>
@@ -811,8 +782,8 @@ export default function TaskAssignModal({
               )}
 
               {/* Support Team Request Toggle Banner */}
-              <View style={styles.supportHeaderRow}>
-                <Text style={styles.label}>
+              <View className="flex-row justify-between items-center">
+                <Text className="text-xs font-bold text-slate-700 mt-3 mb-1.5">
                   {isTeamAssignment
                     ? '2. Chọn Team hỗ trợ'
                     : performerType === 'INTERNAL'
@@ -822,7 +793,7 @@ export default function TaskAssignModal({
 
                 {isSupportMode && (
                   <TouchableOpacity
-                    style={styles.teamSupportToggle}
+                    className="flex-row items-center gap-1.5 py-1"
                     onPress={handleToggleTeamAssignment}
                     activeOpacity={0.7}
                   >
@@ -831,38 +802,40 @@ export default function TaskAssignModal({
                       size={16}
                       color={BrandColors.primary}
                     />
-                    <Text style={styles.teamSupportToggleText}>Nhờ hỗ trợ từ team khác</Text>
+                    <Text className="text-[11px] font-bold text-primary">Nhờ hỗ trợ từ team khác</Text>
                   </TouchableOpacity>
                 )}
               </View>
 
               {/* Assignee / Team Selection */}
               {isTeamAssignment ? (
-                <View style={styles.selectionSection}>
+                <View className="mt-0.5 mb-1.5">
                   {isLoadingTeams ? (
-                    <View style={styles.loadingRow}>
+                    <View className="flex-row items-center gap-2 py-3">
                       <ActivityIndicator size="small" color={BrandColors.primary} />
-                      <Text style={styles.loadingRowText}>Đang tải danh sách Team...</Text>
+                      <Text className="text-[13px] text-slate-500">Đang tải danh sách Team...</Text>
                     </View>
                   ) : allTeams.length === 0 ? (
-                    <Text style={styles.emptyMembersText}>Không có team hỗ trợ nào khả dụng.</Text>
+                    <Text className="text-xs text-slate-400 italic py-2">Không có team hỗ trợ nào khả dụng.</Text>
                   ) : (
-                    <View style={styles.memberList}>
+                    <View className="gap-1.5">
                       {allTeams.map((t) => {
                         const isSelected = selectedTeamId === t.id;
                         return (
                           <TouchableOpacity
                             key={t.id}
-                            style={[styles.memberCard, isSelected && styles.memberCardSelected]}
+                            className={`flex-row items-center gap-2.5 p-2.5 border rounded-xl bg-white ${
+                              isSelected ? 'border-primary bg-teal-50/50' : 'border-slate-200'
+                            }`}
                             onPress={() => setSelectedTeamId(t.id)}
                             activeOpacity={0.7}
                           >
-                            <View style={styles.avatarCircle}>
+                            <View className="w-8 h-8 rounded-full bg-blue-50 justify-center items-center">
                               <Feather name="users" size={16} color={BrandColors.primary} />
                             </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.memberName}>{t.name}</Text>
-                              <Text style={styles.memberRole}>
+                            <View className="flex-1">
+                              <Text className="text-[13px] font-bold text-slate-900">{t.name}</Text>
+                              <Text className="text-[11px] text-slate-500">
                                 Lead: {t.teamLead?.fullName || 'Chưa phân công'}
                               </Text>
                             </View>
@@ -876,13 +849,13 @@ export default function TaskAssignModal({
                   )}
                 </View>
               ) : performerType === 'INTERNAL' ? (
-                <View style={styles.selectionSection}>
+                <View className="mt-0.5 mb-1.5">
                   {teamMembers.length === 0 ? (
-                    <Text style={styles.emptyMembersText}>
+                    <Text className="text-xs text-slate-400 italic py-2">
                       Đội dự án chưa có thành viên nào. Vui lòng thêm nhân sự vào đội ở Tab Tổng quan.
                     </Text>
                   ) : (
-                    <View style={styles.memberList}>
+                    <View className="gap-1.5">
                       {teamMembers.map((member) => {
                         const uId = member.user?.id;
                         if (!uId) return null;
@@ -891,19 +864,21 @@ export default function TaskAssignModal({
                         return (
                           <TouchableOpacity
                             key={member.id}
-                            style={[styles.memberCard, isSelected && styles.memberCardSelected]}
+                            className={`flex-row items-center gap-2.5 p-2.5 border rounded-xl bg-white ${
+                              isSelected ? 'border-primary bg-teal-50/50' : 'border-slate-200'
+                            }`}
                             onPress={() => setSelectedAssigneeId(uId)}
                             activeOpacity={0.7}
                           >
-                            <View style={styles.avatarCircle}>
-                              <Text style={styles.avatarText}>
+                            <View className="w-8 h-8 rounded-full bg-blue-50 justify-center items-center">
+                              <Text className="text-[13px] font-bold text-primary">
                                 {member.user?.fullName ? member.user.fullName.charAt(0).toUpperCase() : 'M'}
                               </Text>
                             </View>
 
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.memberName}>{member.user?.fullName}</Text>
-                              <Text style={styles.memberRole}>
+                            <View className="flex-1">
+                              <Text className="text-[13px] font-bold text-slate-900">{member.user?.fullName}</Text>
+                              <Text className="text-[11px] text-slate-500">
                                 {TEAM_MEMBER_ROLE_LABELS[member.role] || member.role}
                               </Text>
                             </View>
@@ -918,34 +893,36 @@ export default function TaskAssignModal({
                   )}
                 </View>
               ) : (
-                <View style={styles.selectionSection}>
+                <View className="mt-0.5 mb-1.5">
                   {isLoadingVendors ? (
-                    <View style={styles.loadingRow}>
+                    <View className="flex-row items-center gap-2 py-3">
                       <ActivityIndicator size="small" color={BrandColors.primary} />
-                      <Text style={styles.loadingRowText}>Đang tải danh sách Vendor...</Text>
+                      <Text className="text-[13px] text-slate-500">Đang tải danh sách Vendor...</Text>
                     </View>
                   ) : vendors.length === 0 ? (
-                    <View style={styles.emptyVendorBox}>
+                    <View className="flex-row items-center gap-2 bg-red-50 border border-red-200 p-2.5 rounded-xl">
                       <Feather name="alert-circle" size={16} color="#DC2626" />
-                      <Text style={styles.emptyVendorText}>Chưa có vendor cung cấp dịch vụ này</Text>
+                      <Text className="text-xs font-bold text-red-600">Chưa có vendor cung cấp dịch vụ này</Text>
                     </View>
                   ) : (
-                    <View style={styles.memberList}>
+                    <View className="gap-1.5">
                       {vendors.map((v) => {
                         const isSelected = selectedVendorId === v.id;
                         return (
                           <TouchableOpacity
                             key={v.id}
-                            style={[styles.memberCard, isSelected && styles.memberCardSelected]}
+                            className={`flex-row items-center gap-2.5 p-2.5 border rounded-xl bg-white ${
+                              isSelected ? 'border-primary bg-teal-50/50' : 'border-slate-200'
+                            }`}
                             onPress={() => setSelectedVendorId(v.id)}
                             activeOpacity={0.7}
                           >
-                            <View style={styles.avatarCircle}>
+                            <View className="w-8 h-8 rounded-full bg-blue-50 justify-center items-center">
                               <Feather name="briefcase" size={15} color={BrandColors.primary} />
                             </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.memberName}>{v.name}</Text>
-                              <Text style={styles.memberRole}>{v.contactPerson || v.phone || 'Đối tác Vendor'}</Text>
+                            <View className="flex-1">
+                              <Text className="text-[13px] font-bold text-slate-900">{v.name}</Text>
+                              <Text className="text-[11px] text-slate-500">{v.contactPerson || v.phone || 'Đối tác Vendor'}</Text>
                             </View>
                             {isSelected && (
                               <Feather name="check-circle" size={18} color={BrandColors.primary} />
@@ -959,28 +936,28 @@ export default function TaskAssignModal({
               )}
 
               {/* Deadline (Planned End Date) with Date & Time Picker */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={styles.label}>3. Hạn hoàn thành (Deadline)</Text>
+              <View className="flex-row justify-between items-center mb-1">
+                <Text className="text-xs font-bold text-slate-700 mt-3 mb-1.5">3. Hạn hoàn thành (Deadline)</Text>
                 <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
-                  style={styles.openPickerLink}
+                  className="flex-row items-center gap-1 bg-blue-50 px-2 py-1 rounded-lg"
                   activeOpacity={0.7}
                 >
                   <Feather name="calendar" size={13} color={BrandColors.primary} />
-                  <Text style={styles.openPickerLinkText}>Mở lịch chọn</Text>
+                  <Text className="text-[11px] font-bold text-primary">Mở lịch chọn</Text>
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.inputIconWrapper}>
+              <View className="relative justify-center">
                 <TouchableOpacity
-                  style={styles.calendarIconBtn}
+                  className="absolute left-3 z-10 p-1"
                   onPress={() => setShowDatePicker(true)}
                   activeOpacity={0.7}
                 >
                   <Feather name="calendar" size={18} color={BrandColors.primary} />
                 </TouchableOpacity>
                 <TextInput
-                  style={[styles.input, styles.inputWithIcon]}
+                  className="border border-slate-200 rounded-xl pl-11 pr-3 py-2.5 text-[13px] text-slate-900 bg-white"
                   placeholder="dd/mm/yyyy --:--"
                   placeholderTextColor="#94A3B8"
                   value={dueDate}
@@ -990,39 +967,42 @@ export default function TaskAssignModal({
               </View>
 
               {/* Description & Instruction */}
-              <Text style={styles.label}>4. Ghi chú & Chỉ dẫn công việc</Text>
-              <View style={styles.inputIconWrapper}>
-                <Feather name="file-text" size={16} color="#64748B" style={styles.textAreaIcon} />
+              <Text className="text-xs font-bold text-slate-700 mt-3 mb-1.5">4. Ghi chú & Chỉ dẫn công việc</Text>
+              <View className="relative justify-center">
+                <Feather name="file-text" size={16} color="#64748B" className="absolute left-3 top-3 z-10" />
                 <TextInput
-                  style={[styles.input, styles.textArea, styles.inputWithIcon]}
+                  className="border border-slate-200 rounded-xl pl-11 pr-3 py-2.5 text-[13px] text-slate-900 bg-white min-h-[70px]"
                   placeholder="Mô tả chi tiết công việc hoặc lưu ý cho người thực hiện..."
+                  placeholderTextColor="#94A3B8"
                   value={description}
                   onChangeText={setDescription}
                   multiline
                   numberOfLines={3}
+                  style={{ textAlignVertical: 'top' }}
                 />
               </View>
 
               {/* Attachments Section: Links & Files */}
-              <View style={styles.attachmentHeaderRow}>
-                <Text style={styles.label}>5. Tài liệu đính kèm & Links</Text>
+              <View className="flex-row justify-between items-center">
+                <Text className="text-xs font-bold text-slate-700 mt-3 mb-1.5">5. Tài liệu đính kèm & Links</Text>
                 <TouchableOpacity
-                  style={styles.addLinkBtn}
+                  className="flex-row items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-xl"
                   onPress={handleAddLink}
                   activeOpacity={0.7}
                 >
                   <Feather name="plus" size={14} color={BrandColors.primary} />
-                  <Text style={styles.addLinkBtnText}>Thêm Link</Text>
+                  <Text className="text-[11px] font-bold text-primary">Thêm Link</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Links List */}
               {links.map((link, idx) => (
-                <View key={`link-${idx}`} style={styles.linkRow}>
-                  <Feather name="link" size={15} color="#64748B" style={styles.linkIcon} />
+                <View key={`link-${idx}`} className="flex-row items-center gap-2 mb-2 relative">
+                  <Feather name="link" size={15} color="#64748B" className="absolute left-3 z-10" />
                   <TextInput
-                    style={styles.linkInput}
+                    className="flex-1 border border-slate-200 rounded-lg pl-9 pr-2.5 py-2 text-xs text-slate-900 bg-slate-50"
                     placeholder="Nhập link tài liệu (Google Drive, Figma, Dropbox...)"
+                    placeholderTextColor="#94A3B8"
                     value={link}
                     onChangeText={(text) => handleLinkChange(idx, text)}
                     keyboardType="url"
@@ -1030,7 +1010,7 @@ export default function TaskAssignModal({
                   />
                   {links.length > 1 && (
                     <TouchableOpacity
-                      style={styles.removeLinkBtn}
+                      className="p-2"
                       onPress={() => handleRemoveLink(idx)}
                       activeOpacity={0.7}
                     >
@@ -1042,37 +1022,37 @@ export default function TaskAssignModal({
 
               {/* Files Section */}
               <TouchableOpacity
-                style={styles.fileDropZone}
+                className="border-[1.5px] border-dashed border-slate-300 rounded-2xl bg-slate-50 p-4 items-center justify-center gap-1 mt-1.5"
                 onPress={handlePickFile}
                 activeOpacity={0.8}
               >
-                <View style={styles.fileDropIconCircle}>
+                <View className="w-10 h-10 rounded-full bg-blue-50 items-center justify-center mb-0.5">
                   <Feather name="upload-cloud" size={22} color={BrandColors.primary} />
                 </View>
-                <Text style={styles.fileDropZoneTitle}>Bấm để chọn tệp đính kèm</Text>
-                <Text style={styles.fileDropZoneSub}>Tối đa 5 file, tổng dung lượng 25MB</Text>
+                <Text className="text-[13px] font-bold text-slate-700">Bấm để chọn tệp đính kèm</Text>
+                <Text className="text-[11px] text-slate-400">Tối đa 5 file, tổng dung lượng 25MB</Text>
               </TouchableOpacity>
 
               {files.length > 0 && (
-                <View style={styles.pickedFileList}>
+                <View className="gap-1.5 mt-2">
                   {files.map((file, idx) => {
                     const progress = uploadProgress[idx];
                     return (
-                      <View key={`file-${idx}`} style={styles.fileItemCard}>
-                        <View style={styles.fileItemLeft}>
+                      <View key={`file-${idx}`} className="flex-row items-center justify-between p-2.5 border border-slate-200 rounded-lg bg-white">
+                        <View className="flex-1 flex-row items-center gap-2.5">
                           <Feather name="file" size={18} color="#64748B" />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.fileItemName} numberOfLines={1}>
+                          <View className="flex-1">
+                            <Text className="text-xs font-semibold text-slate-900" numberOfLines={1}>
                               {file.name}
                             </Text>
                             {file.size ? (
-                              <Text style={styles.fileItemSize}>
+                              <Text className="text-[10px] text-slate-500">
                                 {(file.size / 1024 / 1024).toFixed(2)} MB
                               </Text>
                             ) : null}
                             {isUploading && progress !== undefined && (
-                              <View style={styles.progressBarBg}>
-                                <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+                              <View className="h-1 bg-slate-200 rounded-full overflow-hidden mt-1">
+                                <View className="h-full bg-primary" style={{ width: `${progress}%` }} />
                               </View>
                             )}
                           </View>
@@ -1080,7 +1060,7 @@ export default function TaskAssignModal({
                         <TouchableOpacity
                           onPress={() => handleRemoveFile(idx)}
                           disabled={isUploading}
-                          style={styles.removeFileBtn}
+                          className="p-1.5"
                         >
                           <Feather name="x" size={16} color="#EF4444" />
                         </TouchableOpacity>
@@ -1092,32 +1072,31 @@ export default function TaskAssignModal({
             </ScrollView>
 
             {/* Footer Actions */}
-            <View style={styles.footer}>
+            <View className="flex-row gap-3 mt-2.5 pt-2.5 border-t border-slate-100">
               <TouchableOpacity
-                style={styles.cancelBtn}
+                className="flex-1 py-3 rounded-xl border border-slate-200 items-center justify-center"
                 onPress={onClose}
-                disabled={isSubmitting || isUploading}
+                disabled={isPending}
               >
-                <Text style={styles.cancelBtnText}>Hủy bỏ</Text>
+                <Text className="text-sm font-semibold text-slate-600">Hủy bỏ</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.submitBtn,
-                  (isSubmitting || isUploading) && styles.submitBtnDisabled,
-                ]}
+                className={`flex-[2] flex-row items-center justify-center gap-1.5 bg-primary py-3 rounded-xl ${
+                  isPending ? 'opacity-60' : ''
+                }`}
                 onPress={handleSubmit}
-                disabled={isSubmitting || isUploading}
+                disabled={isPending}
               >
-                {isSubmitting || isUploading ? (
+                {isPending ? (
                   <>
                     <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.submitBtnText}>Đang xử lý...</Text>
+                    <Text className="text-sm font-bold text-white">Đang xử lý...</Text>
                   </>
                 ) : (
                   <>
                     <Feather name="user-check" size={16} color="#FFFFFF" />
-                    <Text style={styles.submitBtnText}>
+                    <Text className="text-sm font-bold text-white">
                       {isBulk
                         ? `Phân công (${tasks.length}) việc`
                         : representativeTask?.assigneeId
@@ -1143,631 +1122,3 @@ export default function TaskAssignModal({
     </>
   );
 }
-
-const wheelStyles = StyleSheet.create({
-  wheelContainer: {
-    height: ITEM_HEIGHT * VISIBLE_ITEMS,
-    width: 60,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  selectionBand: {
-    position: 'absolute',
-    top: ITEM_HEIGHT,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    backgroundColor: '#EFF6FF',
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderColor: BrandColors.primary,
-    zIndex: 0,
-  },
-  wheelCell: {
-    height: ITEM_HEIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 3,
-  },
-  wheelText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#94A3B8',
-  },
-  wheelTextSelected: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-});
-
-const calStyles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  calendarModalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  calendarTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  calendarNavRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  calendarNavBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-  },
-  calendarMonthText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  calendarWeekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  calendarWeekDayText: {
-    width: 40,
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  calendarCell: {
-    width: '14.28%',
-    height: 38,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 2,
-    borderRadius: 10,
-  },
-  calendarCellSelected: {
-    backgroundColor: BrandColors.primary,
-  },
-  calendarCellToday: {
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: BrandColors.primary,
-  },
-  calendarDayText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  calendarDayTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  calendarDayTextToday: {
-    color: BrandColors.primary,
-    fontWeight: '700',
-  },
-  timeSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    gap: 10,
-  },
-  timeSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  timeSectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  timeInputBoxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  timeMiniInput: {
-    width: 38,
-    height: 32,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '700',
-    color: BrandColors.primary,
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 0,
-  },
-  timeMiniColon: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#64748B',
-  },
-  wheelPickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  wheelColon: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: BrandColors.primary,
-  },
-  presetRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 4,
-    marginTop: 4,
-  },
-  presetBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-  },
-  presetBtnActive: {
-    borderColor: BrandColors.primary,
-    backgroundColor: '#EFF6FF',
-  },
-  presetText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  presetTextActive: {
-    color: BrandColors.primary,
-    fontWeight: '700',
-  },
-  calendarFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  calendarTodayBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: '#EFF6FF',
-  },
-  calendarTodayBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  calendarConfirmBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: BrandColors.primary,
-  },
-  calendarConfirmBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '90%',
-    gap: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  headerTitleBox: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  taskCode: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  bodyScroll: {
-    maxHeight: 460,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 4,
-  },
-  typeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingVertical: 10,
-    backgroundColor: '#F8FAFC',
-  },
-  typeBtnActive: {
-    borderColor: BrandColors.primary,
-    backgroundColor: '#F0FDFA',
-  },
-  typeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  typeBtnTextActive: {
-    color: BrandColors.primary,
-    fontWeight: '700',
-  },
-  supportHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  teamSupportToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-  },
-  teamSupportToggleText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  selectionSection: {
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  loadingRowText: {
-    fontSize: 13,
-    color: '#64748B',
-  },
-  emptyMembersText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-    paddingVertical: 8,
-  },
-  emptyVendorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 10,
-    borderRadius: 10,
-  },
-  emptyVendorText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-  memberList: {
-    gap: 6,
-  },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-  },
-  memberCardSelected: {
-    borderColor: BrandColors.primary,
-    backgroundColor: '#F0FDFA',
-  },
-  avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  memberName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  memberRole: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  inputIconWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  calendarIconBtn: {
-    position: 'absolute',
-    left: 12,
-    zIndex: 2,
-    padding: 4,
-  },
-  openPickerLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  openPickerLinkText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  inputIcon: {
-    position: 'absolute',
-    left: 12,
-    zIndex: 1,
-  },
-  textAreaIcon: {
-    position: 'absolute',
-    left: 12,
-    top: 12,
-    zIndex: 1,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#0F172A',
-    backgroundColor: '#FFFFFF',
-  },
-  inputWithIcon: {
-    paddingLeft: 42,
-  },
-  textArea: {
-    minHeight: 70,
-    textAlignVertical: 'top',
-  },
-  attachmentHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  addLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  addLinkBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  linkIcon: {
-    position: 'absolute',
-    left: 12,
-    zIndex: 1,
-  },
-  linkInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingLeft: 36,
-    paddingRight: 10,
-    paddingVertical: 8,
-    fontSize: 12,
-    color: '#0F172A',
-    backgroundColor: '#F8FAFC',
-  },
-  removeLinkBtn: {
-    padding: 8,
-  },
-  fileDropZone: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
-    borderRadius: 14,
-    backgroundColor: '#F8FAFC',
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    marginTop: 6,
-  },
-  fileDropIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  fileDropZoneTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  fileDropZoneSub: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  pickedFileList: {
-    gap: 6,
-    marginTop: 8,
-  },
-  fileItemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  fileItemLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  fileItemName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#0F172A',
-  },
-  fileItemSize: {
-    fontSize: 10,
-    color: '#64748B',
-  },
-  removeFileBtn: {
-    padding: 6,
-  },
-  progressBarBg: {
-    height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: BrandColors.primary,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  submitBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: BrandColors.primary,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  submitBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

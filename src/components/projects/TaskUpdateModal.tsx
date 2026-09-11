@@ -4,13 +4,12 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { taskService, TASK_STATUS_CONFIG, TaskDetail } from '@/services/taskService';
-import { BrandColors } from '@/constants/colors';
+import { TASK_STATUS_CONFIG, TaskDetail } from '@/services/taskService';
+import { useUpdateTaskStatusMutation, useUpdateTaskMutation } from '@/hooks/queries/useTasks';
 
 interface TaskUpdateModalProps {
   visible: boolean;
@@ -35,7 +34,11 @@ export default function TaskUpdateModal({
 }: TaskUpdateModalProps) {
   const [status, setStatus] = useState<string>('DOING');
   const [progress, setProgress] = useState<number>(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const updateStatusMutation = useUpdateTaskStatusMutation();
+  const updateTaskMutation = useUpdateTaskMutation();
+
+  const isSubmitting = updateStatusMutation.isPending || updateTaskMutation.isPending;
 
   useEffect(() => {
     if (task) {
@@ -46,24 +49,17 @@ export default function TaskUpdateModal({
 
   const handleSave = async () => {
     if (!task) return;
-    setIsSubmitting(true);
     try {
       // Update status
-      const resStatus = await taskService.updateTaskStatus(task.id, status);
+      await updateStatusMutation.mutateAsync({ id: task.id, status });
       // Update details progress
-      await taskService.updateTask(task.id, { progress });
+      await updateTaskMutation.mutateAsync({ id: task.id, payload: { progress } });
 
-      if (resStatus.error) {
-        Alert.alert('Lỗi', resStatus.error);
-      } else {
-        Alert.alert('Thành công', 'Đã cập nhật công việc thành công.');
-        onSuccess();
-        onClose();
-      }
+      Alert.alert('Thành công', 'Đã cập nhật công việc thành công.');
+      onSuccess();
+      onClose();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Không thể cập nhật task.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -71,43 +67,46 @@ export default function TaskUpdateModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modalCard}>
+      <View className="flex-1 bg-slate-900/50 justify-end">
+        <View className="bg-surface rounded-t-3xl p-5 gap-4.5">
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title} numberOfLines={1}>
+          <View className="flex-row justify-between items-center border-b border-slate-100 pb-3">
+            <Text className="text-base font-bold text-text-primary flex-1 mr-2.5" numberOfLines={1}>
               Cập nhật Task: {task.name}
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity onPress={onClose} className="p-1">
               <Feather name="x" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
           {/* Status Picker */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Trạng thái công việc</Text>
-            <View style={styles.statusGrid}>
+          <View className="gap-2.5">
+            <Text className="text-xs font-semibold text-slate-600">Trạng thái công việc</Text>
+            <View className="flex-row flex-wrap gap-2">
               {AVAILABLE_STATUSES.map((st) => {
                 const isSelected = status === st.key;
                 const statusColor = TASK_STATUS_CONFIG[st.key];
                 return (
                   <TouchableOpacity
                     key={st.key}
-                    style={[
-                      styles.statusPill,
-                      { backgroundColor: isSelected ? statusColor?.bg || '#EFF6FF' : '#F8FAFC' },
-                      isSelected && { borderColor: statusColor?.color || BrandColors.primary, borderWidth: 1.5 },
-                    ]}
+                    className={`px-3 py-2 rounded-xl border ${
+                      isSelected
+                        ? 'border-primary bg-orange-50'
+                        : 'border-border bg-background'
+                    }`}
+                    style={
+                      isSelected && statusColor?.color
+                        ? { borderColor: statusColor.color, backgroundColor: statusColor.bg || '#FFF4EA' }
+                        : undefined
+                    }
                     onPress={() => {
                       setStatus(st.key);
                       if (st.key === 'DONE') setProgress(100);
                     }}
                   >
                     <Text
-                      style={[
-                        styles.statusPillText,
-                        { color: isSelected ? statusColor?.color || BrandColors.primary : '#64748B' },
-                      ]}
+                      className="text-xs font-bold"
+                      style={{ color: isSelected ? statusColor?.color || '#F38820' : '#64748B' }}
                     >
                       {st.label}
                     </Text>
@@ -118,20 +117,22 @@ export default function TaskUpdateModal({
           </View>
 
           {/* Progress Control */}
-          <View style={styles.section}>
-            <View style={styles.progressRow}>
-              <Text style={styles.sectionLabel}>Tiến độ hoàn thành (%)</Text>
-              <Text style={styles.progressValText}>{progress}%</Text>
+          <View className="gap-2.5">
+            <View className="flex-row justify-between items-center">
+              <Text className="text-xs font-semibold text-slate-600">Tiến độ hoàn thành (%)</Text>
+              <Text className="text-sm font-bold text-primary">{progress}%</Text>
             </View>
 
-            <View style={styles.sliderButtons}>
+            <View className="flex-row justify-between gap-1.5">
               {[0, 25, 50, 75, 100].map((val) => (
                 <TouchableOpacity
                   key={val}
-                  style={[styles.stepBtn, progress === val && styles.stepBtnActive]}
+                  className={`flex-1 py-2.5 rounded-lg items-center ${
+                    progress === val ? 'bg-primary' : 'bg-slate-100'
+                  }`}
                   onPress={() => setProgress(val)}
                 >
-                  <Text style={[styles.stepText, progress === val && styles.stepTextActive]}>
+                  <Text className={`text-xs ${progress === val ? 'font-bold text-white' : 'font-semibold text-slate-500'}`}>
                     {val}%
                   </Text>
                 </TouchableOpacity>
@@ -140,19 +141,19 @@ export default function TaskUpdateModal({
           </View>
 
           {/* Footer Actions */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={isSubmitting}>
-              <Text style={styles.cancelText}>Hủy</Text>
+          <View className="flex-row justify-end gap-2.5 border-t border-slate-100 pt-3.5">
+            <TouchableOpacity className="px-4 py-2.5 rounded-lg bg-slate-100" onPress={onClose} disabled={isSubmitting}>
+              <Text className="text-sm font-semibold text-slate-500">Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.submitBtn, isSubmitting && styles.btnDisabled]}
+              className={`px-5 py-2.5 rounded-lg bg-primary ${isSubmitting ? 'opacity-60' : ''}`}
               onPress={handleSave}
               disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.submitText}>Cập nhật</Text>
+                <Text className="text-sm font-bold text-white">Cập nhật</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -162,126 +163,3 @@ export default function TaskUpdateModal({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    gap: 18,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 12,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    flex: 1,
-    marginRight: 10,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  section: {
-    gap: 10,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  statusGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  statusPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  progressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressValText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: BrandColors.primary,
-  },
-  sliderButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  stepBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-  },
-  stepBtnActive: {
-    backgroundColor: BrandColors.primary,
-  },
-  stepText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  stepTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 14,
-  },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-  },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  submitBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: BrandColors.primary,
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  submitText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

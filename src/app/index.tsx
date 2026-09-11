@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -15,49 +14,70 @@ import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import BottomNavBar from '@/components/BottomNavBar';
-import { StatCard } from '@/components/dashboard/StatCard';
-import { ReviewQueueWidget } from '@/components/dashboard/ReviewQueueWidget';
-import { TodayTasksWidget } from '@/components/dashboard/TodayTasksWidget';
 import { FocusBanner } from '@/components/dashboard/FocusBanner';
 import { QuickActionGrid } from '@/components/dashboard/QuickActionGrid';
-import { HotProjectsWidget } from '@/components/dashboard/HotProjectsWidget';
 import { MonthYearPickerModal } from '@/components/dashboard/MonthYearPickerModal';
 import { AdminDashboardView } from '@/components/dashboard/views/AdminDashboardView';
 import { SalesDashboardView } from '@/components/dashboard/views/SalesDashboardView';
 import { TeamLeadDashboardView } from '@/components/dashboard/views/TeamLeadDashboardView';
 import { MemberDashboardView } from '@/components/dashboard/views/MemberDashboardView';
-import {
-  dashboardService,
-  DashboardResponse,
-  TaskItem,
-} from '@/services/dashboardService';
-import { BrandColors } from '@/constants/colors';
 import { formatVND } from '@/utils/formatters';
 import {
   canAccessCustomers,
   isManagementRole,
   isSalesRole,
 } from '@/utils/rbac';
-
-const PRIMARY_COLOR = BrandColors.primary;
+import {
+  useDashboardQuery,
+  useMyTasksQuery,
+  useAwaitingReviewTasksQuery,
+} from '@/hooks/queries';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
-  const [reviewTasks, setReviewTasks] = useState<TaskItem[]>([]);
-  const [todayTasks, setTodayTasks] = useState<TaskItem[]>([]);
 
-  // Month & Year state (mirroring MonthSelector in erp-UI)
+  // Month & Year state
   const now = new Date();
   const [selectedDate, setSelectedDate] = useState<{ month: number | null; year: number | null }>({
     month: now.getMonth() + 1,
     year: now.getFullYear(),
   });
   const [isPickerVisible, setIsPickerVisible] = useState(false);
+
+  // Check RBAC for review queue
+  const isLeadOrAdmin = Boolean(
+    user?.role === 'ADMIN' ||
+    user?.role === 'BOD' ||
+    user?.role === 'TEAM_LEAD' ||
+    user?.role === 'PM'
+  );
+
+  // TanStack Query Hooks
+  const {
+    data: dashboardData,
+    isLoading: isDashboardLoading,
+    isRefetching: isDashboardRefetching,
+    refetch: refetchDashboard,
+  } = useDashboardQuery({
+    month: selectedDate.month ?? undefined,
+    year: selectedDate.year ?? undefined,
+  });
+
+  const {
+    data: todayTasks = [],
+    refetch: refetchMyTasks,
+    isRefetching: isMyTasksRefetching,
+  } = useMyTasksQuery();
+
+  const {
+    data: reviewTasks = [],
+    refetch: refetchReviewTasks,
+    isRefetching: isReviewRefetching,
+  } = useAwaitingReviewTasksQuery(isLeadOrAdmin);
+
+  const isRefetching = isDashboardRefetching || isMyTasksRefetching || isReviewRefetching;
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -66,55 +86,12 @@ export default function HomeScreen() {
     }
   }, [isAuthenticated, isLoading]);
 
-  const loadData = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const [dashRes, tasksRes] = await Promise.all([
-        dashboardService.getDashboardData({
-          month: selectedDate.month ?? undefined,
-          year: selectedDate.year ?? undefined,
-        }),
-        dashboardService.getMyTasks(),
-      ]);
-
-      if (dashRes.data) {
-        setDashboardData(dashRes.data);
-      }
-
-      if (tasksRes.data && Array.isArray(tasksRes.data)) {
-        setTodayTasks(tasksRes.data);
-      }
-
-      // Check review queue for Leads or Admins
-      const isLeadOrAdmin =
-        user?.role === 'ADMIN' ||
-        user?.role === 'BOD' ||
-        user?.role === 'TEAM_LEAD' ||
-        user?.role === 'PM';
-
-      if (isLeadOrAdmin) {
-        const reviewRes = await dashboardService.getAwaitingReviewTasks();
-        if (reviewRes.data && Array.isArray(reviewRes.data)) {
-          setReviewTasks(reviewRes.data);
-        }
-      }
-    } catch {
-      // Graceful fallback to avoid breaking screen
-    } finally {
-      setIsDataLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [isAuthenticated, user?.role, selectedDate]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    }
-  }, [isAuthenticated, loadData]);
-
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadData();
+    refetchDashboard();
+    refetchMyTasks();
+    if (isLeadOrAdmin) {
+      refetchReviewTasks();
+    }
   };
 
   const handleLogout = () => {
@@ -134,9 +111,9 @@ export default function HomeScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={PRIMARY_COLOR} />
-        <Text style={styles.loadingText}>Khởi tạo hệ thống...</Text>
+      <View className="flex-1 justify-center items-center bg-background gap-3">
+        <ActivityIndicator size="large" color="#F38820" />
+        <Text className="text-xs color-slate-400 font-bold tracking-widest uppercase">Khởi tạo hệ thống...</Text>
       </View>
     );
   }
@@ -148,69 +125,47 @@ export default function HomeScreen() {
   // Determine role-based permissions & metrics
   const isAdminOrBod = isManagementRole(user?.role);
   const isSale = isSalesRole(user?.role);
-  const canViewCustomers = canAccessCustomers(user?.role);
 
   const adminMetrics = dashboardData?.admin;
   const saleMetrics = dashboardData?.sale;
   const teamLeadProjects = dashboardData?.teamLead || [];
   const memberMetrics = dashboardData?.member;
 
-  // Format currency helper
-  const formatMoney = (val?: number) => {
-    if (!val) return '0 ₫';
-    if (val >= 1_000_000_000) {
-      return `${(val / 1_000_000_000).toFixed(1)} Tỷ`;
-    }
-    if (val >= 1_000_000) {
-      return `${(val / 1_000_000).toFixed(0)} Tr`;
-    }
-    return formatVND(val);
-  };
-
-  const hotProjects =
-    isAdminOrBod && Array.isArray(adminMetrics?.currentProjects) && adminMetrics.currentProjects.length > 0
-      ? adminMetrics.currentProjects
-      : teamLeadProjects.length > 0
-      ? teamLeadProjects
-      : isSale && Array.isArray(saleMetrics?.projects) && saleMetrics.projects.length > 0
-      ? saleMetrics.projects
-      : memberMetrics?.participatingProjects || [];
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       {/* Top Header Bar: User Profile Greeting & Actions */}
-      <View style={styles.topBar}>
-        <View style={styles.userSection}>
-          <View style={styles.avatarBox}>
-            <Text style={styles.avatarText}>
+      <View className="flex-row justify-between items-center px-4 pt-2 pb-3.5 bg-surface border-b border-border">
+        <View className="flex-row items-center flex-1 mr-3">
+          <View className="w-11 h-11 rounded-xl bg-primary items-center justify-center shadow-md">
+            <Text className="text-white text-xl font-extrabold">
               {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.greetingText}>Xin chào,</Text>
-            <View style={styles.nameBadgeRow}>
-              <Text style={styles.userName} numberOfLines={1}>
+          <View className="ml-3 flex-1">
+            <Text className="text-xs text-slate-500 font-medium">Xin chào,</Text>
+            <View className="flex-row items-center gap-1.5 mt-0.5">
+              <Text className="text-base font-bold text-text-primary flex-shrink" numberOfLines={1}>
                 {user?.fullName || user?.username}
               </Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleBadgeText}>{user?.role || 'PM'}</Text>
+              <View className="bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-200">
+                <Text className="text-[10px] font-bold text-primary uppercase">{user?.role || 'PM'}</Text>
               </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.actionButtonsRow}>
+        <View className="flex-row items-center gap-2">
           <TouchableOpacity
-            style={styles.iconActionBtn}
+            className="w-[38px] h-[38px] rounded-xl bg-slate-100 items-center justify-center relative"
             onPress={handleNotificationPress}
             activeOpacity={0.7}
           >
             <Feather name="bell" size={20} color="#475569" />
-            <View style={styles.notifDot} />
+            <View className="absolute top-2 right-2 w-[7px] h-[7px] rounded-full bg-primary border-[1.5px] border-white" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.iconActionBtn, styles.logoutBtn]}
+            className="w-[38px] h-[38px] rounded-xl bg-red-50 items-center justify-center"
             onPress={handleLogout}
             activeOpacity={0.7}
           >
@@ -220,22 +175,23 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerClassName="px-4 pt-4 pb-6"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
+            refreshing={isRefetching}
             onRefresh={handleRefresh}
-            colors={[PRIMARY_COLOR]}
-            tintColor={PRIMARY_COLOR}
+            colors={['#F38820']}
+            tintColor="#F38820"
           />
         }
       >
         {/* Quick Search Bar */}
-        <View style={styles.searchBarWrapper}>
+        <View className="flex-row items-center bg-surface rounded-xl border border-border px-3.5 h-11 mb-4 shadow-xs">
           <Feather name="search" size={18} color="#94A3B8" />
           <TextInput
-            style={styles.searchInput}
+            className="flex-1 ml-2.5 text-sm text-text-primary"
             placeholder="Tìm kiếm dự án, nhiệm vụ..."
             placeholderTextColor="#94A3B8"
             value={searchQuery}
@@ -289,8 +245,8 @@ export default function HomeScreen() {
         />
 
         {/* Section Header with Month/Year Switcher (mirroring MonthSelector on Web) */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-base font-extrabold text-text-primary tracking-tight">
             {isAdminOrBod
               ? 'Chỉ số điều hành'
               : isSale
@@ -299,12 +255,12 @@ export default function HomeScreen() {
           </Text>
 
           <TouchableOpacity
-            style={styles.timeSelectorBtn}
+            className="flex-row items-center gap-1.5 bg-surface px-2.5 py-1.5 rounded-xl border border-border shadow-xs"
             onPress={() => setIsPickerVisible(true)}
             activeOpacity={0.75}
           >
-            <Feather name="calendar" size={13} color={PRIMARY_COLOR} />
-            <Text style={styles.timeSelectorText}>
+            <Feather name="calendar" size={13} color="#F38820" />
+            <Text className="text-xs font-bold text-text-primary">
               {selectedDate.month
                 ? `Tháng ${selectedDate.month}, ${selectedDate.year}`
                 : 'Tất cả'}
@@ -313,10 +269,10 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {isDataLoading && !isRefreshing ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="small" color={PRIMARY_COLOR} />
-            <Text style={styles.loadingDesc}>Đang đồng bộ dữ liệu Getvini...</Text>
+        {isDashboardLoading && !isRefetching ? (
+          <View className="flex-row items-center justify-center py-6 gap-2 bg-surface rounded-2xl border border-border mb-4">
+            <ActivityIndicator size="small" color="#F38820" />
+            <Text className="text-xs text-slate-500 font-medium">Đang đồng bộ dữ liệu Getvini...</Text>
           </View>
         ) : isAdminOrBod ? (
           <AdminDashboardView
@@ -342,74 +298,6 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* Operational Modules Grid */}
-        {/* <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Phân hệ tác nghiệp</Text>
-        </View>
-
-        <View style={styles.modulesGrid}>
-          <TouchableOpacity
-            style={styles.moduleCard}
-            activeOpacity={0.75}
-            onPress={() => router.push('/tasks' as any)}
-          >
-            <View style={[styles.moduleIcon, { backgroundColor: '#FFF4EA' }]}>
-              <Feather name="check-square" size={22} color={PRIMARY_COLOR} />
-            </View>
-            <Text style={styles.moduleName}>Nhiệm vụ & Việc</Text>
-            <Text style={styles.moduleDesc}>Cần làm & Chờ duyệt</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.moduleCard}
-            activeOpacity={0.75}
-            onPress={() => router.push('/projects' as any)}
-          >
-            <View style={[styles.moduleIcon, { backgroundColor: '#EFF6FF' }]}>
-              <Feather name="briefcase" size={22} color="#3B82F6" />
-            </View>
-            <Text style={styles.moduleName}>Quản lý Dự án</Text>
-            <Text style={styles.moduleDesc}>Tiến độ & Thành viên</Text>
-          </TouchableOpacity>
-
-          {canViewCustomers ? (
-            <TouchableOpacity
-              style={styles.moduleCard}
-              activeOpacity={0.75}
-              onPress={() => router.push('/customers' as any)}
-            >
-              <View style={[styles.moduleIcon, { backgroundColor: '#ECFDF5' }]}>
-                <Feather name="users" size={22} color="#10B981" />
-              </View>
-              <Text style={styles.moduleName}>Khách hàng & CRM</Text>
-              <Text style={styles.moduleDesc}>Đối tác & Gọi nhanh</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.moduleCard}
-              activeOpacity={0.75}
-              onPress={() => router.push('/profile' as any)}
-            >
-              <View style={[styles.moduleIcon, { backgroundColor: '#ECFDF5' }]}>
-                <Feather name="user" size={22} color="#10B981" />
-              </View>
-              <Text style={styles.moduleName}>Hồ sơ cá nhân</Text>
-              <Text style={styles.moduleDesc}>Tài khoản & Thiết lập</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={styles.moduleCard}
-            activeOpacity={0.75}
-            onPress={() => router.push('/explore')}
-          >
-            <View style={[styles.moduleIcon, { backgroundColor: '#FFFBEB' }]}>
-              <Feather name="grid" size={22} color="#F59E0B" />
-            </View>
-            <Text style={styles.moduleName}>Tất cả phân hệ</Text>
-            <Text style={styles.moduleDesc}>Hợp đồng, Tài chính...</Text>
-          </TouchableOpacity>
-        </View> */}
       </ScrollView>
 
       {/* Month & Year Picker Modal */}
@@ -426,241 +314,3 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 14,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  userSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  avatarBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: PRIMARY_COLOR,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: PRIMARY_COLOR,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  userInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  greetingText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  nameBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    flexShrink: 1,
-  },
-  roleBadge: {
-    backgroundColor: '#FFF4EA',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#FDCB9E',
-  },
-  roleBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: PRIMARY_COLOR,
-    textTransform: 'uppercase',
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconActionBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  logoutBtn: {
-    backgroundColor: '#FEF2F2',
-  },
-  notifDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: PRIMARY_COLOR,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
-  searchBarWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    height: 46,
-    marginBottom: 16,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#0F172A',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.2,
-  },
-  timeSelectorBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  timeSelectorText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  loadingBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 16,
-  },
-  loadingDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 16,
-  },
-  modulesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 12,
-  },
-  moduleCard: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  moduleIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  moduleName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  moduleDesc: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-});

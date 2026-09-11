@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -39,6 +38,18 @@ import {
   CustomerAssignData,
 } from '@/components/opportunities/CustomerAssignModal';
 import { formatVNDFull, formatNumber } from '@/utils/formatters';
+import {
+  useOpportunityDetailQuery,
+  useApproveOpportunityMutation,
+  useUpdateOpportunityMutation,
+} from '@/hooks/queries/useOpportunities';
+import {
+  useOpportunityQuotationsQuery,
+  useApproveQuotationMutation,
+  useRejectQuotationMutation,
+} from '@/hooks/queries/useQuotations';
+import { useCreateContractMutation } from '@/hooks/queries/useContracts';
+import { useUpdateCustomerMutation } from '@/hooks/queries/useCustomers';
 
 // Dictionary mapping for Region, Field and Priority
 const REGION_LABELS: Record<string, string> = {
@@ -101,13 +112,31 @@ export default function OpportunityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const {
+    data: opportunity = null,
+    isLoading: isOppLoading,
+    isFetching: isOppFetching,
+    refetch: refetchOpp,
+  } = useOpportunityDetailQuery(id as string);
 
-  const [opportunity, setOpportunity] = useState<OpportunityItem | null>(null);
-  const [quotations, setQuotations] = useState<QuotationItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
-  const [isCreatingContract, setIsCreatingContract] = useState(false);
+  const {
+    data: rawQuotations = [],
+    isLoading: isQuoteLoading,
+    isFetching: isQuoteFetching,
+    refetch: refetchQuotes,
+  } = useOpportunityQuotationsQuery(id as string);
+
+  const quotations: QuotationItem[] = Array.isArray(rawQuotations) ? rawQuotations : [];
+
+  const updateOpportunityMutation = useUpdateOpportunityMutation();
+  const approveOpportunityMutation = useApproveOpportunityMutation();
+  const createContractMutation = useCreateContractMutation();
+  const updateCustomerMutation = useUpdateCustomerMutation();
+  const approveQuotationMutation = useApproveQuotationMutation();
+  const rejectQuotationMutation = useRejectQuotationMutation();
+
+  const isApproving = approveOpportunityMutation.isPending;
+  const isCreatingContract = createContractMutation.isPending;
 
   // Customer Assign Modal State
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
@@ -127,14 +156,12 @@ export default function OpportunityDetailScreen() {
           text: 'Tạo hợp đồng',
           onPress: async () => {
             try {
-              setIsCreatingContract(true);
-              const res = await contractService.createContract({
+              const newContract = await createContractMutation.mutateAsync({
                 opportunityId: id as string,
                 name: defaultName,
               });
 
-              if (res.data) {
-                const newContract = res.data;
+              if (newContract) {
                 Alert.alert('Thành công', 'Đã tạo hợp đồng kinh tế thành công!', [
                   {
                     text: 'Xem chi tiết hợp đồng',
@@ -150,17 +177,12 @@ export default function OpportunityDetailScreen() {
                   {
                     text: 'Đóng',
                     style: 'cancel',
-                    onPress: () => loadData(),
                   },
                 ]);
-                await loadData();
-              } else {
-                Alert.alert('Lỗi', res.error || 'Có lỗi xảy ra khi tạo hợp đồng');
+                refetchAll();
               }
             } catch (err: any) {
-              Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi tạo hợp đồng');
-            } finally {
-              setIsCreatingContract(false);
+              Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi tạo hợp đồng.');
             }
           },
         },
@@ -171,43 +193,27 @@ export default function OpportunityDetailScreen() {
   const isAdminOrBod = isManagementRole(user?.role);
   const hasAccess = canAccessOpportunities(user?.role);
 
-  const loadData = useCallback(async () => {
-    if (!id || !hasAccess) return;
-    try {
-      const [oppRes, quoteRes] = await Promise.all([
-        opportunityService.getOpportunity(id),
-        quotationService.getQuotationsByOpportunity(id),
-      ]);
-
-      if (oppRes.data) {
-        setOpportunity(oppRes.data);
-      }
-
-      if (quoteRes.data && Array.isArray(quoteRes.data)) {
-        setQuotations(quoteRes.data);
-      }
-    } catch {
-      // Graceful error handling
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [id, hasAccess]);
+  const refetchAll = useCallback(() => {
+    refetchOpp();
+    refetchQuotes();
+  }, [refetchOpp, refetchQuotes]);
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData])
+      refetchAll();
+    }, [refetchAll])
   );
 
   useSSERefresh(
     ['invalidate_Opportunities', 'invalidate_Tasks'],
-    loadData
+    refetchAll
   );
 
+  const isLoading = (isOppLoading || isQuoteLoading) && !opportunity;
+  const isRefreshing = isOppFetching || isQuoteFetching;
+
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadData();
+    refetchAll();
   };
 
   // Save Customer Handler (From CustomerAssignModal)
@@ -239,12 +245,8 @@ export default function OpportunityDetailScreen() {
         data.customerType === 'REFERRAL' ? data.selectedReferralPartnerId : null;
     }
 
-    const res = await opportunityService.updateOpportunity(id, updatePayload);
-    if (res.error) {
-      throw new Error(res.error);
-    }
+    await updateOpportunityMutation.mutateAsync({ id, payload: updatePayload });
     Alert.alert('Thành công', 'Thông tin khách hàng đã được lưu thành công!');
-    await loadData();
   };
 
   // Inline Edit Customer Handler (chuẩn Web CustomerInfo.jsx)
@@ -258,28 +260,32 @@ export default function OpportunityDetailScreen() {
     if (!id || !opportunity) return;
 
     if (opportunity.customer) {
-      // KH hiện hữu: cập nhật qua customerService (chuẩn Web)
-      const res = await customerService.updateCustomer(opportunity.customer.id, {
-        phoneNumber: data.phone,
-        email: data.email,
-        taxId: data.taxId,
-        address: data.address,
-      } as any);
-      if (res.error) throw new Error(res.error);
+      // KH hiện hữu: cập nhật qua TanStack Mutation
+      await updateCustomerMutation.mutateAsync({
+        id: opportunity.customer.id,
+        payload: {
+          phoneNumber: data.phone,
+          email: data.email,
+          taxId: data.taxId,
+          address: data.address,
+        } as any,
+      });
+      refetchAll();
     } else {
       // Lead (tiềm năng): cập nhật qua opportunityService
-      const res = await opportunityService.updateOpportunity(id, {
-        leadName: data.name,
-        leadPhone: data.phone,
-        leadEmail: data.email,
-        leadTaxId: data.taxId,
-        leadAddress: data.address,
+      await updateOpportunityMutation.mutateAsync({
+        id,
+        payload: {
+          leadName: data.name,
+          leadPhone: data.phone,
+          leadEmail: data.email,
+          leadTaxId: data.taxId,
+          leadAddress: data.address,
+        },
       });
-      if (res.error) throw new Error(res.error);
     }
 
     Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
-    await loadData();
   };
 
   // BOD Approve Opportunity Action
@@ -294,19 +300,11 @@ export default function OpportunityDetailScreen() {
           style: 'default',
           onPress: async () => {
             if (!id) return;
-            setIsApproving(true);
             try {
-              const res = await opportunityService.approveOpportunity(id);
-              if (res.error) {
-                Alert.alert('Lỗi phê duyệt', res.error);
-              } else {
-                Alert.alert('Thành công', 'Cơ hội đã được phê duyệt thành công!');
-                loadData();
-              }
+              await approveOpportunityMutation.mutateAsync(id);
+              Alert.alert('Thành công', 'Cơ hội đã được phê duyệt thành công!');
             } catch (err: any) {
               Alert.alert('Lỗi', err?.message || 'Không thể phê duyệt cơ hội.');
-            } finally {
-              setIsApproving(false);
             }
           },
         },
@@ -322,13 +320,8 @@ export default function OpportunityDetailScreen() {
         text: 'Duyệt',
         onPress: async () => {
           try {
-            const res = await quotationService.approveQuotation(quoteId);
-            if (res.error) {
-              Alert.alert('Lỗi', res.error);
-            } else {
-              Alert.alert('Thành công', 'Báo giá đã được phê duyệt.');
-              loadData();
-            }
+            await approveQuotationMutation.mutateAsync(quoteId);
+            Alert.alert('Thành công', 'Báo giá đã được phê duyệt.');
           } catch {
             Alert.alert('Lỗi', 'Không thể duyệt báo giá.');
           }
@@ -346,13 +339,8 @@ export default function OpportunityDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const res = await quotationService.rejectQuotation(quoteId, 'BOD yêu cầu chỉnh sửa');
-            if (res.error) {
-              Alert.alert('Lỗi', res.error);
-            } else {
-              Alert.alert('Đã từ chối', 'Bản báo giá đã bị từ chối.');
-              loadData();
-            }
+            await rejectQuotationMutation.mutateAsync({ id: quoteId, reason: 'BOD yêu cầu chỉnh sửa' });
+            Alert.alert('Đã từ chối', 'Bản báo giá đã bị từ chối.');
           } catch {
             Alert.alert('Lỗi', 'Không thể từ chối báo giá.');
           }
@@ -397,20 +385,20 @@ export default function OpportunityDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View className="flex-1 justify-center items-center p-6">
         <ActivityIndicator size="large" color={BrandColors.primary} />
-        <Text style={styles.loadingDesc}>Đang tải chi tiết cơ hội...</Text>
+        <Text className="mt-3 text-[13px] text-slate-500">Đang tải chi tiết cơ hội...</Text>
       </View>
     );
   }
 
   if (!opportunity) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.centerContainer}>
-          <Text style={styles.errorTitle}>Không tìm thấy cơ hội</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backBtnText}>Quay lại danh sách</Text>
+      <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
+        <View className="flex-1 justify-center items-center p-6">
+          <Text className="text-base font-bold text-slate-800 mb-4">Không tìm thấy cơ hội</Text>
+          <TouchableOpacity className="bg-primary px-4 py-2.5 rounded-xl" onPress={() => router.back()}>
+            <Text className="text-white font-bold">Quay lại danh sách</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -428,8 +416,6 @@ export default function OpportunityDetailScreen() {
   const draftCount = quotations.filter((q) => q.status === 'DRAFT').length;
   const showBadge = draftCount > 0;
 
-  // Logic khớp 100% bản Web (OpportunityDetailPage.jsx line 272):
-  // (hasCustomer) && (QUOTATION_DRAFTING || PENDING_QUOTE_APPROVAL || (OPP_APPROVED && (ADMIN || creator)))
   const canCreateQuotation =
     hasCustomer &&
     (opportunity.status === 'QUOTATION_DRAFTING' ||
@@ -462,25 +448,25 @@ export default function OpportunityDetailScreen() {
     successChance >= 70 ? '#059669' : successChance >= 40 ? '#D97706' : '#DC2626';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
       {/* 1. TOP APP BAR */}
-      <View style={styles.topHeader}>
+      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-100">
         <TouchableOpacity
-          style={styles.headerIconBtn}
+          className="w-[38px] h-[38px] rounded-xl bg-slate-100 justify-center items-center"
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#1E293B" />
         </TouchableOpacity>
 
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerCode}>{opportunity.opportunityCode || 'CƠ HỘI'}</Text>
-          <Text style={styles.headerSub}>Chi tiết hồ sơ kinh doanh</Text>
+        <View className="items-center">
+          <Text className="text-base font-extrabold text-slate-900">{opportunity.opportunityCode || 'CƠ HỘI'}</Text>
+          <Text className="text-[11px] text-slate-500">Chi tiết hồ sơ kinh doanh</Text>
         </View>
 
         <TouchableOpacity
-          style={styles.headerIconBtn}
-          onPress={loadData}
+          className="w-[38px] h-[38px] rounded-xl bg-slate-100 justify-center items-center"
+          onPress={handleRefresh}
           activeOpacity={0.7}
         >
           <Feather name="refresh-cw" size={18} color="#475569" />
@@ -488,7 +474,8 @@ export default function OpportunityDetailScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerClassName="p-4 pb-10"
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -500,95 +487,81 @@ export default function OpportunityDetailScreen() {
         }
       >
         {/* 2. STATUS & PROGRESS STEPPER CARD */}
-        <View style={styles.mainCard}>
-          <View style={styles.statusRow}>
-            <View style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}>
-              <Text style={[styles.statusBadgeText, { color: statusMeta.color }]}>
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="flex-row justify-between items-center mb-2.5">
+            <View className="px-2.5 py-1 rounded-lg" style={{ backgroundColor: statusMeta.bg }}>
+              <Text className="text-xs font-bold" style={{ color: statusMeta.color }}>
                 {statusMeta.text}
               </Text>
             </View>
 
             <View
-              style={[
-                styles.priorityBox,
-                { backgroundColor: priorityTheme.bg, borderColor: priorityTheme.border },
-              ]}
+              className="px-2 py-0.5 rounded-md border"
+              style={{ backgroundColor: priorityTheme.bg, borderColor: priorityTheme.border }}
             >
-              <Text style={[styles.priorityText, { color: priorityTheme.text }]}>
+              <Text className="text-[11px] font-bold" style={{ color: priorityTheme.text }}>
                 Ưu tiên: {priorityLabel}
               </Text>
             </View>
           </View>
 
-          <Text style={styles.oppTitle}>{opportunity.name}</Text>
+          <Text className="text-lg font-extrabold text-slate-900 leading-6 mb-2">{opportunity.name}</Text>
 
           {opportunity.description ? (
-            <Text style={styles.oppDesc}>{opportunity.description}</Text>
+            <Text className="text-[13px] text-slate-600 leading-5 mb-4">{opportunity.description}</Text>
           ) : null}
 
           {/* Stepper visual 4 bước */}
-          <View style={styles.stepperContainer}>
-            <View style={styles.stepperItem}>
-              <View style={[styles.stepperDot, { backgroundColor: '#10B981' }]} />
-              <Text style={styles.stepperText}>Mới tạo</Text>
+          <View className="flex-row items-center justify-between pt-3.5 border-t border-slate-100">
+            <View className="items-center gap-1">
+              <View className="w-3.5 h-3.5 rounded-full bg-emerald-500" />
+              <Text className="text-[10px] text-slate-500 font-semibold">Mới tạo</Text>
             </View>
-            <View style={styles.stepperLine} />
-            <View style={styles.stepperItem}>
+            <View className="flex-1 h-0.5 bg-slate-200 mx-1 mb-3.5" />
+            <View className="items-center gap-1">
               <View
-                style={[
-                  styles.stepperDot,
-                  {
-                    backgroundColor:
-                      opportunity.status !== 'OPEN' ? '#10B981' : '#CBD5E1',
-                  },
-                ]}
+                className={`w-3.5 h-3.5 rounded-full ${
+                  opportunity.status !== 'OPEN' ? 'bg-emerald-500' : 'bg-slate-300'
+                }`}
               />
-              <Text style={styles.stepperText}>BOD duyệt</Text>
+              <Text className="text-[10px] text-slate-500 font-semibold">BOD duyệt</Text>
             </View>
-            <View style={styles.stepperLine} />
-            <View style={styles.stepperItem}>
+            <View className="flex-1 h-0.5 bg-slate-200 mx-1 mb-3.5" />
+            <View className="items-center gap-1">
               <View
-                style={[
-                  styles.stepperDot,
-                  {
-                    backgroundColor:
-                      opportunity.status === 'QUOTATION_DRAFTING' ||
-                      opportunity.status === 'PENDING_QUOTE_APPROVAL' ||
-                      opportunity.status === 'QUOTE_APPROVED' ||
-                      opportunity.status === 'CONTRACT_CREATED' ||
-                      opportunity.status === 'PROJECT_ASSIGNED'
-                        ? '#10B981'
-                        : '#CBD5E1',
-                  },
-                ]}
+                className={`w-3.5 h-3.5 rounded-full ${
+                  opportunity.status === 'QUOTATION_DRAFTING' ||
+                  opportunity.status === 'PENDING_QUOTE_APPROVAL' ||
+                  opportunity.status === 'QUOTE_APPROVED' ||
+                  opportunity.status === 'CONTRACT_CREATED' ||
+                  opportunity.status === 'PROJECT_ASSIGNED'
+                    ? 'bg-emerald-500'
+                    : 'bg-slate-300'
+                }`}
               />
-              <Text style={styles.stepperText}>Báo giá</Text>
+              <Text className="text-[10px] text-slate-500 font-semibold">Báo giá</Text>
             </View>
-            <View style={styles.stepperLine} />
-            <View style={styles.stepperItem}>
+            <View className="flex-1 h-0.5 bg-slate-200 mx-1 mb-3.5" />
+            <View className="items-center gap-1">
               <View
-                style={[
-                  styles.stepperDot,
-                  {
-                    backgroundColor:
-                      opportunity.status === 'CONTRACT_CREATED' ||
-                      opportunity.status === 'PROJECT_ASSIGNED'
-                        ? '#10B981'
-                        : '#CBD5E1',
-                  },
-                ]}
+                className={`w-3.5 h-3.5 rounded-full ${
+                  opportunity.status === 'CONTRACT_CREATED' ||
+                  opportunity.status === 'PROJECT_ASSIGNED'
+                    ? 'bg-emerald-500'
+                    : 'bg-slate-300'
+                }`}
               />
-              <Text style={styles.stepperText}>Hợp đồng</Text>
+              <Text className="text-[10px] text-slate-500 font-semibold">Hợp đồng</Text>
             </View>
           </View>
 
           {/* 2.1. THANH HÀNH ĐỘNG NHANH (QUICK ACTIONS BAR) ĐỒNG BỘ TỪ WEB */}
           {hasCustomer && (canViewQuotations || canCreateQuotation || canCreateContract || hasContract) && (
-            <View style={styles.headerActionsBar}>
+            <View className="flex-row flex-wrap gap-2 mt-3.5 pt-3 border-t border-slate-100">
               {canViewQuotations && (
-                <View style={styles.viewQuoteWrapper}>
+                <View className="relative flex-1 min-w-[125px]">
                   <TouchableOpacity
-                    style={styles.headerViewQuotesBtn}
+                    className="flex-row items-center justify-center gap-1.5 bg-slate-900 px-3.5 py-2 rounded-lg"
                     onPress={() =>
                       router.push({
                         pathname: '/opportunities/quotations/list',
@@ -598,11 +571,11 @@ export default function OpportunityDetailScreen() {
                     activeOpacity={0.8}
                   >
                     <Feather name="file-text" size={14} color="#FFFFFF" />
-                    <Text style={styles.headerViewQuotesText} numberOfLines={1}>Xem báo giá</Text>
+                    <Text className="text-[13px] font-bold text-white" style={{ flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">Xem báo giá</Text>
                   </TouchableOpacity>
                   {showBadge && (
-                    <View style={styles.headerBadge}>
-                      <Text style={styles.headerBadgeText}>
+                    <View className="absolute -top-1.5 -right-1.5 bg-red-600 rounded-full min-w-[20px] h-5 items-center justify-center px-1 border-2 border-white">
+                      <Text className="text-[10px] font-black text-white">
                         {draftCount > 9 ? '9+' : draftCount}
                       </Text>
                     </View>
@@ -612,7 +585,7 @@ export default function OpportunityDetailScreen() {
 
               {canCreateQuotation && (
                 <TouchableOpacity
-                  style={styles.headerCreateQuoteBtn}
+                  className="flex-row items-center gap-1.5 bg-emerald-600 px-3.5 py-2 rounded-lg"
                   onPress={() =>
                     router.push({
                       pathname: '/opportunities/quotations/create',
@@ -622,13 +595,13 @@ export default function OpportunityDetailScreen() {
                   activeOpacity={0.8}
                 >
                   <Feather name="plus" size={14} color="#FFFFFF" />
-                  <Text style={styles.headerCreateQuoteText} numberOfLines={1}>Tạo báo giá</Text>
+                  <Text className="text-[13px] font-bold text-white" style={{ flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">Tạo báo giá</Text>
                 </TouchableOpacity>
               )}
 
               {canCreateContract && (
                 <TouchableOpacity
-                  style={styles.headerCreateContractBtn}
+                  className="flex-row items-center gap-1.5 bg-cyan-600 px-3.5 py-2 rounded-lg"
                   onPress={handlePromptCreateContract}
                   disabled={isCreatingContract}
                   activeOpacity={0.8}
@@ -638,7 +611,7 @@ export default function OpportunityDetailScreen() {
                   ) : (
                     <>
                       <Feather name="briefcase" size={14} color="#FFFFFF" />
-                      <Text style={styles.headerCreateContractText} numberOfLines={1}>Tạo hợp đồng</Text>
+                      <Text className="text-[13px] font-bold text-white" style={{ flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">Tạo hợp đồng</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -646,7 +619,7 @@ export default function OpportunityDetailScreen() {
 
               {hasContract && linkedContract && (
                 <TouchableOpacity
-                  style={styles.headerViewContractBtn}
+                  className="flex-row items-center justify-center gap-1.5 bg-slate-900 px-2.5 py-2 rounded-lg flex-1 min-w-[120px]"
                   onPress={() =>
                     router.push({
                       pathname: '/contracts/[id]',
@@ -656,19 +629,24 @@ export default function OpportunityDetailScreen() {
                   activeOpacity={0.8}
                 >
                   <Feather name="file-text" size={14} color="#FFFFFF" />
-                  <Text style={styles.headerViewContractText} numberOfLines={1}>
-                    {linkedContract.contractCode
-                      ? `HĐ: ${linkedContract.contractCode}`
-                      : 'Xem hợp đồng'}
-                  </Text>
+                    <Text
+                      className="text-[13px] font-bold text-white"
+                      style={{ flexShrink: 1 }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {linkedContract.contractCode
+                        ? `HĐ: ${linkedContract.contractCode}`
+                        : 'Xem hợp đồng'}
+                    </Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
         </View>
 
-        {/* 3. KHỐI KHÁCH HÀNG & NGƯỜI LIÊN HỆ (OPTION A - VỊ TRÍ ƯU TIÊN SỐ 1) */}
-        <View style={styles.cardWrapper}>
+        {/* 3. KHỐI KHÁCH HÀNG & NGƯỜI LIÊN HỆ */}
+        <View className="mb-3.5">
           <CustomerInfoCard
             opportunity={opportunity}
             onAddCustomer={() => setIsCustomerModalVisible(true)}
@@ -677,21 +655,21 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 4. KHỐI THÔNG TIN TÀI CHÍNH & KỲ VỌNG */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#EFF6FF' }]}>
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="flex-row justify-between items-center mb-3.5">
+            <View className="flex-row items-center gap-2">
+              <View className="w-7 h-7 rounded-lg justify-center items-center bg-blue-50">
                 <Ionicons name="cash-outline" size={17} color="#2563EB" />
               </View>
-              <Text style={styles.sectionHeader}>Thông tin Tài chính & Kỳ vọng</Text>
+              <Text className="text-[15px] font-extrabold text-slate-900">Thông tin Tài chính & Kỳ vọng</Text>
             </View>
           </View>
 
-          <View style={styles.financialGrid}>
-            <View style={styles.financialBox}>
-              <Text style={styles.financialLabel}>Doanh thu kỳ vọng</Text>
+          <View className="flex-row gap-3">
+            <View className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <Text className="text-[11px] text-slate-500 font-semibold mb-1">Doanh thu kỳ vọng</Text>
               <Text 
-                style={styles.revenueHighlight} 
+                className="text-[15px] font-extrabold text-primary" 
                 numberOfLines={1} 
                 adjustsFontSizeToFit 
                 minimumFontScale={0.75}
@@ -700,10 +678,10 @@ export default function OpportunityDetailScreen() {
               </Text>
             </View>
 
-            <View style={styles.financialBox}>
-              <Text style={styles.financialLabel}>Ngân sách dự kiến</Text>
+            <View className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <Text className="text-[11px] text-slate-500 font-semibold mb-1">Ngân sách dự kiến</Text>
               <Text 
-                style={styles.financialValue} 
+                className="text-[15px] font-bold text-slate-900" 
                 numberOfLines={1} 
                 adjustsFontSizeToFit 
                 minimumFontScale={0.75}
@@ -715,30 +693,30 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 5. KHỐI THỜI GIAN & ĐỊA ĐIỂM */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#F3E8FF' }]}>
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="flex-row justify-between items-center mb-3.5">
+            <View className="flex-row items-center gap-2">
+              <View className="w-7 h-7 rounded-lg justify-center items-center bg-purple-100">
                 <Feather name="calendar" size={16} color="#7C3AED" />
               </View>
-              <Text style={styles.sectionHeader}>Thời gian & Địa điểm</Text>
+              <Text className="text-[15px] font-extrabold text-slate-900">Thời gian & Địa điểm</Text>
             </View>
           </View>
 
-          <View style={styles.twoColGrid}>
-            <View style={styles.gridItem}>
-              <Text style={styles.gridItemLabel}>Dự kiến khởi công</Text>
-              <Text style={styles.gridItemValue}>{formatDate(opportunity.startDate)}</Text>
+          <View className="flex-row flex-wrap gap-3">
+            <View className="w-[47%] bg-slate-50 p-2.5 rounded-lg">
+              <Text className="text-[11px] text-slate-500 mb-0.5">Dự kiến khởi công</Text>
+              <Text className="text-[13px] font-bold text-slate-800">{formatDate(opportunity.startDate)}</Text>
             </View>
 
-            <View style={styles.gridItem}>
-              <Text style={styles.gridItemLabel}>Dự kiến kết thúc</Text>
-              <Text style={styles.gridItemValue}>{formatDate(opportunity.endDate)}</Text>
+            <View className="w-[47%] bg-slate-50 p-2.5 rounded-lg">
+              <Text className="text-[11px] text-slate-500 mb-0.5">Dự kiến kết thúc</Text>
+              <Text className="text-[13px] font-bold text-slate-800">{formatDate(opportunity.endDate)}</Text>
             </View>
 
-            <View style={styles.gridItem}>
-              <Text style={styles.gridItemLabel}>Địa điểm triển khai</Text>
-              <Text style={styles.gridItemValue}>
+            <View className="w-[47%] bg-slate-50 p-2.5 rounded-lg">
+              <Text className="text-[11px] text-slate-500 mb-0.5">Địa điểm triển khai</Text>
+              <Text className="text-[13px] font-bold text-slate-800">
                 {Array.isArray(opportunity.region)
                   ? opportunity.region
                       .map((r) => REGION_LABELS[r] || r)
@@ -747,9 +725,9 @@ export default function OpportunityDetailScreen() {
               </Text>
             </View>
 
-            <View style={styles.gridItem}>
-              <Text style={styles.gridItemLabel}>Thời lượng thực hiện</Text>
-              <Text style={styles.gridItemValue}>
+            <View className="w-[47%] bg-slate-50 p-2.5 rounded-lg">
+              <Text className="text-[11px] text-slate-500 mb-0.5">Thời lượng thực hiện</Text>
+              <Text className="text-[13px] font-bold text-slate-800">
                 {opportunity.durationMonths ? `${opportunity.durationMonths} Tháng` : 'Linh hoạt'}
               </Text>
             </View>
@@ -757,28 +735,28 @@ export default function OpportunityDetailScreen() {
         </View>
 
         {/* 6. KHỐI ĐÁNH GIÁ CƠ HỘI */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#FFEDD5' }]}>
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="flex-row justify-between items-center mb-3.5">
+            <View className="flex-row items-center gap-2">
+              <View className="w-7 h-7 rounded-lg justify-center items-center bg-orange-100">
                 <Ionicons name="trending-up" size={17} color="#EA580C" />
               </View>
-              <Text style={styles.sectionHeader}>Đánh giá cơ hội</Text>
+              <Text className="text-[15px] font-extrabold text-slate-900">Đánh giá cơ hội</Text>
             </View>
           </View>
 
-          <View style={styles.twoColGrid}>
-            <View style={styles.gridItem}>
-              <Text style={styles.gridItemLabel}>Lĩnh vực kinh doanh</Text>
-              <Text style={styles.gridItemValue}>
+          <View className="flex-row flex-wrap gap-3">
+            <View className="w-[47%] bg-slate-50 p-2.5 rounded-lg">
+              <Text className="text-[11px] text-slate-500 mb-0.5">Lĩnh vực kinh doanh</Text>
+              <Text className="text-[13px] font-bold text-slate-800">
                 {FIELD_LABELS[opportunity.field || ''] || opportunity.field || 'Chưa xác định'}
               </Text>
             </View>
 
-            <View style={styles.gridItem}>
-              <Text style={styles.gridItemLabel}>Độ ưu tiên</Text>
-              <View style={[styles.priorityBadgeInline, { backgroundColor: priorityTheme.bg }]}>
-                <Text style={[styles.priorityBadgeInlineText, { color: priorityTheme.text }]}>
+            <View className="w-[47%] bg-slate-50 p-2.5 rounded-lg">
+              <Text className="text-[11px] text-slate-500 mb-0.5">Độ ưu tiên</Text>
+              <View className="self-start px-2 py-0.5 rounded-md mt-0.5" style={{ backgroundColor: priorityTheme.bg }}>
+                <Text className="text-[11px] font-bold" style={{ color: priorityTheme.text }}>
                   {priorityLabel}
                 </Text>
               </View>
@@ -786,57 +764,55 @@ export default function OpportunityDetailScreen() {
           </View>
 
           {/* Win-rate bar */}
-          <View style={styles.winRateContainer}>
-            <View style={styles.winRateHeaderRow}>
-              <Text style={styles.winRateLabel}>Khả năng thành công (Win-rate)</Text>
-              <Text style={[styles.winRateValueText, { color: successColor }]}>
+          <View className="mt-3.5 bg-slate-50 p-3 rounded-xl">
+            <View className="flex-row justify-between items-center mb-1.5">
+              <Text className="text-xs font-semibold text-slate-600">Khả năng thành công (Win-rate)</Text>
+              <Text className="text-sm font-extrabold" style={{ color: successColor }}>
                 {successChance}%
               </Text>
             </View>
 
-            <View style={styles.progressBarBg}>
+            <View className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
               <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${Math.min(100, Math.max(0, successChance))}%`,
-                    backgroundColor: successColor,
-                  },
-                ]}
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(100, Math.max(0, successChance))}%`,
+                  backgroundColor: successColor,
+                }}
               />
             </View>
           </View>
         </View>
 
-        {/* 7. KHỐI DỊCH VỤ & GÓI DỊCH VỤ (Định mức chi tiết theo Web) */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#E0E7FF' }]}>
+        {/* 7. KHỐI DỊCH VỤ & GÓI DỊCH VỤ */}
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="flex-row justify-between items-center mb-3.5">
+            <View className="flex-row items-center gap-2">
+              <View className="w-7 h-7 rounded-lg justify-center items-center bg-indigo-100">
                 <Feather name="package" size={16} color="#4F46E5" />
               </View>
-              <Text style={styles.sectionHeader}>Dịch vụ & Gói dịch vụ</Text>
+              <Text className="text-[15px] font-extrabold text-slate-900">Dịch vụ & Gói dịch vụ</Text>
             </View>
           </View>
 
           {/* Danh sách các gói thầu */}
           {packages.length > 0 && (
-            <View style={styles.packagesWrapper}>
+            <View className="gap-3">
               {packages.map((pkg) => (
-                <View key={pkg.id} style={styles.packageCard}>
-                  <View style={styles.packageCardHeader}>
-                    <View style={styles.packageIcon}>
+                <View key={pkg.id} className="bg-sky-50/60 rounded-xl p-3 border border-sky-200">
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <View className="w-6 h-6 rounded-md bg-sky-100 justify-center items-center">
                       <Feather name="briefcase" size={14} color="#2563EB" />
                     </View>
-                    <Text style={styles.packageNameText}>
+                    <Text className="text-sm font-extrabold text-sky-800 flex-1">
                       Gói: {pkg.name}{' '}
-                      <Text style={styles.packageQtyText}>x{pkg.quantity || 1}</Text>
+                      <Text className="text-[13px] font-semibold text-sky-600">x{pkg.quantity || 1}</Text>
                     </Text>
                   </View>
 
                   {/* Định mức dịch vụ con */}
-                  <View style={styles.subServicesContainer}>
-                    <Text style={styles.subServicesNotice}>
+                  <View className="ml-2 pl-2.5 border-l-2 border-sky-200 gap-2">
+                    <Text className="text-[10px] font-bold text-sky-600 italic uppercase tracking-wider">
                       Số lượng dưới đây là định mức cho 1 gói:
                     </Text>
 
@@ -848,21 +824,21 @@ export default function OpportunityDetailScreen() {
                         const unitName = s.service?.unit || s.unit || 'Đơn vị';
 
                         return (
-                          <View key={s.id} style={styles.subServiceRow}>
-                            <View style={{ flex: 1, paddingRight: 8 }}>
-                              <Text style={styles.subServiceName}>{s.service?.name || 'Dịch vụ'}</Text>
-                              <Text style={styles.subServiceQuota}>
+                          <View key={s.id} className="flex-row justify-between items-center py-1 border-b border-sky-100">
+                            <View className="flex-1 pr-2">
+                              <Text className="text-xs font-semibold text-slate-800">{s.service?.name || 'Dịch vụ'}</Text>
+                              <Text className="text-[11px] text-slate-500 mt-0.5">
                                 Định mức: {quotaDisplay} {unitName} / Gói
                               </Text>
                             </View>
-                            <Text style={styles.subServicePrice}>
+                            <Text className="text-xs font-bold text-sky-700">
                               {formatNumber(s.sellingPrice)} VNĐ
                             </Text>
                           </View>
                         );
                       })
                     ) : (
-                      <Text style={styles.emptySubText}>Chưa có dịch vụ thành phần trong gói.</Text>
+                      <Text className="text-[11px] text-slate-400 italic">Chưa có dịch vụ thành phần trong gói.</Text>
                     )}
                   </View>
                 </View>
@@ -872,19 +848,19 @@ export default function OpportunityDetailScreen() {
 
           {/* Danh sách Dịch vụ lẻ */}
           {standaloneServices.length > 0 && (
-            <View style={styles.standaloneWrapper}>
-              <Text style={styles.sectionSubTitle}>Dịch vụ lẻ</Text>
+            <View className="mt-3.5 gap-1.5">
+              <Text className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-1">Dịch vụ lẻ</Text>
               {standaloneServices.map((s, idx) => (
-                <View key={s.id || idx} style={styles.standaloneItemRow}>
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={styles.standaloneName}>
+                <View key={s.id || idx} className="flex-row justify-between items-center bg-slate-50 rounded-xl p-2.5 border border-slate-200">
+                  <View className="flex-1 pr-2">
+                    <Text className="text-[13px] font-semibold text-slate-800">
                       {s.service?.name || s.serviceName || 'Dịch vụ lẻ'}
                     </Text>
-                    <Text style={styles.standaloneQty}>
+                    <Text className="text-[11px] text-slate-500 mt-0.5">
                       Số lượng: {s.quantity || 1} {s.service?.unit || s.unit || ''}
                     </Text>
                   </View>
-                  <Text style={styles.standalonePrice}>
+                  <Text className="text-[13px] font-bold text-slate-700">
                     {formatNumber(s.sellingPrice || s.expectedRevenue)} VNĐ
                   </Text>
                 </View>
@@ -893,50 +869,49 @@ export default function OpportunityDetailScreen() {
           )}
 
           {packages.length === 0 && standaloneServices.length === 0 && (
-            <View style={styles.emptyServicesBox}>
+            <View className="py-5 items-center gap-1.5">
               <Feather name="layers" size={24} color="#CBD5E1" />
-              <Text style={styles.emptyServicesText}>Chưa có dịch vụ hoặc gói nào được chọn.</Text>
+              <Text className="text-xs text-slate-400 italic">Chưa có dịch vụ hoặc gói nào được chọn.</Text>
             </View>
           )}
         </View>
 
         {/* 8. KHỐI YÊU CẦU KHÁCH HÀNG & TÀI LIỆU ĐÍNH KÈM */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#CFFAFE' }]}>
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="flex-row justify-between items-center mb-3.5">
+            <View className="flex-row items-center gap-2">
+              <View className="w-7 h-7 rounded-lg justify-center items-center bg-cyan-100">
                 <Feather name="file-text" size={16} color="#0891B2" />
               </View>
-              <Text style={styles.sectionHeader}>Yêu cầu & Tài liệu đính kèm</Text>
+              <Text className="text-[15px] font-extrabold text-slate-900">Yêu cầu & Tài liệu đính kèm</Text>
             </View>
           </View>
 
           {/* Yêu cầu đặc thù của khách hàng */}
           {opportunity.customerRequirements ? (
-            <View style={styles.requirementsBox}>
-              <Text style={styles.requirementsTitle}>Yêu cầu đặc thù của khách hàng:</Text>
-              <Text style={styles.requirementsContent}>{opportunity.customerRequirements}</Text>
+            <View className="bg-teal-50/50 border border-teal-100 rounded-xl p-3 mb-3">
+              <Text className="text-xs font-bold text-teal-600 mb-1">Yêu cầu đặc thù của khách hàng:</Text>
+              <Text className="text-[13px] text-teal-900 leading-[18px]">{opportunity.customerRequirements}</Text>
             </View>
           ) : null}
 
           {/* Danh sách tệp & liên kết đính kèm */}
           {attachments.length > 0 ? (
-            <View style={styles.attachmentsList}>
-              <Text style={styles.sectionSubTitle}>Tài liệu đính kèm ({attachments.length})</Text>
+            <View className="gap-2">
+              <Text className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-1">Tài liệu đính kèm ({attachments.length})</Text>
               {attachments.map((att, idx) => {
                 const isLink = att.type === 'LINK';
                 return (
                   <TouchableOpacity
                     key={att.id || idx}
-                    style={styles.attachmentItemCard}
+                    className="flex-row items-center bg-slate-50 rounded-xl p-2.5 border border-slate-200 gap-2.5"
                     onPress={() => handleOpenLink(att.url)}
                     activeOpacity={0.7}
                   >
                     <View
-                      style={[
-                        styles.attachmentIconBox,
-                        { backgroundColor: isLink ? '#EFF6FF' : '#F3E8FF' },
-                      ]}
+                      className={`w-8 h-8 rounded-lg justify-center items-center ${
+                        isLink ? 'bg-blue-50' : 'bg-purple-100'
+                      }`}
                     >
                       <Feather
                         name={isLink ? 'external-link' : 'file'}
@@ -945,16 +920,16 @@ export default function OpportunityDetailScreen() {
                       />
                     </View>
 
-                    <View style={styles.attachmentMeta}>
-                      <Text style={styles.attachmentName} numberOfLines={1}>
+                    <View className="flex-1">
+                      <Text className="text-[13px] font-semibold text-slate-800" numberOfLines={1}>
                         {att.name || att.url}
                       </Text>
                       {isLink ? (
-                        <Text style={styles.attachmentSubText} numberOfLines={1}>
+                        <Text className="text-[11px] text-slate-500 mt-0.5" numberOfLines={1}>
                           {att.url}
                         </Text>
                       ) : att.size ? (
-                        <Text style={styles.attachmentSubText}>
+                        <Text className="text-[11px] text-slate-500 mt-0.5">
                           {(att.size / 1024).toFixed(1)} KB
                         </Text>
                       ) : null}
@@ -966,38 +941,38 @@ export default function OpportunityDetailScreen() {
               })}
             </View>
           ) : !opportunity.customerRequirements ? (
-            <View style={styles.emptyAttachmentsBox}>
+            <View className="py-4 items-center gap-1.5">
               <Feather name="paperclip" size={20} color="#CBD5E1" />
-              <Text style={styles.emptyAttachmentsText}>Không có tài liệu hoặc yêu cầu đính kèm.</Text>
+              <Text className="text-xs text-slate-400 italic">Không có tài liệu hoặc yêu cầu đính kèm.</Text>
             </View>
           ) : null}
         </View>
 
         {/* 9. KHỐI THÔNG TIN BỔ SUNG */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#F1F5F9' }]}>
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="flex-row justify-between items-center mb-3.5">
+            <View className="flex-row items-center gap-2">
+              <View className="w-7 h-7 rounded-lg justify-center items-center bg-slate-100">
                 <Feather name="info" size={16} color="#64748B" />
               </View>
-              <Text style={styles.sectionHeader}>Thông tin bổ sung</Text>
+              <Text className="text-[15px] font-extrabold text-slate-900">Thông tin bổ sung</Text>
             </View>
           </View>
 
-          <View style={styles.additionalList}>
-            <View style={styles.additionalRow}>
-              <Text style={styles.additionalLabel}>Ngày tạo</Text>
-              <Text style={styles.additionalValue}>{formatDate(opportunity.createdAt)}</Text>
+          <View className="gap-2">
+            <View className="flex-row justify-between py-1 border-b border-slate-50">
+              <Text className="text-xs text-slate-500">Ngày tạo</Text>
+              <Text className="text-xs font-semibold text-slate-800">{formatDate(opportunity.createdAt)}</Text>
             </View>
 
-            <View style={styles.additionalRow}>
-              <Text style={styles.additionalLabel}>Cập nhật lần cuối</Text>
-              <Text style={styles.additionalValue}>{formatDate(opportunity.updatedAt)}</Text>
+            <View className="flex-row justify-between py-1 border-b border-slate-50">
+              <Text className="text-xs text-slate-500">Cập nhật lần cuối</Text>
+              <Text className="text-xs font-semibold text-slate-800">{formatDate(opportunity.updatedAt)}</Text>
             </View>
 
-            <View style={styles.additionalRow}>
-              <Text style={styles.additionalLabel}>Người tạo</Text>
-              <Text style={styles.additionalValue}>
+            <View className="flex-row justify-between py-1 border-b border-slate-50">
+              <Text className="text-xs text-slate-500">Người tạo</Text>
+              <Text className="text-xs font-semibold text-slate-800">
                 {opportunity.createdBy?.fullName ||
                   opportunity.creator?.fullName ||
                   opportunity.createdBy?.username ||
@@ -1006,28 +981,28 @@ export default function OpportunityDetailScreen() {
             </View>
 
             {opportunity.referralPartner && (
-              <View style={styles.additionalRow}>
-                <Text style={styles.additionalLabel}>Đối tác giới thiệu</Text>
-                <Text style={styles.additionalValue}>{opportunity.referralPartner.name}</Text>
+              <View className="flex-row justify-between py-1 border-b border-slate-50">
+                <Text className="text-xs text-slate-500">Đối tác giới thiệu</Text>
+                <Text className="text-xs font-semibold text-slate-800">{opportunity.referralPartner.name}</Text>
               </View>
             )}
           </View>
         </View>
 
         {/* 10. KHỐI BÁO GIÁ */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleWithIcon}>
-              <View style={[styles.titleIconBox, { backgroundColor: '#ECFDF5' }]}>
+        <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+          <View className="flex-row justify-between items-center mb-3.5">
+            <View className="flex-row items-center gap-2">
+              <View className="w-7 h-7 rounded-lg justify-center items-center bg-emerald-100">
                 <Feather name="file-text" size={16} color="#059669" />
               </View>
-              <Text style={styles.sectionHeader}>Báo giá ({quotations.length})</Text>
+              <Text className="text-[15px] font-extrabold text-slate-900">Báo giá ({quotations.length})</Text>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View className="flex-row items-center gap-2">
               {canCreateQuotation && (
                 <TouchableOpacity
-                  style={styles.createQuoteInlineBtn}
+                  className="flex-row items-center gap-1 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200"
                   onPress={() =>
                     router.push({
                       pathname: '/opportunities/quotations/create',
@@ -1037,12 +1012,12 @@ export default function OpportunityDetailScreen() {
                   activeOpacity={0.8}
                 >
                   <Feather name="plus" size={14} color="#059669" />
-                  <Text style={styles.createQuoteInlineText}>Tạo báo giá</Text>
+                  <Text className="text-xs font-bold text-emerald-600">Tạo báo giá</Text>
                 </TouchableOpacity>
               )}
               {quotations.length > 0 && (
                 <TouchableOpacity
-                  style={styles.seeAllQuotesBtn}
+                  className="flex-row items-center gap-0.5"
                   onPress={() =>
                     router.push({
                       pathname: '/opportunities/quotations/list',
@@ -1051,7 +1026,7 @@ export default function OpportunityDetailScreen() {
                   }
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.seeAllQuotesText}>Xem tất cả</Text>
+                  <Text className="text-xs font-semibold text-slate-500">Xem tất cả</Text>
                   <Feather name="chevron-right" size={14} color="#64748B" />
                 </TouchableOpacity>
               )}
@@ -1096,16 +1071,16 @@ export default function OpportunityDetailScreen() {
               );
             })
           ) : (
-            <View style={styles.noQuoteBox}>
+            <View className="p-6 items-center justify-center gap-2">
               <Feather name="file-text" size={24} color="#CBD5E1" />
-              <Text style={styles.noQuoteText}>
+              <Text className="text-xs text-slate-400 text-center">
                 {hasCustomer
                   ? 'Chưa có bản báo giá nào được tạo cho cơ hội này.'
                   : 'Vui lòng gán thông tin khách hàng để thực hiện tạo báo giá.'}
               </Text>
               {canCreateQuotation && (
                 <TouchableOpacity
-                  style={styles.emptyCreateQuoteBtn}
+                  className="flex-row items-center gap-1.5 bg-emerald-600 px-3.5 py-2 rounded-lg mt-2"
                   onPress={() =>
                     router.push({
                       pathname: '/opportunities/quotations/create',
@@ -1115,38 +1090,34 @@ export default function OpportunityDetailScreen() {
                   activeOpacity={0.85}
                 >
                   <Feather name="plus" size={14} color="#FFFFFF" />
-                  <Text style={styles.emptyCreateQuoteBtnText}>Tạo báo giá đầu tiên</Text>
+                  <Text className="text-[13px] font-bold text-white">Tạo báo giá đầu tiên</Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
         </View>
 
-        {/* 11. KHỐI HỢP ĐỒNG KINH TẾ (NẾU ĐÃ CÓ HỢP ĐỒNG HOẶC SẴN SÀNG TẠO) */}
+        {/* 11. KHỐI HỢP ĐỒNG KINH TẾ */}
         {hasContract && linkedContract && (
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.sectionTitleWithIcon}>
-                <View style={[styles.titleIconBox, { backgroundColor: '#F0FDFA' }]}>
+          <View className="bg-white rounded-[18px] p-4 mb-3.5 border border-slate-200 shadow-sm">
+            <View className="flex-row justify-between items-center mb-3.5">
+              <View className="flex-row items-center gap-2">
+                <View className="w-7 h-7 rounded-lg justify-center items-center bg-teal-50">
                   <Feather name="briefcase" size={16} color="#0D9488" />
                 </View>
-                <Text style={styles.sectionHeader}>Hợp đồng kinh tế</Text>
+                <Text className="text-[15px] font-extrabold text-slate-900">Hợp đồng kinh tế</Text>
               </View>
               {(() => {
                 const statusKey = linkedContract.status || '';
                 const conf = CONTRACT_STATUS_CONFIG[statusKey];
                 return (
                   <View
-                    style={[
-                      styles.contractStatusBadge,
-                      conf ? { backgroundColor: conf.bg, borderColor: conf.border } : null,
-                    ]}
+                    className="bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md"
+                    style={conf ? { backgroundColor: conf.bg, borderColor: conf.border } : undefined}
                   >
                     <Text
-                      style={[
-                        styles.contractStatusBadgeText,
-                        conf ? { color: conf.color } : null,
-                      ]}
+                      className="text-[11px] font-bold text-teal-600"
+                      style={conf ? { color: conf.color } : undefined}
                     >
                       {conf?.text ||
                         CONTRACT_STATUS_LABELS[statusKey] ||
@@ -1158,27 +1129,27 @@ export default function OpportunityDetailScreen() {
               })()}
             </View>
 
-            <View style={styles.contractCardBody}>
-              <View style={styles.contractCardTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.contractCardCode}>
+            <View className="bg-slate-50 rounded-xl border border-slate-200 p-3">
+              <View className="flex-row justify-between items-start mb-2.5">
+                <View className="flex-1">
+                  <Text className="text-xs font-extrabold text-cyan-600">
                     {linkedContract.contractCode ||
                       (linkedContract as any).contract_code ||
                       '—'}
                   </Text>
-                  <Text style={styles.contractCardName}>
+                  <Text className="text-sm font-bold text-slate-900 mt-0.5">
                     {linkedContract.name || opportunity.name}
                   </Text>
                 </View>
                 {linkedContract.sellingPrice ? (
-                  <Text style={styles.contractCardPrice}>
+                  <Text className="text-sm font-extrabold text-emerald-600">
                     {formatVNDFull(linkedContract.sellingPrice)}
                   </Text>
                 ) : null}
               </View>
 
               <TouchableOpacity
-                style={styles.openContractDetailBtn}
+                className="flex-row items-center justify-center gap-1.5 bg-white border border-cyan-100 py-2 rounded-lg"
                 onPress={() =>
                   router.push({
                     pathname: '/contracts/[id]',
@@ -1187,7 +1158,7 @@ export default function OpportunityDetailScreen() {
                 }
                 activeOpacity={0.85}
               >
-                <Text style={styles.openContractDetailText}>Xem chi tiết hợp đồng</Text>
+                <Text className="text-[13px] font-bold text-cyan-600">Xem chi tiết hợp đồng</Text>
                 <Feather name="arrow-right" size={15} color="#0891B2" />
               </TouchableOpacity>
             </View>
@@ -1196,17 +1167,17 @@ export default function OpportunityDetailScreen() {
 
         {/* CALLOUT BANNER: SẴN SÀNG TẠO HỢP ĐỒNG */}
         {canCreateContract && !linkedContract && (
-          <View style={styles.readyContractBanner}>
-            <View style={styles.readyContractIconBox}>
+          <View className="flex-row gap-3 bg-cyan-50 border border-cyan-100 rounded-2xl p-4">
+            <View className="w-9 h-9 rounded-xl bg-cyan-100 items-center justify-center">
               <Feather name="check-circle" size={20} color="#0891B2" />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.readyContractTitle}>Báo giá đã được phê duyệt!</Text>
-              <Text style={styles.readyContractSub}>
+            <View className="flex-1">
+              <Text className="text-[15px] font-extrabold text-cyan-900 mb-1">Báo giá đã được phê duyệt!</Text>
+              <Text className="text-xs text-cyan-800 leading-[18px] mb-3">
                 Cơ hội kinh doanh này đã có bản báo giá được duyệt. Bạn có thể tiến hành tạo hồ sơ hợp đồng chính thức ngay.
               </Text>
               <TouchableOpacity
-                style={styles.readyCreateContractBtn}
+                className="flex-row items-center justify-center gap-1.5 bg-cyan-600 py-2.5 rounded-lg"
                 onPress={handlePromptCreateContract}
                 disabled={isCreatingContract}
                 activeOpacity={0.85}
@@ -1216,7 +1187,7 @@ export default function OpportunityDetailScreen() {
                 ) : (
                   <>
                     <Feather name="plus-circle" size={15} color="#FFFFFF" />
-                    <Text style={styles.readyCreateContractBtnText}>Tạo hợp đồng ngay</Text>
+                    <Text className="text-[13px] font-bold text-white">Tạo hợp đồng ngay</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -1224,7 +1195,7 @@ export default function OpportunityDetailScreen() {
           </View>
         )}
 
-        <View style={{ height: 20 }} />
+        <View className="h-5" />
       </ScrollView>
 
       {/* 11. MODAL GÁN / CHỈNH SỬA KHÁCH HÀNG (BOTTOM SHEET) */}
@@ -1247,10 +1218,12 @@ export default function OpportunityDetailScreen() {
 
       {/* 12. STICKY BOTTOM BAR: NÚT DUYỆT CƠ HỘI CHO BOD / ADMIN */}
       {isAdminOrBod && isAwaitingApproval && (
-        <View style={styles.bottomBar}>
+        <View className="p-4 bg-white border-t border-slate-200">
           {hasCustomer ? (
             <TouchableOpacity
-              style={[styles.approveActionBtn, isApproving && styles.approveActionBtnDisabled]}
+              className={`flex-row items-center justify-center gap-2 bg-primary py-3.5 rounded-2xl shadow-lg ${
+                isApproving ? 'opacity-60' : ''
+              }`}
               onPress={handleApproveOpportunity}
               disabled={isApproving}
               activeOpacity={0.85}
@@ -1260,18 +1233,18 @@ export default function OpportunityDetailScreen() {
               ) : (
                 <>
                   <Feather name="check-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.approveActionBtnText}>Phê duyệt cơ hội này</Text>
+                  <Text className="text-[15px] font-extrabold text-white">Phê duyệt cơ hội này</Text>
                 </>
               )}
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={styles.requireCustomerBtn}
+              className="flex-row items-center justify-center gap-2 bg-amber-600 py-3.5 rounded-2xl shadow-lg"
               onPress={() => setIsCustomerModalVisible(true)}
               activeOpacity={0.85}
             >
               <Feather name="user-plus" size={17} color="#FFFFFF" />
-              <Text style={styles.requireCustomerBtnText}>
+              <Text className="text-[15px] font-extrabold text-white">
                 Thêm khách hàng để duyệt cơ hội
               </Text>
             </TouchableOpacity>
@@ -1281,782 +1254,3 @@ export default function OpportunityDetailScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  loadingDesc: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#64748B',
-  },
-  errorTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 16,
-  },
-  backBtn: {
-    backgroundColor: BrandColors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  backBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerInfo: {
-    alignItems: 'center',
-  },
-  headerCode: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  headerSub: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  mainCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1.5,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  priorityBox: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  priorityText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  oppTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-    lineHeight: 24,
-    marginBottom: 8,
-  },
-  oppDesc: {
-    fontSize: 13,
-    color: '#475569',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  stepperContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  stepperItem: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  stepperDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  stepperText: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  stepperLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#E2E8F0',
-    marginHorizontal: 4,
-    marginBottom: 14,
-  },
-  cardWrapper: {
-    marginBottom: 14,
-  },
-  sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 5,
-    elevation: 1.5,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  sectionTitleWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  titleIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionHeader: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  sectionSubTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  financialGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  financialBox: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  financialLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  revenueHighlight: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: BrandColors.primary,
-  },
-  financialValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  twoColGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  gridItem: {
-    width: '47%',
-    backgroundColor: '#F8FAFC',
-    padding: 10,
-    borderRadius: 10,
-  },
-  gridItemLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    marginBottom: 2,
-  },
-  gridItemValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  priorityBadgeInline: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 2,
-  },
-  priorityBadgeInlineText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  winRateContainer: {
-    marginTop: 14,
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 12,
-  },
-  winRateHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  winRateLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  winRateValueText: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  packagesWrapper: {
-    gap: 12,
-  },
-  packageCard: {
-    backgroundColor: '#F0F9FF',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-  },
-  packageCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  packageIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: '#E0F2FE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  packageNameText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0369A1',
-    flex: 1,
-  },
-  packageQtyText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0284C7',
-  },
-  subServicesContainer: {
-    marginLeft: 8,
-    paddingLeft: 10,
-    borderLeftWidth: 2,
-    borderLeftColor: '#BAE6FD',
-    gap: 8,
-  },
-  subServicesNotice: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#0284C7',
-    fontStyle: 'italic',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  subServiceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0F2FE',
-  },
-  subServiceName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  subServiceQuota: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  subServicePrice: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0369A1',
-  },
-  emptySubText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  standaloneWrapper: {
-    marginTop: 14,
-    gap: 6,
-  },
-  standaloneItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  standaloneName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  standaloneQty: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  standalonePrice: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  emptyServicesBox: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyServicesText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  requirementsBox: {
-    backgroundColor: '#F0FDFA',
-    borderWidth: 1,
-    borderColor: '#CCFBF1',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  requirementsTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0D9488',
-    marginBottom: 4,
-  },
-  requirementsContent: {
-    fontSize: 13,
-    color: '#134E4A',
-    lineHeight: 18,
-  },
-  attachmentsList: {
-    gap: 8,
-  },
-  attachmentItemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 10,
-  },
-  attachmentIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  attachmentMeta: {
-    flex: 1,
-  },
-  attachmentName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  attachmentSubText: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  emptyAttachmentsBox: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyAttachmentsText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  additionalList: {
-    gap: 8,
-  },
-  additionalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
-  },
-  additionalLabel: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  additionalValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  noQuoteBox: {
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  noQuoteText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
-  createQuoteInlineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  createQuoteInlineText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  seeAllQuotesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  seeAllQuotesText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  emptyCreateQuoteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#059669',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  emptyCreateQuoteBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  headerActionsBar: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  viewQuoteWrapper: {
-    position: 'relative',
-    flex: 1,
-    minWidth: 125,
-  },
-  headerViewQuotesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 8,
-  },
-  headerViewQuotesText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  headerBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#DC2626',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  headerBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  headerCreateQuoteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#059669',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 8,
-  },
-  headerCreateQuoteText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  headerCreateContractBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#0891B2',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 8,
-  },
-  headerCreateContractText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  headerViewContractBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    borderRadius: 8,
-    flex: 1,
-    minWidth: 120,
-  },
-  headerViewContractText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  contractStatusBadge: {
-    backgroundColor: '#F0FDFA',
-    borderWidth: 1,
-    borderColor: '#99F6E4',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  contractStatusBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#0D9488',
-  },
-  contractCardBody: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 12,
-  },
-  contractCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  contractCardCode: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0891B2',
-    fontFamily: 'monospace',
-  },
-  contractCardName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginTop: 2,
-  },
-  contractCardPrice: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  openContractDetailBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#CFFAFE',
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  openContractDetailText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0891B2',
-  },
-  readyContractBanner: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: '#ECFEFF',
-    borderWidth: 1,
-    borderColor: '#CFFAFE',
-    borderRadius: 14,
-    padding: 16,
-  },
-  readyContractIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#CFFAFE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  readyContractTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#155E75',
-    marginBottom: 4,
-  },
-  readyContractSub: {
-    fontSize: 12,
-    color: '#0E7490',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  readyCreateContractBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#0891B2',
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  readyCreateContractBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  bottomBar: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-  },
-  approveActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: BrandColors.primary,
-    paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: BrandColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  approveActionBtnDisabled: {
-    opacity: 0.6,
-  },
-  approveActionBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  requireCustomerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#D97706',
-    paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: '#D97706',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  requireCustomerBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-});

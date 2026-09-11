@@ -337,11 +337,14 @@ class ApiService {
   }
 
   async logout() {
-    const res = await this.request<{ message: string }>('/auth/logout', {
-      method: 'POST',
-    });
-    await this.saveCookies({});
-    return res;
+    try {
+      return await this.request<{ message: string }>('/auth/logout', {
+        method: 'POST',
+      });
+    } finally {
+      await this.saveCookies({});
+      await privateStorage.removeItem(STORAGE_USER_KEY).catch(() => undefined);
+    }
   }
 
   async getMe() {

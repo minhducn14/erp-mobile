@@ -1,0 +1,76 @@
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { sseEventBus } from '@/services/sseEventBus';
+import { queryKeys } from '@/services/queryKeys';
+
+/**
+ * Hook to bridge SSE EventBus with TanStack Query Cache.
+ * When real-time SSE events arrive from backend, this automatically invalidates
+ * the corresponding TanStack Query cache tags.
+ */
+export function useSSEQueryBridge() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Invalidate Opportunity Queries on SSE signal
+    const handleOpportunityInvalidate = () => {
+      console.log('⚡ [SSE QueryBridge] Invalidating Opportunities cache');
+      queryClient.invalidateQueries({ queryKey: queryKeys.opportunities.all });
+    };
+
+    // Invalidate Quotation Queries on SSE signal
+    const handleQuotationInvalidate = () => {
+      console.log('⚡ [SSE QueryBridge] Invalidating Quotations cache');
+      queryClient.invalidateQueries({ queryKey: queryKeys.quotations.all });
+    };
+
+    // Invalidate Notifications on new notification event
+    const handleNotification = () => {
+      console.log('⚡ [SSE QueryBridge] Invalidating Notifications cache');
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+    };
+
+    // Invalidate Customer Queries on SSE signal
+    const handleCustomerInvalidate = () => {
+      console.log('⚡ [SSE QueryBridge] Invalidating Customers cache');
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
+    };
+
+    // Invalidate Contract Queries on SSE signal
+    const handleContractInvalidate = () => {
+      console.log('⚡ [SSE QueryBridge] Invalidating Contracts cache');
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
+    };
+
+    // Invalidate Project Queries on SSE signal
+    const handleProjectInvalidate = () => {
+      console.log('⚡ [SSE QueryBridge] Invalidating Projects cache');
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    };
+
+    // Invalidate Acceptance Queries on SSE signal
+    const handleAcceptanceInvalidate = () => {
+      console.log('⚡ [SSE QueryBridge] Invalidating Acceptances cache');
+      queryClient.invalidateQueries({ queryKey: queryKeys.acceptances.all });
+    };
+
+    // Listen to sseEventBus channels
+    const unsubOpp = sseEventBus.on('invalidate_Opportunities', handleOpportunityInvalidate);
+    const unsubQuo = sseEventBus.on('invalidate_Quotations', handleQuotationInvalidate);
+    const unsubCus = sseEventBus.on('invalidate_Customers', handleCustomerInvalidate);
+    const unsubCon = sseEventBus.on('invalidate_Contracts', handleContractInvalidate);
+    const unsubProj = sseEventBus.on('invalidate_Projects', handleProjectInvalidate);
+    const unsubAcc = sseEventBus.on('invalidate_Acceptances', handleAcceptanceInvalidate);
+    const unsubNotif = sseEventBus.on('notification', handleNotification);
+
+    return () => {
+      if (typeof unsubOpp === 'function') unsubOpp();
+      if (typeof unsubQuo === 'function') unsubQuo();
+      if (typeof unsubCus === 'function') unsubCus();
+      if (typeof unsubCon === 'function') unsubCon();
+      if (typeof unsubProj === 'function') unsubProj();
+      if (typeof unsubAcc === 'function') unsubAcc();
+      if (typeof unsubNotif === 'function') unsubNotif();
+    };
+  }, [queryClient]);
+}

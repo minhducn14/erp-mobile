@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatCard } from '../StatCard';
 import { ReviewQueueWidget } from '../ReviewQueueWidget';
@@ -23,9 +23,9 @@ export const TeamLeadDashboardView: React.FC<TeamLeadDashboardViewProps> = ({
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
+    <View className="gap-4">
       {/* 3 Team Lead Metrics */}
-      <View style={styles.statsGrid}>
+      <View className="flex-row flex-wrap justify-between gap-2.5">
         <StatCard
           title="Dự án team"
           value={teamLeadProjects.length}
@@ -71,15 +71,3 @@ export const TeamLeadDashboardView: React.FC<TeamLeadDashboardViewProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    gap: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-});
