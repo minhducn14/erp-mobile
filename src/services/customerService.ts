@@ -21,9 +21,20 @@ export interface CustomerItem {
   }>;
 }
 
+export interface CustomerListFilters {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
 class CustomerService {
-  async getCustomers(): Promise<{ data?: CustomerItem[]; error?: string }> {
-    const res = await apiService.get<CustomerItem[]>('/customers');
+  async getCustomers(filters?: CustomerListFilters): Promise<{ data?: CustomerItem[]; error?: string }> {
+    const searchParams = new URLSearchParams();
+    if (filters?.search) searchParams.append('search', filters.search);
+    if (filters?.page) searchParams.append('page', String(filters.page));
+    if (filters?.limit) searchParams.append('limit', String(filters.limit));
+    const query = searchParams.toString();
+    const res = await apiService.get<CustomerItem[]>(`/customers${query ? `?${query}` : ''}`);
     return { data: res.data, error: res.error };
   }
 

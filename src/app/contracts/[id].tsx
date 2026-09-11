@@ -21,7 +21,13 @@ import { BrandColors } from '@/constants/colors';
 import * as DocumentPicker from 'expo-document-picker';
 import { uploadToCloudinary, PickedFile } from '@/services/cloudinaryService';
 import {
-  contractService,
+  useContractDetailQuery,
+  useApproveProposalMutation,
+  useRejectProposalMutation,
+  useUploadProposalMutation,
+  useUploadSignedMutation,
+} from '@/hooks/queries/useContracts';
+import {
   ContractItem,
   ContractStatus,
   MilestoneStatus,
@@ -54,15 +60,30 @@ const formatDate = (dateStr?: string) => {
 };
 
 export default function ContractDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
+  const contractId = String(params.id || '');
   const router = useRouter();
   const { user } = useAuth();
   const isAdminOrBod = isManagementRole(user?.role);
 
-  const [contract, setContract] = useState<ContractItem | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
+  // TanStack Query for contract detail
+  const { data: contractData, isLoading: isContractLoading, isFetching, refetch } = useContractDetailQuery(contractId);
+  const contract: ContractItem | null = contractData || null;
+
+  // TanStack Mutations
+  const approveProposalMutation = useApproveProposalMutation();
+  const rejectProposalMutation = useRejectProposalMutation();
+  const uploadProposalMutation = useUploadProposalMutation();
+  const uploadSignedMutation = useUploadSignedMutation();
+
+  const actionLoading =
+    approveProposalMutation.isPending ||
+    rejectProposalMutation.isPending ||
+    uploadProposalMutation.isPending ||
+    uploadSignedMutation.isPending;
+
+  const isLoading = isContractLoading;
+  const isRefreshing = isFetching;
 
   // Reject Proposal Modal
   const [isRejectModalVisible, setIsRejectModalVisible] = useState(false);
@@ -97,15 +118,12 @@ export default function ContractDetailScreen() {
     }
   }, [isAdminOrBod]);
 
-  const loadContract = useCallback(async () => {
-    if (!id) return;
-    try {
-      const res = await contractService.getContract(id as string);
-      if (res.data) {
-        setContract(res.data);
-        // Tải dự án liên kết với hợp đồng (Chuẩn Web ERP ProjectInfo.jsx)
-        try {
-          const projRes = await projectService.getProjectByContract(id as string);
+  // Load project linked with contract
+  useEffect(() => {
+    if (contractId) {
+      projectService
+        .getProjectByContract(contractId)
+        .then((projRes) => {
           if (projRes.data) {
             setProject(projRes.data);
             const pmMember = projRes.data.team?.members?.find((m) => m.role === 'PROJECT_MANAGER');
@@ -113,25 +131,16 @@ export default function ContractDetailScreen() {
           } else {
             setProject(null);
           }
-        } catch {
-          setProject(null);
-        }
-      } else if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      }
-    } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể tải thông tin hợp đồng');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+        })
+        .catch(() => setProject(null));
     }
-  }, [id]);
+  }, [contractId]);
 
-  useEffect(() => {
-    loadContract();
-  }, [loadContract]);
+  useSSERefresh('invalidate_Contracts', refetch);
 
-  useSSERefresh('invalidate_Contracts', loadContract);
+  const handleRefresh = () => {
+    refetch();
+  };
 
   const handleAssignPmSubmit = async (pmId: string) => {
     if (!contract) return;
@@ -143,18 +152,13 @@ export default function ContractDetailScreen() {
       } else {
         Alert.alert('Thành công', 'Phân công PM phụ trách dự án thành công!');
         setIsPmPickerVisible(false);
-        loadContract();
+        refetch();
       }
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Không thể phân công PM');
     } finally {
       setIsAssigningPm(false);
     }
-  };
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadContract();
   };
 
   const handleCallPhone = (phone?: string) => {
@@ -173,7 +177,7 @@ export default function ContractDetailScreen() {
     Linking.openURL(url);
   };
 
-  const handleApproveProposal = () => {
+  const handleApproveProposal = async () => {
     if (!contract) return;
     Alert.alert(
       'Xác nhận phê duyệt',
@@ -184,18 +188,10 @@ export default function ContractDetailScreen() {
           text: 'Phê duyệt',
           onPress: async () => {
             try {
-              setActionLoading(true);
-              const res = await contractService.approveProposal(contract.id);
-              if (res.error) {
-                Alert.alert('Lỗi', res.error);
-              } else {
-                Alert.alert('Thành công', 'Đã phê duyệt Proposal hợp đồng');
-                loadContract();
-              }
+              await approveProposalMutation.mutateAsync(contract.id);
+              Alert.alert('Thành công', 'Đã phê duyệt Proposal hợp đồng');
             } catch (err: any) {
               Alert.alert('Lỗi', err?.message || 'Phê duyệt thất bại');
-            } finally {
-              setActionLoading(false);
             }
           },
         },
@@ -211,20 +207,15 @@ export default function ContractDetailScreen() {
     }
 
     try {
-      setActionLoading(true);
-      const res = await contractService.rejectProposal(contract.id, rejectReason.trim());
-      if (res.error) {
-        Alert.alert('Lỗi', res.error);
-      } else {
-        setIsRejectModalVisible(false);
-        setRejectReason('');
-        Alert.alert('Thành công', 'Đã từ chối Proposal hợp đồng');
-        loadContract();
-      }
+      await rejectProposalMutation.mutateAsync({
+        id: contract.id,
+        reason: rejectReason.trim(),
+      });
+      setIsRejectModalVisible(false);
+      setRejectReason('');
+      Alert.alert('Thành công', 'Đã từ chối Proposal hợp đồng');
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Từ chối thất bại');
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -373,20 +364,19 @@ export default function ContractDetailScreen() {
         uploadedQuotationFile?.url ||
         (quotationMethod === 'LINK' ? normalizeUrl(quotationLink) : undefined);
 
-      const res = await contractService.uploadProposal(contract.id, {
-        file: uploadedFile,
-        contractLink: uploadProposalMethod === 'LINK' ? normalizeUrl(proposalLink) : undefined,
-        quotationLink: qLink || undefined,
+      await uploadProposalMutation.mutateAsync({
+        id: contract.id,
+        payload: {
+          file: uploadedFile,
+          contractLink: uploadProposalMethod === 'LINK' ? normalizeUrl(proposalLink) : undefined,
+          quotationLink: qLink || undefined,
+        },
       });
 
-      if (res.error) {
-        Alert.alert('Lỗi cập nhật', res.error);
-      } else {
-        await new Promise((r) => setTimeout(r, 350));
-        Alert.alert('Thành công', 'Cập nhật hợp đồng thành công!');
-        setIsUploadProposalModalVisible(false);
-        loadContract();
-      }
+      await new Promise((r) => setTimeout(r, 350));
+      Alert.alert('Thành công', 'Cập nhật hợp đồng thành công!');
+      setIsUploadProposalModalVisible(false);
+      refetch();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Cập nhật hợp đồng thất bại');
     } finally {
@@ -426,14 +416,10 @@ export default function ContractDetailScreen() {
 
         setUploadProgress(100);
 
-        const res = await contractService.uploadSigned(contract.id, uploadedFile);
-        if (res.error) {
-          Alert.alert('Lỗi', res.error);
-        } else {
-          await new Promise((r) => setTimeout(r, 350));
-          Alert.alert('Thành công', 'Tải lên hợp đồng đã ký thành công!');
-          loadContract();
-        }
+        await uploadSignedMutation.mutateAsync({ id: contract.id, file: uploadedFile });
+        await new Promise((r) => setTimeout(r, 350));
+        Alert.alert('Thành công', 'Tải lên hợp đồng đã ký thành công!');
+        refetch();
       }
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Không thể tải lên hợp đồng đã ký');
@@ -447,20 +433,25 @@ export default function ContractDetailScreen() {
     return (
       <SafeAreaView style={styles.centerContainer}>
         <ActivityIndicator size="large" color={BrandColors.primary} />
-        <Text style={styles.loadingText}>Đang tải thông tin hợp đồng...</Text>
       </SafeAreaView>
     );
   }
 
   if (!contract) {
     return (
-      <SafeAreaView style={styles.centerContainer}>
-        <Feather name="alert-circle" size={48} color="#EF4444" />
-        <Text style={styles.errorTitle}>Không tìm thấy hợp đồng</Text>
-        <Text style={styles.errorSubtitle}>Hợp đồng không tồn tại hoặc bạn không có quyền truy cập.</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Quay lại</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.topHeader}>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.back()}>
+            <Feather name="arrow-left" size={20} color="#1E293B" />
+          </TouchableOpacity>
+          <Text style={styles.headerCode}>KHÔNG TÌM THẤY HỢP ĐỒNG</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Feather name="alert-circle" size={48} color="#94A3B8" />
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B', marginTop: 12 }}>
+            Hợp đồng không tồn tại hoặc đã bị xóa
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -599,7 +590,7 @@ export default function ContractDetailScreen() {
 
         <TouchableOpacity
           style={styles.headerIconBtn}
-          onPress={loadContract}
+          onPress={handleRefresh}
           activeOpacity={0.7}
         >
           <Feather name="refresh-cw" size={18} color="#475569" />

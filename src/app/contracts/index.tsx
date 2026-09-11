@@ -18,11 +18,11 @@ import { canAccessContracts } from '@/utils/rbac';
 import { BrandColors } from '@/constants/colors';
 import { formatVND, formatVNDFull } from '@/utils/formatters';
 import {
-  contractService,
   ContractItem,
   CONTRACT_STATUS_CONFIG,
   CONTRACT_STATUS_LABELS,
 } from '@/services/contractService';
+import { useContractsQuery } from '@/hooks/queries/useContracts';
 import BottomNavBar from '@/components/BottomNavBar';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
 
@@ -41,56 +41,32 @@ export default function ContractsScreen() {
 
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [contracts, setContracts] = useState<ContractItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
 
   const hasAccess = canAccessContracts(user?.role);
   const canCreate = user?.role === 'ADMIN' || user?.role === 'BOD' || user?.role === 'BD' || user?.role === 'ADMIN_SALE';
 
-  const fetchContracts = useCallback(async () => {
-    if (!isAuthenticated || !hasAccess) return;
-    try {
-      const filters: any = {
-        search: searchQuery.trim() || undefined,
-        limit: 50,
-      };
+  // TanStack Query for contracts list
+  const { data: contractsRes, isLoading, isFetching, refetch } = useContractsQuery({
+    search: searchQuery.trim() || undefined,
+    status: activeTab !== 'ALL' ? activeTab : undefined,
+    limit: 50,
+  });
 
-      if (activeTab !== 'ALL') {
-        filters.status = activeTab;
-      }
+  const contracts: ContractItem[] = useMemo(() => {
+    if (!contractsRes) return [];
+    return Array.isArray((contractsRes as any).data)
+      ? (contractsRes as any).data
+      : Array.isArray(contractsRes)
+      ? contractsRes
+      : [];
+  }, [contractsRes]);
 
-      const res = await contractService.getContracts(filters);
-      if (res.data) {
-        const items = Array.isArray(res.data.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
-        setContracts(items);
-        setTotalCount(res.data.meta?.total || items.length);
-      }
-    } catch (err: any) {
-      console.error('Error fetching contracts:', err);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [isAuthenticated, hasAccess, activeTab, searchQuery]);
+  const totalCount = (contractsRes as any)?.meta?.total || contracts.length;
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetchContracts();
-  }, [fetchContracts]);
-
-  useSSERefresh('invalidate_Contracts', fetchContracts);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchContracts();
-    }, [fetchContracts])
-  );
+  useSSERefresh('invalidate_Contracts', refetch);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    fetchContracts();
+    refetch();
   };
 
   const handleClearSearch = () => {
@@ -321,7 +297,7 @@ export default function ContractsScreen() {
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
-              refreshing={isRefreshing}
+              refreshing={isFetching}
               onRefresh={handleRefresh}
               colors={[BrandColors.primary]}
             />

@@ -52,6 +52,8 @@ export default function ProjectOverviewTab({
     project.team?.members?.find(
       (m) => (m.role === 'LEAD' || m.role === 'ACCOUNT' || m.role === 'TEAM_LEAD') && m.user?.id !== pmUser?.id
     )?.user;
+  const saleorAdminSale = user?.role === 'BD' || user?.role === 'SALE' || user?.role === 'ADMIN_SALE';
+  const isBODOrAdminSaleOrAdmin = user?.role === 'BOD' || user?.role === 'ADMIN_SALE' || user?.role === 'ADMIN';
   const team = project.team;
   const contract = project.contract;
   const progress = project.progress ?? 0;
@@ -400,7 +402,7 @@ export default function ProjectOverviewTab({
       </View>
 
       {/* Contract Info Card */}
-      {contract && (
+      {(contract && (isBODOrAdminSaleOrAdmin || saleorAdminSale)) && (
         <View style={styles.card}>
           <View style={styles.cardHeaderBetween}>
             <View style={styles.cardHeader}>

@@ -14,7 +14,9 @@ import {
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { customerService, CustomerItem } from '@/services/customerService';
+import { CustomerItem } from '@/services/customerService';
+import { useCustomersQuery } from '@/hooks/queries/useCustomers';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 import { useAuth } from '@/context/AuthContext';
@@ -24,36 +26,17 @@ export default function CustomersScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const hasAccess = canAccessCustomers(user?.role);
-  const [customers, setCustomers] = useState<CustomerItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const loadCustomers = useCallback(async () => {
-    if (!hasAccess) {
-      setIsLoading(false);
-      return;
-    }
-    try {
-      const res = await customerService.getCustomers();
-      if (res.data && Array.isArray(res.data)) {
-        setCustomers(res.data);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [hasAccess]);
+  // TanStack Query for customer list
+  const { data: customers = [], isLoading, isFetching, refetch } = useCustomersQuery({
+    search: searchQuery,
+  });
 
-  useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
+  useSSERefresh('invalidate_Customers', refetch);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadCustomers();
+    refetch();
   };
 
   const handleCall = (phone?: string) => {
@@ -212,7 +195,7 @@ export default function CustomersScreen() {
       </View>
 
       {/* Content List */}
-      {isLoading && !isRefreshing ? (
+      {isLoading && !isFetching ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={BrandColors.primary} />
           <Text style={styles.loadingText}>Đang tải danh bạ đối tác Getvini...</Text>
@@ -226,7 +209,7 @@ export default function CustomersScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isRefreshing}
+              refreshing={isFetching}
               onRefresh={handleRefresh}
               colors={[BrandColors.primary]}
               tintColor={BrandColors.primary}
