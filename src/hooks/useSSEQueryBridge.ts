@@ -48,12 +48,19 @@ export function useSSEQueryBridge() {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     };
 
+    // Invalidate Acceptance Queries on SSE signal
+    const handleAcceptanceInvalidate = () => {
+      console.log('⚡ [SSE QueryBridge] Invalidating Acceptances cache');
+      queryClient.invalidateQueries({ queryKey: queryKeys.acceptances.all });
+    };
+
     // Listen to sseEventBus channels
     const unsubOpp = sseEventBus.on('invalidate_Opportunities', handleOpportunityInvalidate);
     const unsubQuo = sseEventBus.on('invalidate_Quotations', handleQuotationInvalidate);
     const unsubCus = sseEventBus.on('invalidate_Customers', handleCustomerInvalidate);
     const unsubCon = sseEventBus.on('invalidate_Contracts', handleContractInvalidate);
     const unsubProj = sseEventBus.on('invalidate_Projects', handleProjectInvalidate);
+    const unsubAcc = sseEventBus.on('invalidate_Acceptances', handleAcceptanceInvalidate);
     const unsubNotif = sseEventBus.on('notification', handleNotification);
 
     return () => {
@@ -62,6 +69,7 @@ export function useSSEQueryBridge() {
       if (typeof unsubCus === 'function') unsubCus();
       if (typeof unsubCon === 'function') unsubCon();
       if (typeof unsubProj === 'function') unsubProj();
+      if (typeof unsubAcc === 'function') unsubAcc();
       if (typeof unsubNotif === 'function') unsubNotif();
     };
   }, [queryClient]);

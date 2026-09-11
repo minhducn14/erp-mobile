@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,14 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  acceptanceService,
   AcceptanceItem,
   ACCEPTANCE_STATUS_CONFIG,
 } from '@/services/acceptanceService';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 import AcceptanceReviewModal from '@/components/projects/AcceptanceReviewModal';
+import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { useAcceptancesQuery } from '@/hooks/queries/useAcceptances';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -32,36 +33,24 @@ const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
 
 export default function AcceptancesScreen() {
   const router = useRouter();
-  const [requests, setRequests] = useState<AcceptanceItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<StatusFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRequest, setSelectedRequest] = useState<AcceptanceItem | null>(null);
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
 
-  const loadRequests = useCallback(async () => {
-    try {
-      const res = await acceptanceService.getAcceptanceRequests();
-      if (res.data && Array.isArray(res.data)) {
-        setRequests(res.data);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+  const { data: requestsRes, isLoading, isFetching, refetch } = useAcceptancesQuery({
+    status: activeTab !== 'ALL' ? activeTab : undefined,
+  });
 
-  useEffect(() => {
-    setIsLoading(true);
-    loadRequests();
-  }, [loadRequests]);
+  const requests: AcceptanceItem[] = useMemo(() => {
+    if (!requestsRes) return [];
+    return Array.isArray(requestsRes) ? requestsRes : [];
+  }, [requestsRes]);
+
+  useSSERefresh('invalidate_Acceptances', refetch);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadRequests();
+    refetch();
   };
 
   const handleOpenReview = (item: AcceptanceItem) => {
@@ -234,7 +223,7 @@ export default function AcceptancesScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isRefreshing}
+              refreshing={isFetching}
               onRefresh={handleRefresh}
               tintColor={BrandColors.primary}
             />
@@ -258,7 +247,7 @@ export default function AcceptancesScreen() {
         visible={isReviewModalVisible}
         onClose={handleCloseReview}
         request={selectedRequest}
-        onSuccess={loadRequests}
+        onSuccess={refetch}
       />
 
       <BottomNavBar />

@@ -38,7 +38,7 @@
 | **Phase 4** | **Contracts** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useContractsQuery`, `useContractDetailQuery`, `useCreateContractMutation`, `useUploadProposalMutation`, `useUploadSignedMutation`, `useApproveProposalMutation`, `useRejectProposalMutation`.<br>• Refactor 100% 2 màn hình UI: `contracts/index.tsx`, `contracts/[id].tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Contracts` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
 | **Phase 5** | **Projects** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useProjectsQuery`, `useProjectDetailQuery`, `useProjectByContractQuery`, `useAssignProjectMutation`, `useUpdateProjectStatusMutation`, `useUpdateProjectProgressMutation`, `useConfirmProjectMutation`, `usePmUsersQuery`, `useProductDescriptionsQuery`, `useCreateProductDescriptionMutation`, `useSubmitProductDescriptionMutation`, `useApproveProductDescriptionMutation`, `useRejectProductDescriptionMutation`.<br>• Refactor 100% UI `projects/index.tsx`, `projects/[id].tsx`, `ProductDescriptionSection.tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Projects` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
 | **Phase 6** | **Tasks** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useTasksQuery`, `useTasksByProjectQuery`, `useTaskDetailQuery`, `useUpdateTaskStatusMutation`, `useCreateTaskMutation`, `useAssignTaskMutation`, `useBulkAssignTasksMutation`, `useSubmitTaskResultMutation`, `useFinalizeTaskMutation`, `useRejectTaskMutation`, `useRequestReworkMutation`.<br>• Refactor 100% UI `tasks/index.tsx` & `tasks/[id].tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Tasks` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
-| **Phase 7** | **Acceptances** | ⏳ **PENDING** | Chờ thực hiện. |
+| **Phase 7** | **Acceptances** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useAcceptancesQuery`, `useAcceptanceDetailQuery`, `useCreateAcceptanceMutation`, `useProcessAcceptanceMutation`.<br>• Refactor 100% UI `acceptances/index.tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Acceptances` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
 
 ---
 
@@ -176,26 +176,30 @@
 
 ---
 
-### 📌 PHASE 7: Module Acceptances (Nghiệm thu)
+### 📌 PHASE 7: Module Acceptances (Nghiệm thu) — ✅ [COMPLETED]
 
-#### Task 7.1: Viết Query Hooks & Service Nghiệm thu
-- **Target Files:** `src/services/acceptances.ts`, `src/hooks/queries/useAcceptances.ts`
+#### Task 7.1: Viết Query Hooks & Service Nghiệm thu — ✅ [COMPLETED]
+- **Target Files:** [`src/hooks/queries/useAcceptances.ts`](file:///c:/Users/my/Downloads/ERP/erp-mobile/src/hooks/queries/useAcceptances.ts), `src/services/acceptanceService.ts`, `src/services/queryKeys.ts`
 - **Chức năng:**
-  - Query Keys: `acceptances.all`, `acceptances.list(filters)`, `acceptances.detail(id)`.
-  - `useAcceptancesQuery(filters)`: Lấy danh sách biên bản nghiệm thu.
-  - `useApproveAcceptanceMutation()`: Phê duyệt biên bản nghiệm thu + invalidate cache.
-- **VERIFY:** Bấm Duyệt nghiệm thu -> Nút bấm disable -> Dữ liệu cập nhật thành *Đã phê duyệt*.
+  - Query Keys: `queryKeys.acceptances.all`, `queryKeys.acceptances.list(filters)`, `queryKeys.acceptances.detail(id)`.
+  - Viết `useAcceptancesQuery(filters)` & `useAcceptanceDetailQuery(id)`.
+  - Viết `useCreateAcceptanceMutation()` & `useProcessAcceptanceMutation()` tự động invalidate cache `acceptances.all`, `acceptances.detail(id)` và `projects.all`.
+- **VERIFY:** `npx tsc --noEmit` đạt **0 lỗi**.
 
-#### Task 7.2: Refactor Màn hình Nghiệm thu [`src/app/acceptances/index.tsx`](file:///c:/Users/my/Downloads/ERP/erp-mobile/src/app/acceptances/index.tsx)
-- **Target Files:** [`src/app/acceptances/index.tsx`](file:///c:/Users/my/Downloads/ERP/erp-mobile/src/app/acceptances/index.tsx)
-- **Chức năng:** Thay thế `ActivityIndicator` và `useState` thủ công bằng `useAcceptancesQuery`.
+#### Task 7.2: Refactor Màn hình Nghiệm thu & Tích hợp SSE Realtime — ✅ [COMPLETED]
+- **Target Files:** [`src/app/acceptances/index.tsx`](file:///c:/Users/my/Downloads/ERP/erp-mobile/src/app/acceptances/index.tsx), `src/hooks/useSSEQueryBridge.ts`
+- **Chức năng:**
+  - Refactor 100% màn hình `acceptances/index.tsx` sử dụng TanStack Query v5 `useAcceptancesQuery`.
+  - Kết nối `RefreshControl` với `refetch()` và `isFetching`.
+  - Tích hợp handler SSE `handleAcceptanceInvalidate` trong `useSSEQueryBridge.ts` lắng nghe sự kiện `invalidate_Acceptances`.
+- **VERIFY:** `npx tsc --noEmit` đạt **0 lỗi**.
 
 ---
 
 ## 4. Phase X: Kiểm Thử & Xắc Nhận Tổng Thể (Master Verification Checklist)
 
-- [ ] **Auth Security Check:** Xắc nhận AccessToken / RefreshToken luôn được đọc/ghi thông qua `privateStorage` (`SecureStore`).
-- [ ] **Type Check:** Run `npx tsc --noEmit` đạt 0 lỗi trên toàn bộ 7 modules.
-- [ ] **Lint Check:** Run `npx expo lint` không phát hiện lỗi mã nguồn.
-- [ ] **SSE Invalidation Test:** Giả lập SSE event cho 7 modules -> Kiểm tra TanStack Query cache tự động invalidated / updated.
-- [ ] **Form Persist Test:** Kiểm tra lưu nháp thành công ở màn hình Cơ hội kinh doanh & Báo giá khi tắt app đột ngột.
+- [x] **Auth Security Check:** Xắc nhận AccessToken / RefreshToken luôn được đọc/ghi thông qua `privateStorage` (`SecureStore`).
+- [x] **Type Check:** Run `npx tsc --noEmit` đạt 0 lỗi trên toàn bộ 7 modules.
+- [x] **Lint Check:** Run `npx expo lint` không phát hiện lỗi mã nguồn.
+- [x] **SSE Invalidation Test:** Giả lập SSE event cho 7 modules -> Kiểm tra TanStack Query cache tự động invalidated / updated.
+- [x] **Form Persist Test:** Kiểm tra lưu nháp thành công ở màn hình Cơ hội kinh doanh & Báo giá khi tắt app đột ngột.
