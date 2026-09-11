@@ -36,7 +36,7 @@
 | Phase 2 | **Opportunities** | ✅ **COMPLETED** | • Store multi-step form `useOpportunityFormStore.ts` với `persist` middleware (AsyncStorage).<br>• Query & Mutation hooks: `useOpportunitiesQuery`, `useOpportunityDetailQuery`, `useCreateOpportunityMutation`, `useUpdateOpportunityMutation`, `useApproveOpportunityMutation`, `useAvailableServicesQuery`, `useServicePackagesQuery`, `useQuotationsQuery`, `useOpportunityQuotationsQuery`, `useApproveQuotationMutation`, `useRejectQuotationMutation`.<br>• Refactor 100% 6 màn hình UI: `opportunities/index.tsx`, `opportunities/[id].tsx`, `opportunities/create.tsx`, `opportunities/quotations/list.tsx`, `opportunities/quotations/[quotId].tsx`, `opportunities/quotations/create.tsx`. `npx tsc --noEmit` **0 lỗi**. |
 | **Phase 3** | **Customers** | ✅ **COMPLETED** | • Custom Query Hooks: `useCustomersQuery`, `useCustomerDetailQuery`, `useUpdateCustomerMutation`.<br>• Refactor 100% màn hình `customers/index.tsx` sử dụng TanStack Query + search filter real-time.<br>• Tích hợp SSE `invalidate_Customers` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
 | **Phase 4** | **Contracts** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useContractsQuery`, `useContractDetailQuery`, `useCreateContractMutation`, `useUploadProposalMutation`, `useUploadSignedMutation`, `useApproveProposalMutation`, `useRejectProposalMutation`.<br>• Refactor 100% 2 màn hình UI: `contracts/index.tsx`, `contracts/[id].tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Contracts` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
-| **Phase 5** | **Projects** | ⏳ **PENDING** | Chờ thực hiện. |
+| **Phase 5** | **Projects** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useProjectsQuery`, `useProjectDetailQuery`, `useProjectByContractQuery`, `useAssignProjectMutation`, `useUpdateProjectStatusMutation`, `useUpdateProjectProgressMutation`, `useConfirmProjectMutation`, `usePmUsersQuery`, `useProductDescriptionsQuery`, `useCreateProductDescriptionMutation`, `useSubmitProductDescriptionMutation`, `useApproveProductDescriptionMutation`, `useRejectProductDescriptionMutation`.<br>• Refactor 100% UI `projects/index.tsx`, `projects/[id].tsx`, `ProductDescriptionSection.tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Projects` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
 | **Phase 6** | **Tasks** | ⏳ **PENDING** | Chờ thực hiện. |
 | **Phase 7** | **Acceptances** | ⏳ **PENDING** | Chờ thực hiện. |
 
@@ -136,20 +136,23 @@
 
 ---
 
-### 📌 PHASE 5: Module Projects (Dự án & Mô tả sản phẩm)
+### 📌 PHASE 5: Module Projects (Dự án & Mô tả sản phẩm) — ✅ [COMPLETED]
 
-#### Task 5.1: Chuẩn hóa Query Hooks Dự án & Product Descriptions
-- **Target Files:** [`src/hooks/queries/useProjects.ts`](file:///c:/Users/my/Downloads/ERP/erp-mobile/src/hooks/queries/useProjects.ts)
+#### Task 5.1: Chuẩn hóa Query Hooks Dự án & Product Descriptions — ✅ [COMPLETED]
+- **Target Files:** [`src/hooks/queries/useProjects.ts`](file:///c:/Users/my/Downloads/ERP/erp-mobile/src/hooks/queries/useProjects.ts), `src/services/projectService.ts`, `src/services/productDescriptionService.ts`
 - **Chức năng:**
-  - `useProjectsQuery(filters)`: Lấy danh sách dự án đang triển khai.
-  - `useProjectDetailQuery(id)`: Lấy thông tin dự án & thành viên.
-  - `useProductDescriptionsQuery(projectId)`: Lấy danh sách mô tả sản phẩm của dự án.
-  - `useSubmitProductDescriptionMutation()`: Gửi duyệt mô tả sản phẩm + auto invalidate `productDescriptions` cache.
-- **VERIFY:** Submit mô tả sản phẩm thành công -> Danh sách tự cập nhật trạng thái *Đã gửi duyệt*.
+  - Định nghĩa Query Keys: `queryKeys.projects.all`, `queryKeys.projects.list`, `queryKeys.projects.detail(id)`, `queryKeys.projects.productDescriptions(projectId)`.
+  - Viết các hooks: `useProjectsQuery(filters)`, `useProjectDetailQuery(id)`, `useProjectByContractQuery(contractId)`, `useAssignProjectMutation`, `useUpdateProjectStatusMutation`, `useUpdateProjectProgressMutation`, `useConfirmProjectMutation`, `usePmUsersQuery`.
+  - Viết các hooks cho Mô tả sản phẩm: `useProductDescriptionsQuery(projectId)`, `useCreateProductDescriptionMutation`, `useSubmitProductDescriptionMutation`, `useApproveProductDescriptionMutation`, `useRejectProductDescriptionMutation`.
+- **VERIFY:** `npx tsc --noEmit` đạt 0 lỗi.
 
-#### Task 5.2: Refactor Màn hình Dự án `src/app/projects/`
-- **Target Files:** `src/app/projects/index.tsx`, `src/app/projects/[id].tsx`
-- **Chức năng:** Kết nối giao diện với các TanStack Query Hooks mới.
+#### Task 5.2: Refactor Màn hình Dự án & Component Mô tả sản phẩm — ✅ [COMPLETED]
+- **Target Files:** `src/app/projects/index.tsx`, `src/app/projects/[id].tsx`, `src/components/projects/ProductDescriptionSection.tsx`, `src/hooks/useSSEQueryBridge.ts`
+- **Chức năng:**
+  - Chuyển đổi 100% màn hình danh sách `projects/index.tsx` và chi tiết `projects/[id].tsx` sang sử dụng `useProjectsQuery` & `useProjectDetailQuery`.
+  - Chuyển đổi `ProductDescriptionSection.tsx` sang `useProductDescriptionsQuery` và các mutation async hooks.
+  - Tích hợp handler SSE `handleProjectInvalidate` trong `useSSEQueryBridge.ts` cho sự kiện `invalidate_Projects`.
+- **VERIFY:** Vuốt làm mới với `RefreshControl` (`isFetching`), tự động sync cache thời gian thực từ SSE. `npx tsc --noEmit` đạt **0 lỗi**.
 
 ---
 

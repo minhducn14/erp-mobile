@@ -20,6 +20,13 @@ import {
 import { uploadToCloudinary } from '@/services/cloudinaryService';
 import { BrandColors } from '@/constants/colors';
 import { isValidUrl, normalizeUrl } from '@/utils/validators';
+import {
+  useProductDescriptionsQuery,
+  useCreateProductDescriptionMutation,
+  useSubmitProductDescriptionMutation,
+  useApproveProductDescriptionMutation,
+  useRejectProductDescriptionMutation,
+} from '@/hooks/queries/useProjects';
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Bản nháp',
@@ -78,8 +85,17 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
   user,
   project,
 }) => {
-  const [submissions, setSubmissions] = useState<ProductDescriptionSubmission[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: submissionsRes, isLoading, refetch: refetchSubmissions } = useProductDescriptionsQuery(projectId);
+
+  const submissions: ProductDescriptionSubmission[] = useMemo(() => {
+    return Array.isArray(submissionsRes) ? submissionsRes : [];
+  }, [submissionsRes]);
+
+  const createSubmissionMutation = useCreateProductDescriptionMutation();
+  const submitSubmissionMutation = useSubmitProductDescriptionMutation();
+  const approveSubmissionMutation = useApproveProductDescriptionMutation();
+  const rejectSubmissionMutation = useRejectProductDescriptionMutation();
+
   const [isSaving, setIsSaving] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -93,24 +109,9 @@ export const ProductDescriptionSection: React.FC<ProductDescriptionSectionProps>
   const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  const loadSubmissions = async () => {
-    if (!projectId) return;
-    setIsLoading(true);
-    try {
-      const res = await productDescriptionService.getSubmissions(projectId);
-      if (res.data && Array.isArray(res.data)) {
-        setSubmissions(res.data);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoading(false);
-    }
+  const loadSubmissions = () => {
+    refetchSubmissions();
   };
-
-  useEffect(() => {
-    loadSubmissions();
-  }, [projectId]);
 
   const editableSubmission = useMemo(() => {
     return submissions.find(

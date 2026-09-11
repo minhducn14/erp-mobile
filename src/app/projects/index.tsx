@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  projectService,
   ProjectItem,
   PROJECT_STATUS_CONFIG,
 } from '@/services/projectService';
@@ -22,6 +21,7 @@ import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 import { formatNumber } from '@/utils/formatters';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { useProjectsQuery } from '@/hooks/queries/useProjects';
 
 const STATUS_FILTERS = [
   { key: 'ALL', label: 'Tất cả' },
@@ -35,35 +35,20 @@ const STATUS_FILTERS = [
 
 export default function ProjectsScreen() {
   const router = useRouter();
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
 
-  const loadProjects = useCallback(async () => {
-    try {
-      const res = await projectService.getProjects();
-      if (res.data && Array.isArray(res.data)) {
-        setProjects(res.data);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+  const { data: projectsRes, isLoading, isFetching, refetch } = useProjectsQuery();
 
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+  const projects: ProjectItem[] = useMemo(() => {
+    if (!projectsRes) return [];
+    return Array.isArray(projectsRes) ? projectsRes : [];
+  }, [projectsRes]);
 
-  useSSERefresh('invalidate_Projects', loadProjects);
+  useSSERefresh('invalidate_Projects', refetch);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadProjects();
+    refetch();
   };
 
   const filteredProjects = projects.filter((p) => {
@@ -223,7 +208,7 @@ export default function ProjectsScreen() {
       </View>
 
       {/* Content List */}
-      {isLoading && !isRefreshing ? (
+      {isLoading && !isFetching ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={BrandColors.primary} />
           <Text style={styles.loadingText}>Đang tải dữ liệu dự án Getvini...</Text>
@@ -237,7 +222,7 @@ export default function ProjectsScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isRefreshing}
+              refreshing={isFetching}
               onRefresh={handleRefresh}
               colors={[BrandColors.primary]}
               tintColor={BrandColors.primary}

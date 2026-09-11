@@ -37,6 +37,7 @@ import AddTeamMemberModal from '@/components/projects/AddTeamMemberModal';
 import EditTeamMemberRoleModal from '@/components/projects/EditTeamMemberRoleModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { useProjectDetailQuery, useConfirmProjectMutation } from '@/hooks/queries/useProjects';
 
 type TabKey = 'OVERVIEW' | 'TASKS' | 'ACCEPTANCE';
 
@@ -46,14 +47,24 @@ export default function ProjectDetailScreen() {
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabKey>('OVERVIEW');
-  const [project, setProject] = useState<ProjectDetailItem | null>(null);
   const [tasks, setTasks] = useState<TaskDetail[]>([]);
   const [acceptances, setAcceptances] = useState<AcceptanceItem[]>([]);
 
-  const [isLoading, setIsLoading] = useState(true);
+  // TanStack Query for Project Detail
+  const {
+    data: projectData,
+    isLoading: isProjectLoading,
+    isFetching: isProjectFetching,
+    refetch: refetchProject,
+  } = useProjectDetailQuery(String(id || ''));
+
+  const confirmProjectMutation = useConfirmProjectMutation();
+
+  const project: ProjectDetailItem | null = projectData || null;
+  const isLoading = isProjectLoading;
+  const isRefreshing = isProjectFetching;
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [isLoadingAcceptances, setIsLoadingAcceptances] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Modal & Confirm States
   const [showAssignPm, setShowAssignPm] = useState(false);
@@ -125,14 +136,9 @@ export default function ProjectDetailScreen() {
     if (!id) return;
     setIsConfirming(true);
     try {
-      const res = await projectService.confirmProject(id);
-      if (res.error) {
-        Alert.alert('Lỗi', res.error || 'Có lỗi xảy ra khi chấp nhận dự án.');
-      } else {
-        Alert.alert('Thành công', 'Đã chấp nhận dự án thành công.');
-        loadProjectDetail();
-        loadTasks();
-      }
+      await confirmProjectMutation.mutateAsync(id);
+      Alert.alert('Thành công', 'Đã chấp nhận dự án thành công.');
+      loadTasks();
     } catch (err: any) {
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi chấp nhận dự án.');
     } finally {
@@ -140,34 +146,9 @@ export default function ProjectDetailScreen() {
     }
   };
 
-
-  const loadProjectDetail = useCallback(async () => {
-    if (!id) return;
-    try {
-      const res = await projectService.getProjectById(id);
-      if (res.data) {
-        let fullProject = res.data;
-        if (fullProject.team?.id) {
-          const membersRes = await teamService.getTeamMembers(fullProject.team.id);
-          if (membersRes.data && Array.isArray(membersRes.data)) {
-            fullProject = {
-              ...fullProject,
-              team: {
-                ...fullProject.team,
-                members: membersRes.data as any,
-              },
-            };
-          }
-        }
-        setProject(fullProject);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [id]);
+  const loadProjectDetail = useCallback(() => {
+    refetchProject();
+  }, [refetchProject]);
 
   const loadTasks = useCallback(async () => {
     if (!id) return;
@@ -188,7 +169,7 @@ export default function ProjectDetailScreen() {
     if (!id) return;
     setIsLoadingAcceptances(true);
     try {
-      console.log(id)
+      console.log(id);
       const res = await acceptanceService.getAcceptanceRequests(id);
       if (res.data && Array.isArray(res.data)) {
         setAcceptances(res.data);
@@ -201,12 +182,11 @@ export default function ProjectDetailScreen() {
   }, [id]);
 
   useEffect(() => {
-    loadProjectDetail();
     loadTasks();
     loadAcceptances();
-  }, [loadProjectDetail, loadTasks, loadAcceptances]);
+  }, [loadTasks, loadAcceptances]);
 
-  useSSERefresh('invalidate_Projects', loadProjectDetail);
+  useSSERefresh('invalidate_Projects', refetchProject);
   useSSERefresh(['invalidate_Tasks', 'invalidate_TaskReviews'], loadTasks);
 
   const isTaskAssignable = useCallback((t: TaskDetail): boolean => {
@@ -256,8 +236,7 @@ export default function ProjectDetailScreen() {
   };
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadProjectDetail();
+    refetchProject();
     loadTasks();
     loadAcceptances();
   };
