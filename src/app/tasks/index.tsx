@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,11 @@ import {
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { taskService } from '@/services/taskService';
 import { TaskItem } from '@/services/dashboardService';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { useTasksQuery } from '@/hooks/queries/useTasks';
 
 type StatusFilter = 'ALL' | 'TODO' | 'IN_PROGRESS' | 'AWAITING_REVIEW' | 'ACCEPTED';
 
@@ -30,40 +30,22 @@ const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
 
 export default function TasksScreen() {
   const router = useRouter();
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<StatusFilter>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const loadTasks = useCallback(async () => {
-    try {
-      const filters: Record<string, any> = {};
-      if (activeTab !== 'ALL') {
-        filters.status = activeTab;
-      }
-      const res = await taskService.getTasks(filters);
-      if (res.data && Array.isArray(res.data)) {
-        setTasks(res.data);
-      }
-    } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [activeTab]);
+  const { data: tasksRes, isLoading, isFetching, refetch } = useTasksQuery({
+    status: activeTab !== 'ALL' ? activeTab : undefined,
+  });
 
-  useEffect(() => {
-    setIsLoading(true);
-    loadTasks();
-  }, [loadTasks]);
+  const tasks: TaskItem[] = useMemo(() => {
+    if (!tasksRes) return [];
+    return Array.isArray(tasksRes) ? tasksRes : [];
+  }, [tasksRes]);
 
-  useSSERefresh('invalidate_Tasks', loadTasks);
+  useSSERefresh('invalidate_Tasks', refetch);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadTasks();
+    refetch();
   };
 
   const filteredTasks = tasks.filter((t) => {
@@ -197,7 +179,7 @@ export default function TasksScreen() {
       </View>
 
       {/* Task List */}
-      {isLoading && !isRefreshing ? (
+      {isLoading && !isFetching ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={BrandColors.primary} />
           <Text style={styles.loadingText}>Đang tải danh sách công việc...</Text>
@@ -211,7 +193,7 @@ export default function TasksScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={isRefreshing}
+              refreshing={isFetching}
               onRefresh={handleRefresh}
               colors={[BrandColors.primary]}
               tintColor={BrandColors.primary}

@@ -21,6 +21,7 @@ import TaskResultModal from '@/components/tasks/TaskResultModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
 import TaskReviewModal from '@/components/tasks/TaskReviewModal';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { useTaskDetailQuery } from '@/hooks/queries/useTasks';
 
 const formatDateTimeStr = (dateStr?: string) => {
   if (!dateStr) return 'Chưa thiết lập';
@@ -51,9 +52,11 @@ export default function TaskDetailScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [task, setTask] = useState<TaskDetail | null>(null);
+  const { data: taskRes, isLoading: isTaskLoading, refetch: refetchTask } = useTaskDetailQuery(String(id || ''));
+  const task: TaskDetail | null = taskRes || null;
+  const isLoading = isTaskLoading;
+
   const [reviews, setReviews] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   // Description inline edit state
@@ -67,29 +70,22 @@ export default function TaskDetailScreen() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
-  const loadTask = useCallback(async () => {
-    if (!id) return;
-    try {
-      const [resTask, resReviews] = await Promise.all([
-        taskService.getTaskById(id),
-        taskService.getTaskReviews(id),
-      ]);
-      if (resTask.data) {
-        setTask(resTask.data);
-      }
-      if (resReviews.data) {
-        setReviews(resReviews.data);
-      }
-    } catch {
-      Alert.alert('Lỗi', 'Không thể tải thông tin nhiệm vụ.');
-    } finally {
-      setIsLoading(false);
+  const loadTask = useCallback(() => {
+    refetchTask();
+    if (id) {
+      taskService.getTaskReviews(id).then((res) => {
+        if (res.data) setReviews(res.data);
+      }).catch(() => {});
     }
-  }, [id]);
+  }, [id, refetchTask]);
 
   useEffect(() => {
-    loadTask();
-  }, [loadTask]);
+    if (id) {
+      taskService.getTaskReviews(id).then((res) => {
+        if (res.data) setReviews(res.data);
+      }).catch(() => {});
+    }
+  }, [id]);
 
   useSSERefresh(['invalidate_Tasks', 'invalidate_TaskReviews'], loadTask);
 

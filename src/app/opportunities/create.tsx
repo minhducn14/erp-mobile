@@ -1837,7 +1837,7 @@ export default function CreateOpportunityScreen() {
           ]}
         >
           <View style={[styles.bottomBarInner, isTablet && { maxWidth: 760, alignSelf: 'center', width: '100%' }]}>
-            {isKeyboardVisible && (
+            {/* {isKeyboardVisible && (
               <TouchableOpacity
                 style={styles.keyboardDismissBtn}
                 onPress={() => Keyboard.dismiss()}
@@ -1846,7 +1846,7 @@ export default function CreateOpportunityScreen() {
                 <Feather name="chevron-down" size={16} color="#475569" />
                 <Text style={styles.keyboardDismissBtnText}>Ẩn phím</Text>
               </TouchableOpacity>
-            )}
+            )} */}
 
             <TouchableOpacity
               style={styles.saveDraftBottomBtn}

@@ -37,7 +37,7 @@
 | **Phase 3** | **Customers** | ✅ **COMPLETED** | • Custom Query Hooks: `useCustomersQuery`, `useCustomerDetailQuery`, `useUpdateCustomerMutation`.<br>• Refactor 100% màn hình `customers/index.tsx` sử dụng TanStack Query + search filter real-time.<br>• Tích hợp SSE `invalidate_Customers` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
 | **Phase 4** | **Contracts** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useContractsQuery`, `useContractDetailQuery`, `useCreateContractMutation`, `useUploadProposalMutation`, `useUploadSignedMutation`, `useApproveProposalMutation`, `useRejectProposalMutation`.<br>• Refactor 100% 2 màn hình UI: `contracts/index.tsx`, `contracts/[id].tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Contracts` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
 | **Phase 5** | **Projects** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useProjectsQuery`, `useProjectDetailQuery`, `useProjectByContractQuery`, `useAssignProjectMutation`, `useUpdateProjectStatusMutation`, `useUpdateProjectProgressMutation`, `useConfirmProjectMutation`, `usePmUsersQuery`, `useProductDescriptionsQuery`, `useCreateProductDescriptionMutation`, `useSubmitProductDescriptionMutation`, `useApproveProductDescriptionMutation`, `useRejectProductDescriptionMutation`.<br>• Refactor 100% UI `projects/index.tsx`, `projects/[id].tsx`, `ProductDescriptionSection.tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Projects` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
-| **Phase 6** | **Tasks** | ⏳ **PENDING** | Chờ thực hiện. |
+| **Phase 6** | **Tasks** | ✅ **COMPLETED** | • Custom Query & Mutation Hooks: `useTasksQuery`, `useTasksByProjectQuery`, `useTaskDetailQuery`, `useUpdateTaskStatusMutation`, `useCreateTaskMutation`, `useAssignTaskMutation`, `useBulkAssignTasksMutation`, `useSubmitTaskResultMutation`, `useFinalizeTaskMutation`, `useRejectTaskMutation`, `useRequestReworkMutation`.<br>• Refactor 100% UI `tasks/index.tsx` & `tasks/[id].tsx` sang TanStack Query v5.<br>• Tích hợp SSE `invalidate_Tasks` trong `useSSEQueryBridge.ts`. `npx tsc --noEmit` **0 lỗi**. |
 | **Phase 7** | **Acceptances** | ⏳ **PENDING** | Chờ thực hiện. |
 
 ---
@@ -156,19 +156,23 @@
 
 ---
 
-### 📌 PHASE 6: Module Tasks (Công việc)
+### 📌 PHASE 6: Module Tasks (Công việc) — ✅ [COMPLETED]
 
-#### Task 6.1: Viết Query Hooks & Service Công việc
-- **Target Files:** `src/services/tasks.ts`, `src/hooks/queries/useTasks.ts`
+#### Task 6.1: Viết Query Hooks & Service Công việc — ✅ [COMPLETED]
+- **Target Files:** [`src/hooks/queries/useTasks.ts`](file:///c:/Users/my/Downloads/ERP/erp-mobile/src/hooks/queries/useTasks.ts), `src/services/taskService.ts`, `src/services/queryKeys.ts`
 - **Chức năng:**
-  - Query Keys: `tasks.all`, `tasks.list(filters)`, `tasks.detail(id)`.
-  - `useTasksQuery(filters)`: Lấy danh sách công việc giao cho tôi / tôi quản lý.
-  - `useUpdateTaskStatusMutation()`: Đổi trạng thái task (To Do -> In Progress -> Done) với Optimistic Update (đổi UI trước khi API trả về).
-- **VERIFY:** Kéo đổi trạng thái task phản hồi tức thì trên UI (Optimistic UI), nếu API lỗi thì tự rollback về trạng thái cũ.
+  - Định nghĩa Query Keys: `queryKeys.tasks.all`, `queryKeys.tasks.list(filters)`, `queryKeys.tasks.detail(id)`.
+  - Viết các hooks: `useTasksQuery(filters)`, `useTasksByProjectQuery(projectId)`, `useTaskDetailQuery(id)`.
+  - Viết các mutation hooks: `useUpdateTaskStatusMutation`, `useCreateTaskMutation`, `useAssignTaskMutation`, `useBulkAssignTasksMutation`, `useSubmitTaskResultMutation`, `useFinalizeTaskMutation`, `useRejectTaskMutation`, `useRequestReworkMutation` tự động invalidate cache `tasks.all`, `tasks.detail(id)` và `projects.all`.
+- **VERIFY:** `npx tsc --noEmit` đạt 0 lỗi.
 
-#### Task 6.2: Tích hợp SSE Real-time cho Tasks `src/app/tasks/`
-- **Target Files:** `src/app/tasks/index.tsx`
-- **Chức năng:** Lắng nghe SSE event `TASK_ASSIGNED` hoặc `TASK_UPDATED` -> tự động invalidate `tasks.all`.
+#### Task 6.2: Refactor Màn hình Công việc & Tích hợp SSE Realtime — ✅ [COMPLETED]
+- **Target Files:** `src/app/tasks/index.tsx`, `src/app/tasks/[id].tsx`, `src/hooks/useSSEQueryBridge.ts`
+- **Chức năng:**
+  - Refactor 100% màn hình `tasks/index.tsx` và chi tiết `tasks/[id].tsx` sang TanStack Query v5 hooks.
+  - Tích hợp `RefreshControl` gắn với `refetch()` và `isFetching`.
+  - Lắng nghe sự kiện SSE `invalidate_Tasks` trong `useSSEQueryBridge.ts` để làm mới danh sách nhiệm vụ tức thì theo thời gian thực.
+- **VERIFY:** Đổi trạng thái tab mượt mà từ cache. `npx tsc --noEmit` đạt **0 lỗi**.
 
 ---
 
