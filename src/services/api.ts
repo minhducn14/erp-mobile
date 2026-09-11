@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { privateStorage } from './secureStorage';
 
 const STORAGE_USER_KEY = '@erp_auth_user';
@@ -91,11 +91,11 @@ class ApiService {
     };
 
     // Migrate the previous single plaintext Cookie header, then remove it.
-    const legacyCookie = await AsyncStorage.getItem(STORAGE_COOKIE_KEY);
+    const legacyCookie = await privateStorage.getItem(STORAGE_COOKIE_KEY);
     if (legacyCookie) {
       const migrated = parseAuthCookies([legacyCookie]);
       await this.saveCookies({ ...this.currentCookies, ...migrated });
-      await AsyncStorage.removeItem(STORAGE_COOKIE_KEY);
+      await privateStorage.removeItem(STORAGE_COOKIE_KEY);
     }
   }
 

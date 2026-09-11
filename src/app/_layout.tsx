@@ -25,6 +25,8 @@ if (typeof Symbol !== 'undefined' && !('description' in Symbol.prototype)) {
   });
 }
 
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -37,25 +39,27 @@ export default function RootLayout() {
   }, [colors.background]);
 
   return (
-    <QueryProvider>
-      <AuthProvider>
-        <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-          <SSEManager />
-          <AnimatedSplashOverlay />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'fade',
-            }}
-          >
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="explore" options={{ headerShown: false }} />
-          </Stack>
-        </ThemeProvider>
-      </AuthProvider>
-    </QueryProvider>
+    <ErrorBoundary>
+      <QueryProvider>
+        <AuthProvider>
+          <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+            <SSEManager />
+            <AnimatedSplashOverlay />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'fade',
+              }}
+            >
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="explore" options={{ headerShown: false }} />
+            </Stack>
+          </ThemeProvider>
+        </AuthProvider>
+      </QueryProvider>
+    </ErrorBoundary>
   );
 }
 

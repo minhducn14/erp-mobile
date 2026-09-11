@@ -72,7 +72,7 @@ const WheelPicker: React.FC<{
           const isSelected = index === selectedIndex;
           return (
             <TouchableOpacity
-              key={index}
+              key={`wheel-item-${item}`}
               className="items-center justify-center"
               style={{ height: ITEM_HEIGHT }}
               onPress={() => onSelect(index)}
