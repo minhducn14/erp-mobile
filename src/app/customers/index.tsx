@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -20,12 +20,14 @@ import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 import { useAuth } from '@/context/AuthContext';
 import { canAccessCustomers } from '@/utils/rbac';
+import CreateCustomerModal from '@/components/customers/CreateCustomerModal';
 
 export default function CustomersScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const hasAccess = canAccessCustomers(user?.role);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // TanStack Query for customer list
   const { data: customers = [], isLoading, isFetching, refetch } = useCustomersQuery({
@@ -61,27 +63,25 @@ export default function CustomersScreen() {
       c.name?.toLowerCase().includes(q) ||
       c.code?.toLowerCase().includes(q) ||
       c.phoneNumber?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.contactPerson?.toLowerCase().includes(q)
+      c.email?.toLowerCase().includes(q)
     );
   });
 
   const renderCustomerCard = ({ item }: { item: CustomerItem }) => {
     return (
-      <View className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+      <TouchableOpacity
+        className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm"
+        onPress={() => router.push(`/customers/${item.id}` as any)}
+        activeOpacity={0.8}
+      >
         <View className="flex-row items-center mb-2.5">
           <View className="w-[42px] h-[42px] rounded-xl bg-blue-50 border border-blue-100 items-center justify-center mr-3">
             <Text className="text-lg font-extrabold text-blue-500">{(item.name || 'C').charAt(0).toUpperCase()}</Text>
           </View>
           <View className="flex-1">
-            <Text className="text-[15px] font-bold text-slate-900 mb-0.5" numberOfLines={1}>
+            <Text className="text-[15px] font-bold text-slate-900" numberOfLines={1}>
               {item.name}
             </Text>
-            {item.contactPerson ? (
-              <Text className="text-xs text-slate-500" numberOfLines={1}>
-                Đại diện: {item.contactPerson}
-              </Text>
-            ) : null}
           </View>
           {item.code && <Text className="text-[11px] font-bold text-slate-400">#{item.code}</Text>}
         </View>
@@ -99,7 +99,7 @@ export default function CustomersScreen() {
           <View className="flex-row items-center gap-2">
             {item.phoneNumber && (
               <TouchableOpacity
-                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50"
+                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 min-h-[36px]"
                 onPress={() => handleCall(item.phoneNumber)}
                 activeOpacity={0.7}
               >
@@ -110,7 +110,7 @@ export default function CustomersScreen() {
 
             {item.email && (
               <TouchableOpacity
-                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50"
+                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 min-h-[36px]"
                 onPress={() => handleEmail(item.email)}
                 activeOpacity={0.7}
               >
@@ -126,7 +126,7 @@ export default function CustomersScreen() {
             </Text>
           ) : null}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -134,7 +134,10 @@ export default function CustomersScreen() {
     return (
       <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
         <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
-          <TouchableOpacity className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center" onPress={() => router.replace('/')}>
+          <TouchableOpacity
+            className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center min-w-[44px] min-h-[44px]"
+            onPress={() => router.replace('/')}
+          >
             <Feather name="arrow-left" size={20} color="#0F172A" />
           </TouchableOpacity>
           <Text className="text-[17px] font-bold text-slate-900">Hồ sơ Khách hàng & CRM</Text>
@@ -149,7 +152,10 @@ export default function CustomersScreen() {
           <Text className="text-[13px] text-slate-500 text-center leading-5 max-w-[280px]">
             Phân hệ Khách hàng chỉ dành riêng cho Ban Quản trị (Admin/BOD) và Bộ phận Phát triển kinh doanh (BD).
           </Text>
-          <TouchableOpacity className="mt-3 bg-primary px-5 py-3 rounded-xl" onPress={() => router.replace('/')}>
+          <TouchableOpacity
+            className="mt-3 bg-primary px-5 py-3 rounded-xl min-h-[44px] justify-center"
+            onPress={() => router.replace('/')}
+          >
             <Text className="text-sm font-bold text-white">Quay về Trang chủ</Text>
           </TouchableOpacity>
         </View>
@@ -164,12 +170,13 @@ export default function CustomersScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <TouchableOpacity
-          className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center"
+          className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center min-w-[44px] min-h-[44px]"
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />
         </TouchableOpacity>
+
         <Text className="text-[17px] font-bold text-slate-900">Hồ sơ Khách hàng & CRM</Text>
         <View className="w-10" />
       </View>
@@ -186,7 +193,7 @@ export default function CustomersScreen() {
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Feather name="x" size={16} color="#94A3B8" />
             </TouchableOpacity>
           )}
@@ -197,7 +204,7 @@ export default function CustomersScreen() {
       {isLoading && !isFetching ? (
         <View className="flex-1 justify-center items-center gap-2.5">
           <ActivityIndicator size="large" color={BrandColors.primary} />
-          <Text className="text-[13px] text-slate-400">Đang tải danh bạ đối tác Getvini...</Text>
+          <Text className="text-[13px] text-slate-400">Đang tải danh bạ đối tác...</Text>
         </View>
       ) : (
         <FlatList
@@ -227,6 +234,13 @@ export default function CustomersScreen() {
           }
         />
       )}
+
+      {/* Create Modal */}
+      <CreateCustomerModal
+        visible={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={refetch}
+      />
 
       {/* Bottom Nav */}
       <BottomNavBar />

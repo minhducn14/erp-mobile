@@ -143,10 +143,7 @@ export default function ExploreScreen() {
 
       case 'finance':
         if (canAccessFinance(role)) {
-          Alert.alert(
-            'Phân hệ Tài chính',
-            'Báo cáo dòng tiền và thanh toán đang được kết nối dữ liệu.'
-          );
+          router.push('/finance' as any);
         } else {
           Alert.alert(
             'Giới hạn quyền truy cập',
@@ -170,7 +167,7 @@ export default function ExploreScreen() {
         break;
 
       case 'notifications':
-        Alert.alert('Thông báo', 'Bạn không có thông báo mới nào chưa đọc.');
+        router.push('/notifications' as any);
         break;
 
       default:

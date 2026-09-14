@@ -55,3 +55,24 @@ export function useUpdateCustomerMutation() {
     },
   });
 }
+
+/**
+ * Hook to create a new customer
+ */
+export function useCreateCustomerMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: Partial<CustomerItem>) => {
+      const res = await customerService.createCustomer(payload);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
+    },
+  });
+}
+
