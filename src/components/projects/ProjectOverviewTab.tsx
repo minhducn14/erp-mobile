@@ -3,13 +3,14 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Linking } from 'react-
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ProjectDetailItem } from '@/services/projectService';
-import { TEAM_MEMBER_ROLE_LABELS, USER_ROLE } from '@/services/teamService';
+import { TeamMember, TEAM_MEMBER_ROLE_LABELS, USER_ROLE } from '@/services/teamService';
 import { BrandColors } from '@/constants/colors';
 import { formatNumber } from '@/utils/formatters';
 
 
 interface ProjectOverviewTabProps {
   project: ProjectDetailItem;
+  teamMembers?: TeamMember[];
   user?: any;
   onOpenAssignPm: () => void;
   onConfirmProject?: () => void;
@@ -30,6 +31,7 @@ interface ProjectOverviewTabProps {
 
 export default function ProjectOverviewTab({
   project,
+  teamMembers,
   user,
   onOpenAssignPm,
   onConfirmProject,
@@ -43,13 +45,16 @@ export default function ProjectOverviewTab({
   canManageTeam = false,
 }: ProjectOverviewTabProps) {
   const router = useRouter();
+  const effectiveMembers = (teamMembers && teamMembers.length > 0) ? teamMembers : (project.team?.members || []);
+
   const pmUser =
     project.projectManager ||
-    project.team?.members?.find((m) => m.role === 'PROJECT_MANAGER' || m.role === 'PM')?.user;
+    effectiveMembers.find((m) => m.role === 'PROJECT_MANAGER' || m.role === 'PM')?.user;
   const pm = pmUser;
+
   const leadUser =
     project.team?.teamLead ||
-    project.team?.members?.find(
+    effectiveMembers.find(
       (m) => (m.role === 'LEAD' || m.role === 'ACCOUNT' || m.role === 'TEAM_LEAD') && m.user?.id !== pmUser?.id
     )?.user;
   const saleorAdminSale = user?.role === 'BD' || user?.role === 'SALE' || user?.role === 'ADMIN_SALE';
@@ -295,8 +300,8 @@ export default function ProjectOverviewTab({
           </View>
         ) : (
           <View className="gap-2 mt-1">
-            {team?.members && team.members.length > 0 ? (
-              team.members.map((m) => {
+            {effectiveMembers && effectiveMembers.length > 0 ? (
+              effectiveMembers.map((m) => {
                 const isPmRole = !!pmUser?.id && m.user?.id === pmUser.id;
                 const isLeadRole = !isPmRole && !!leadUser?.id && m.user?.id === leadUser.id;
 

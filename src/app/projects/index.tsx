@@ -17,6 +17,7 @@ import {
   PROJECT_STATUS_CONFIG,
 } from '@/services/projectService';
 import BottomNavBar from '@/components/BottomNavBar';
+import { safeGoBack } from '@/utils/navigation';
 import { formatNumber } from '@/utils/formatters';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
 import { useProjectsQuery } from '@/hooks/queries/useProjects';
@@ -144,7 +145,7 @@ export default function ProjectsScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 bg-surface border-b border-border">
         <TouchableOpacity
           className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/')}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />

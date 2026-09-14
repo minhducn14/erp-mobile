@@ -20,6 +20,7 @@ import TaskResultModal from '@/components/tasks/TaskResultModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
 import TaskReviewModal from '@/components/tasks/TaskReviewModal';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { safeGoBack } from '@/utils/navigation';
 import {
   useTaskDetailQuery,
   useTaskReviewsQuery,
@@ -256,7 +257,7 @@ export default function TaskDetailScreen() {
       <SafeAreaView className="flex-1 justify-center items-center bg-slate-50 gap-3 p-6">
         <Feather name="alert-circle" size={44} color="#EF4444" />
         <Text className="text-[15px] font-semibold text-slate-900">Không tìm thấy thông tin công việc</Text>
-        <TouchableOpacity className="px-5 py-2.5 rounded-lg bg-primary" onPress={() => router.back()}>
+        <TouchableOpacity className="px-5 py-2.5 rounded-lg bg-primary" onPress={() => safeGoBack(router, '/tasks')}>
           <Text className="text-white font-bold">Quay lại</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -271,13 +272,7 @@ export default function TaskDetailScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200 gap-2">
         <TouchableOpacity
           className="w-[38px] h-[38px] rounded-xl bg-slate-100 items-center justify-center"
-          onPress={() => {
-            if (task.project?.id) {
-              router.push(`/projects/${task.project.id}` as any);
-            } else {
-              router.back();
-            }
-          }}
+          onPress={() => safeGoBack(router, '/tasks')}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />

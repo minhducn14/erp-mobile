@@ -48,6 +48,7 @@ import {
   useAssignProjectMutation } from
 '@/hooks/queries/useProjects';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { safeGoBack } from '@/utils/navigation';
 
 const formatDate = (dateStr?: string) => {
   if (!dateStr) return '—';
@@ -427,7 +428,7 @@ export default function ContractDetailScreen() {
     return (
       <SafeAreaView className="flex-1 bg-slate-50">
         <View className="flex-row items-center justify-between px-[16px] py-[12px] bg-white border-b border-b-slate-100">
-          <TouchableOpacity onPress={() => router.back()} className="w-[38px] h-[38px] rounded-[10px] bg-slate-50 items-center justify-center border border-slate-200">
+          <TouchableOpacity onPress={() => safeGoBack(router, '/contracts')} className="w-[38px] h-[38px] rounded-[10px] bg-slate-50 items-center justify-center border border-slate-200">
             <Feather name="arrow-left" size={20} color="#1E293B" />
           </TouchableOpacity>
           <Text className="text-[15px] font-extrabold text-slate-900">KHÔNG TÌM THẤY HỢP ĐỒNG</Text>
@@ -563,7 +564,7 @@ export default function ContractDetailScreen() {
       <View className="flex-row items-center justify-between px-[16px] py-[12px] bg-white border-b border-b-slate-100">
         <TouchableOpacity
 
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/contracts')}
           activeOpacity={0.7} className="w-[38px] h-[38px] rounded-[10px] bg-slate-50 items-center justify-center border border-slate-200">
           
           <Feather name="arrow-left" size={20} color="#1E293B" />

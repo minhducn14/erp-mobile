@@ -106,7 +106,7 @@ export default function HomeScreen() {
   };
 
   const handleNotificationPress = () => {
-    Alert.alert('Thông báo', 'Bạn không có thông báo mới nào chưa đọc.');
+    router.push('/notifications' as any);
   };
 
   if (isLoading) {

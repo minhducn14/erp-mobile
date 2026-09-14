@@ -23,11 +23,19 @@ import {
 const MODULES = [
   {
     id: 'projects',
-    title: 'Quản lý Dự án & Tasks',
+    title: 'Quản lý Dự án',
     desc: 'Theo dõi tiến độ Kanban, phân công công việc, xét duyệt và nghiệm thu nhiệm vụ.',
     icon: 'briefcase-outline' as const,
     color: BrandColors.primary,
     badge: 'Cốt lõi',
+  },
+  {
+    id: 'tasks',
+    title: 'Nhiệm vụ & Công việc',
+    desc: 'Quản lý công việc cá nhân, tiến độ thực hiện, giao task và cập nhật trạng thái.',
+    icon: 'checkbox-outline' as const,
+    color: '#F59E0B',
+    badge: 'Công việc',
   },
   {
     id: 'opportunities',
@@ -57,7 +65,7 @@ const MODULES = [
     id: 'acceptances',
     title: 'Yêu cầu Nghiệm thu',
     desc: 'Quản lý, tạo yêu cầu và phê duyệt các biên bản nghiệm thu hạng mục dịch vụ dự án.',
-    icon: 'checkbox-outline' as const,
+    icon: 'checkmark-done-circle-outline' as const,
     color: '#059669',
     badge: 'Dự án',
   },
@@ -85,6 +93,14 @@ const MODULES = [
     color: '#6366F1',
     badge: 'Real-time',
   },
+  {
+    id: 'profile',
+    title: 'Hồ sơ cá nhân',
+    desc: 'Quản lý thông tin tài khoản, vai trò cá nhân và cài đặt ứng dụng.',
+    icon: 'person-outline' as const,
+    color: '#10B981',
+    badge: 'Tài khoản',
+  },
 ];
 
 export default function ExploreScreen() {
@@ -102,6 +118,10 @@ export default function ExploreScreen() {
     switch (moduleId) {
       case 'projects':
         router.push('/projects' as any);
+        break;
+
+      case 'tasks':
+        router.push('/tasks' as any);
         break;
 
       case 'opportunities':
@@ -170,6 +190,10 @@ export default function ExploreScreen() {
         router.push('/notifications' as any);
         break;
 
+      case 'profile':
+        router.push('/profile' as any);
+        break;
+
       default:
         break;
     }
@@ -185,6 +209,9 @@ export default function ExploreScreen() {
     if (moduleId === 'teams') return !isManagementRole(role);
     return false;
   };
+
+  // Filter modules to hide restricted ones for the current user role
+  const visibleModules = MODULES.filter((item) => !isModuleLocked(item.id));
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
@@ -219,14 +246,11 @@ export default function ExploreScreen() {
 
         {/* Modules List */}
         <View className="gap-3">
-          {MODULES.map((item) => {
-            const locked = isModuleLocked(item.id);
+          {visibleModules.map((item) => {
             return (
               <TouchableOpacity
                 key={item.id}
-                className={`rounded-[18px] border p-4 ${
-                  locked ? 'border-slate-200 bg-slate-50 opacity-75' : 'border-slate-200 bg-white'
-                }`}
+                className="rounded-[18px] border border-slate-200 bg-white p-4"
                 onPress={() => handleModulePress(item.id)}
                 activeOpacity={0.75}
               >
@@ -240,16 +264,8 @@ export default function ExploreScreen() {
                   <View className="flex-1">
                     <View className="mb-1 flex-row items-center justify-between">
                       <Text className="flex-1 text-[15px] font-bold text-slate-900">{item.title}</Text>
-                      <View className="flex-row items-center gap-1">
-                        {locked && (
-                          <View className="flex-row items-center gap-[3px] rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5">
-                            <Ionicons name="lock-closed" size={10} color="#94A3B8" />
-                            <Text className="text-[10px] font-semibold text-slate-500">Giới hạn</Text>
-                          </View>
-                        )}
-                        <View className="ml-1.5 rounded-md px-2 py-0.5" style={{ backgroundColor: item.color + '20' }}>
-                          <Text className="text-[11px] font-bold" style={{ color: item.color }}>{item.badge}</Text>
-                        </View>
+                      <View className="ml-1.5 rounded-md px-2 py-0.5" style={{ backgroundColor: item.color + '20' }}>
+                        <Text className="text-[11px] font-bold" style={{ color: item.color }}>{item.badge}</Text>
                       </View>
                     </View>
                     <Text className="mt-0.5 text-xs leading-[18px] text-slate-500">{item.desc}</Text>

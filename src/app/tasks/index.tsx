@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TaskItem } from '@/services/dashboardService';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
+import { safeGoBack } from '@/utils/navigation';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
 import { useTasksQuery } from '@/hooks/queries/useTasks';
 
@@ -124,7 +125,7 @@ export default function TasksScreen() {
       <View className="flex-row items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <TouchableOpacity
           className="h-10 w-10 items-center justify-center rounded-[10px] bg-slate-100"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/')}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />

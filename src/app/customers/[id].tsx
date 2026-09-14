@@ -18,6 +18,8 @@ import { BrandColors } from '@/constants/colors';
 import { CONTRACT_STATUS_CONFIG, CONTRACT_STATUS_LABELS } from '@/services/contractService';
 import EditCustomerModal from '@/components/customers/EditCustomerModal';
 
+import { safeGoBack } from '@/utils/navigation';
+
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -65,7 +67,7 @@ export default function CustomerDetailScreen() {
         <Text className="text-base font-bold text-slate-800">Không tìm thấy thông tin đối tác</Text>
         <TouchableOpacity
           className="mt-2 bg-slate-900 px-5 py-3 rounded-xl min-h-[44px] justify-center"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/customers')}
         >
           <Text className="text-sm font-bold text-white">Quay lại danh sách</Text>
         </TouchableOpacity>
@@ -83,7 +85,7 @@ export default function CustomerDetailScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <TouchableOpacity
           className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center min-w-[44px] min-h-[44px]"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/customers')}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />
