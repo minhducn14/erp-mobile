@@ -27,10 +27,8 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
   totalDebt = 0,
 }) => {
   const router = useRouter();
-  const hasOppAccess = canAccessOpportunities(userRole);
-
-  // Actions for Sales & Management roles (BOD, Admin, BD, Admin Sale)
-  const salesActions: ActionItem[] = [
+  // List of all potential quick actions with permission checks
+  const allPossibleActions: (ActionItem & { isAllowed: boolean })[] = [
     {
       id: 'opp_pipeline',
       label: 'Cơ hội',
@@ -39,6 +37,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: '#8B5CF6',
       bgColor: '#F3E8FF',
       onPress: () => router.push('/opportunities' as any),
+      isAllowed: canAccessOpportunities(userRole),
     },
     {
       id: 'contracts',
@@ -48,6 +47,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: '#2563EB',
       bgColor: '#EFF6FF',
       onPress: () => router.push('/contracts' as any),
+      isAllowed: canAccessContracts(userRole),
     },
     {
       id: 'create_opp',
@@ -57,6 +57,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: BrandColors.primary,
       bgColor: '#FFF4EA',
       onPress: () => router.push('/opportunities/create' as any),
+      isAllowed: canAccessOpportunities(userRole),
     },
     {
       id: 'customers',
@@ -66,6 +67,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: '#10B981',
       bgColor: '#ECFDF5',
       onPress: () => router.push('/customers' as any),
+      isAllowed: canAccessCustomers(userRole),
     },
     {
       id: 'projects',
@@ -75,6 +77,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: '#3B82F6',
       bgColor: '#EFF6FF',
       onPress: () => router.push('/projects' as any),
+      isAllowed: true,
     },
     {
       id: 'tasks',
@@ -84,6 +87,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: '#F59E0B',
       bgColor: '#FFFBEB',
       onPress: () => router.push('/tasks' as any),
+      isAllowed: true,
     },
     {
       id: 'acceptances',
@@ -93,6 +97,27 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: '#059669',
       bgColor: '#ECFDF5',
       onPress: () => router.push('/acceptances' as any),
+      isAllowed: true,
+    },
+    {
+      id: 'notif',
+      label: 'Thông báo',
+      iconName: 'notifications-outline',
+      iconType: 'ionicons',
+      iconColor: '#EC4899',
+      bgColor: '#FDF2F8',
+      onPress: () => router.push('/notifications' as any),
+      isAllowed: true,
+    },
+    {
+      id: 'profile',
+      label: 'Hồ sơ',
+      iconName: 'person-outline',
+      iconType: 'ionicons',
+      iconColor: '#10B981',
+      bgColor: '#ECFDF5',
+      onPress: () => router.push('/profile' as any),
+      isAllowed: true,
     },
     {
       id: 'explore',
@@ -102,90 +127,12 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       iconColor: '#6366F1',
       bgColor: '#EEF2FF',
       onPress: () => router.push('/explore'),
+      isAllowed: true,
     },
   ];
 
-  // Actions for Staff / Technical Members (Staff A/B/C/D, PM)
-  const staffActions: ActionItem[] = [
-    {
-      id: 'my_tasks',
-      label: 'Việc của tôi',
-      iconName: 'checkbox-outline',
-      iconType: 'ionicons',
-      iconColor: BrandColors.primary,
-      bgColor: '#FFF4EA',
-      onPress: () => router.push('/tasks' as any),
-    },
-    {
-      id: 'my_projects',
-      label: 'Dự án',
-      iconName: 'briefcase-outline',
-      iconType: 'ionicons',
-      iconColor: '#3B82F6',
-      bgColor: '#EFF6FF',
-      onPress: () => router.push('/projects' as any),
-    },
-    {
-      id: 'my_acceptances',
-      label: 'Nghiệm thu',
-      iconName: 'checkmark-done-circle-outline',
-      iconType: 'ionicons',
-      iconColor: '#059669',
-      bgColor: '#ECFDF5',
-      onPress: () => router.push('/acceptances' as any),
-    },
-    {
-      id: 'profile',
-      label: 'Hồ sơ tôi',
-      iconName: 'person-outline',
-      iconType: 'ionicons',
-      iconColor: '#10B981',
-      bgColor: '#ECFDF5',
-      onPress: () => router.push('/profile' as any),
-    },
-    {
-      id: 'calendar',
-      label: 'Lịch làm việc',
-      iconName: 'calendar-outline',
-      iconType: 'ionicons',
-      iconColor: '#8B5CF6',
-      bgColor: '#F3E8FF',
-      onPress: () => router.push('/tasks' as any),
-    },
-    {
-      id: 'support',
-      label: 'Hỗ trợ',
-      iconName: 'help-circle-outline',
-      iconType: 'ionicons',
-      iconColor: '#0284C7',
-      bgColor: '#E0F2FE',
-      onPress: () => {
-        Alert.alert('Trung tâm Hỗ trợ', 'Vui lòng liên hệ quản lý dự án (PM) hoặc phòng IT Getvini nếu bạn cần hỗ trợ.');
-      },
-    },
-    {
-      id: 'notif',
-      label: 'Thông báo',
-      iconName: 'notifications-outline',
-      iconType: 'ionicons',
-      iconColor: '#EC4899',
-      bgColor: '#FDF2F8',
-      onPress: () => {
-        Alert.alert('Thông báo', 'Bạn không có thông báo mới nào chưa đọc.');
-      },
-    },
-    {
-      id: 'explore_staff',
-      label: 'Khám phá',
-      iconName: 'grid-outline',
-      iconType: 'ionicons',
-      iconColor: '#6366F1',
-      bgColor: '#EEF2FF',
-      onPress: () => router.push('/explore'),
-    },
-  ];
-
-  const actions = hasOppAccess ? salesActions : staffActions;
+  // Only show actions allowed for current user's role
+  const actions = allPossibleActions.filter((item) => item.isAllowed);
 
   return (
     <View className="bg-surface rounded-2xl px-3 py-4 mb-4 border border-border shadow-xs">
