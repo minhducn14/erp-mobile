@@ -15,8 +15,9 @@ export interface CustomerItem {
   industry?: string;
   contracts?: Array<{
     id: string;
+    name?: string;
     contractCode?: string;
-    sellingPrice?: number;
+    sellingPrice?: number | string;
     status?: string;
   }>;
 }
@@ -45,6 +46,11 @@ class CustomerService {
 
   async updateCustomer(id: string, payload: Partial<CustomerItem>): Promise<{ data?: CustomerItem; error?: string }> {
     const res = await apiService.put<CustomerItem>(`/customers/${id}`, payload);
+    return { data: res.data, error: res.error };
+  }
+
+  async createCustomer(payload: Partial<CustomerItem>): Promise<{ data?: CustomerItem; error?: string }> {
+    const res = await apiService.post<CustomerItem>('/customers', payload);
     return { data: res.data, error: res.error };
   }
 }

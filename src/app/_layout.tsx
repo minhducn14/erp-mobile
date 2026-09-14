@@ -55,6 +55,15 @@ export default function RootLayout() {
               <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="(auth)" options={{ headerShown: false }} />
               <Stack.Screen name="explore" options={{ headerShown: false }} />
+              <Stack.Screen name="customers" options={{ headerShown: false }} />
+              <Stack.Screen name="opportunities" options={{ headerShown: false }} />
+              <Stack.Screen name="projects" options={{ headerShown: false }} />
+              <Stack.Screen name="contracts" options={{ headerShown: false }} />
+              <Stack.Screen name="tasks" options={{ headerShown: false }} />
+              <Stack.Screen name="acceptances" options={{ headerShown: false }} />
+              <Stack.Screen name="finance" options={{ headerShown: false }} />
+              <Stack.Screen name="notifications" options={{ headerShown: false }} />
+              <Stack.Screen name="profile" options={{ headerShown: false }} />
             </Stack>
           </ThemeProvider>
         </AuthProvider>
