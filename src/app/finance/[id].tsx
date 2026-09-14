@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptic from 'expo-haptics';
 import { financeService, PaymentPeriod, getFinanceStatusConfig } from '@/services/financeService';
 import { BrandColors } from '@/constants/colors';
+import { safeGoBack } from '@/utils/navigation';
 
 export default function PaymentApprovalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -59,7 +60,7 @@ export default function PaymentApprovalDetailScreen() {
               await financeService.approvePaymentPeriod(id as string);
               Haptic.notificationAsync(Haptic.NotificationFeedbackType.Success);
               Alert.alert('Thành công', 'Đã phê duyệt đợt thanh toán.');
-              router.back();
+              safeGoBack(router, '/finance');
             } catch (err: any) {
               Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
               Alert.alert('Lỗi phê duyệt', err?.message || 'Không thể phê duyệt.');
@@ -84,7 +85,7 @@ export default function PaymentApprovalDetailScreen() {
       await financeService.rejectPaymentPeriod(id as string, rejectReason);
       Haptic.notificationAsync(Haptic.NotificationFeedbackType.Warning);
       Alert.alert('Đã từ chối', 'Đã từ chối đợt thanh toán này.');
-      router.back();
+      safeGoBack(router, '/finance');
     } catch (err: any) {
       Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
       Alert.alert('Lỗi', err?.message || 'Không thể thực hiện.');
@@ -109,7 +110,7 @@ export default function PaymentApprovalDetailScreen() {
         <Text className="text-base font-bold text-slate-800">Không tìm thấy đợt thanh toán</Text>
         <TouchableOpacity
           className="mt-2 bg-slate-900 px-5 py-3 rounded-xl min-h-[44px] justify-center"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/finance')}
         >
           <Text className="text-sm font-bold text-white">Quay lại danh sách</Text>
         </TouchableOpacity>
@@ -126,7 +127,7 @@ export default function PaymentApprovalDetailScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <TouchableOpacity
           className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center min-w-[44px] min-h-[44px]"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/finance')}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />

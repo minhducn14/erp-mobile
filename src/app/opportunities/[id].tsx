@@ -25,6 +25,7 @@ import {
   QuotationStatus,
 } from '@/services/quotationService';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { safeGoBack } from '@/utils/navigation';
 import {
   contractService,
   CONTRACT_STATUS_CONFIG,
@@ -397,7 +398,7 @@ export default function OpportunityDetailScreen() {
       <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
         <View className="flex-1 justify-center items-center p-6">
           <Text className="text-base font-bold text-slate-800 mb-4">Không tìm thấy cơ hội</Text>
-          <TouchableOpacity className="bg-primary px-4 py-2.5 rounded-xl" onPress={() => router.back()}>
+          <TouchableOpacity className="bg-primary px-4 py-2.5 rounded-xl" onPress={() => safeGoBack(router, '/opportunities')}>
             <Text className="text-white font-bold">Quay lại danh sách</Text>
           </TouchableOpacity>
         </View>
@@ -453,7 +454,7 @@ export default function OpportunityDetailScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-100">
         <TouchableOpacity
           className="w-[38px] h-[38px] rounded-xl bg-slate-100 justify-center items-center"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/opportunities')}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#1E293B" />

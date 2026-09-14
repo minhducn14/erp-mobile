@@ -322,6 +322,24 @@ export function useRejectProductDescriptionMutation() {
 }
 
 /**
+ * Hook to fetch team members for a team
+ */
+export function useTeamMembersQuery(teamId?: string) {
+  return useQuery({
+    queryKey: ['teams', 'members', teamId],
+    queryFn: async () => {
+      if (!teamId) return [];
+      const res = await teamService.getTeamMembers(teamId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data || [];
+    },
+    enabled: Boolean(teamId),
+  });
+}
+
+/**
  * Hook to update team member role
  */
 export function useUpdateTeamMemberRoleMutation() {
@@ -343,8 +361,9 @@ export function useUpdateTeamMemberRoleMutation() {
       }
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      queryClient.invalidateQueries({ queryKey: ['teams', 'members', variables.teamId] });
     },
   });
 }
@@ -387,8 +406,9 @@ export function useAddTeamMemberMutation() {
       }
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      queryClient.invalidateQueries({ queryKey: ['teams', 'members', variables.teamId] });
     },
   });
 }
@@ -407,8 +427,9 @@ export function useRemoveTeamMemberMutation() {
       }
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      queryClient.invalidateQueries({ queryKey: ['teams', 'members', variables.teamId] });
     },
   });
 }

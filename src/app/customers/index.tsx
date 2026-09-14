@@ -21,6 +21,7 @@ import BottomNavBar from '@/components/BottomNavBar';
 import { useAuth } from '@/context/AuthContext';
 import { canAccessCustomers } from '@/utils/rbac';
 import CreateCustomerModal from '@/components/customers/CreateCustomerModal';
+import { safeGoBack } from '@/utils/navigation';
 
 export default function CustomersScreen() {
   const router = useRouter();
@@ -171,7 +172,7 @@ export default function CustomersScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <TouchableOpacity
           className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center min-w-[44px] min-h-[44px]"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/')}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#0F172A" />

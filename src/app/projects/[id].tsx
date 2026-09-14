@@ -33,8 +33,10 @@ import AddTeamMemberModal from '@/components/projects/AddTeamMemberModal';
 import EditTeamMemberRoleModal from '@/components/projects/EditTeamMemberRoleModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
+import { safeGoBack } from '@/utils/navigation';
 import {
   useProjectDetailQuery,
+  useTeamMembersQuery,
   useConfirmProjectMutation,
   useRemoveTeamMemberMutation,
 } from '@/hooks/queries/useProjects';
@@ -58,6 +60,9 @@ export default function ProjectDetailScreen() {
     refetch: refetchProject,
   } = useProjectDetailQuery(String(id || ''));
 
+  const project: ProjectDetailItem | null = projectData || null;
+  const { data: teamMembersData, refetch: refetchTeamMembers } = useTeamMembersQuery(project?.team?.id);
+
   const confirmProjectMutation = useConfirmProjectMutation();
   const removeTeamMemberMutation = useRemoveTeamMemberMutation();
 
@@ -67,7 +72,6 @@ export default function ProjectDetailScreen() {
   const { data: acceptancesData, isLoading: isLoadingAcceptances, refetch: refetchAcceptances } = useAcceptancesQuery({ projectId: String(id || '') });
   const acceptances: AcceptanceItem[] = acceptancesData || [];
 
-  const project: ProjectDetailItem | null = projectData || null;
   const isLoading = isProjectLoading;
   const isRefreshing = isProjectFetching;
 
@@ -91,14 +95,18 @@ export default function ProjectDetailScreen() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
   // RBAC & Permission Calculations
+  const effectiveTeamMembers = (teamMembersData && teamMembersData.length > 0)
+    ? teamMembersData
+    : (project?.team?.members || []);
+
   const isAdminOrBod = isManagementRole(user?.role);
   const assignedPmId =
     project?.projectManager?.id ||
-    project?.team?.members?.find((m) => m.role === 'PROJECT_MANAGER' || m.role === 'PM')?.user?.id;
+    effectiveTeamMembers.find((m) => m.role === 'PROJECT_MANAGER' || m.role === 'PM')?.user?.id;
   const isAssignedPm = !!user?.id && !!assignedPmId && assignedPmId === user.id;
   const leadUser =
     project?.team?.teamLead ||
-    project?.team?.members?.find(
+    effectiveTeamMembers.find(
       (m) => (m.role === 'LEAD' || m.role === 'ACCOUNT' || m.role === 'TEAM_LEAD') && m.user?.id !== assignedPmId
     )?.user;
   const isCurrentTeamLead = !!user?.id && !!leadUser?.id && user.id === leadUser.id;
@@ -212,6 +220,7 @@ export default function ProjectDetailScreen() {
 
   const handleRefresh = () => {
     refetchProject();
+    refetchTeamMembers();
     loadTasks();
     loadAcceptances();
   };
@@ -237,7 +246,7 @@ export default function ProjectDetailScreen() {
     return (
       <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
         <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200 gap-2">
-          <TouchableOpacity className="w-[38px] h-[38px] rounded-xl bg-slate-100 items-center justify-center" onPress={() => router.back()}>
+          <TouchableOpacity className="w-[38px] h-[38px] rounded-xl bg-slate-100 items-center justify-center" onPress={() => safeGoBack(router, '/projects')}>
             <Feather name="arrow-left" size={20} color="#0F172A" />
           </TouchableOpacity>
           <Text className="text-base font-bold text-slate-900">Chi tiết dự án</Text>
@@ -257,7 +266,7 @@ export default function ProjectDetailScreen() {
     <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200 gap-2">
-        <TouchableOpacity className="w-[38px] h-[38px] rounded-xl bg-slate-100 items-center justify-center" onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity className="w-[38px] h-[38px] rounded-xl bg-slate-100 items-center justify-center" onPress={() => safeGoBack(router, '/projects')} activeOpacity={0.7}>
           <Feather name="arrow-left" size={20} color="#0F172A" />
         </TouchableOpacity>
 
@@ -334,6 +343,7 @@ export default function ProjectDetailScreen() {
         {activeTab === 'OVERVIEW' && project && (
           <ProjectOverviewTab
             project={project}
+            teamMembers={effectiveTeamMembers}
             user={user}
             onOpenAssignPm={() => setShowAssignPm(true)}
             onConfirmProject={handleConfirmProject}

@@ -16,7 +16,8 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { canAccessOpportunities } from '@/utils/rbac';
 import { BrandColors } from '@/constants/colors';
-import { formatVND, formatVNDFull } from '@/utils/formatters';
+import { formatVND, formatVNDFull, formatNumber } from '@/utils/formatters';
+import { safeGoBack } from '@/utils/navigation';
 import { OpportunityItem, OpportunityListFilters } from '@/services/opportunityService';
 import { PipelineTabs } from '@/components/opportunities/PipelineTabs';
 import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
@@ -261,7 +262,7 @@ export default function OpportunitiesScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-100">
         <TouchableOpacity
           className="w-[38px] h-[38px] rounded-xl bg-slate-100 justify-center items-center"
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router, '/')}
           activeOpacity={0.7}
         >
           <Feather name="arrow-left" size={20} color="#1E293B" />
