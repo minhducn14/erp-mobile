@@ -14,7 +14,7 @@ export function safeGoBack(router: AppRouter, fallbackPath: string = '/') {
       router.replace(fallbackPath as any);
     }
   } catch (error) {
-    console.warn('[Navigation] safeGoBack fallback triggered:', error);
+    console.log('[Navigation] safeGoBack fallback triggered:', error);
     router.replace(fallbackPath as any);
   }
 }

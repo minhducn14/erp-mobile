@@ -90,7 +90,7 @@ export function useLogoutMutation() {
       try {
         await apiService.logout();
       } catch (err) {
-        console.warn('⚠️ [Logout Warning] Failed to call logout API, clearing local storage anyway:', err);
+        console.log('⚠️ [Logout Warning] Failed to call logout API, clearing local storage anyway:', err);
       } finally {
         await privateStorage.removeItem(STORAGE_USER_KEY).catch(() => undefined);
         clearAuth();

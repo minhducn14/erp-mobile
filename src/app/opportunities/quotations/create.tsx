@@ -536,7 +536,7 @@ export default function QuotationCreateEditScreen() {
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (err: any) {
-      console.error('Error submitting quotation:', err);
+      console.log('Error submitting quotation:', err);
       Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra khi lưu báo giá');
     }
   };

@@ -68,7 +68,7 @@ export default function CreateCustomerModal({ visible, onClose, onSuccess }: Cre
             setTaxError('Không tra cứu được mã số thuế');
           }
         } catch (err) {
-          console.error('[Tax Lookup Create] Lỗi khi tra cứu mã số thuế:', err);
+          console.log('[Tax Lookup Create] Lỗi khi tra cứu mã số thuế:', err);
           setTaxError('Không tra cứu được mã số thuế');
         } finally {
           setIsFetchingTax(false);

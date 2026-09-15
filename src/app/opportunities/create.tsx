@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import { Feather } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { DatePickerModal } from '@/components/common/DatePickerModal';
 import { BrandColors } from '@/constants/colors';
 import { CreateOpportunityPayload } from '@/services/opportunityService';
 import {
@@ -370,162 +371,6 @@ const SuccessChanceSlider: React.FC<{
         })}
       </View>
     </View>);
-
-};
-
-// Pure React Native Calendar Modal for picking dates
-const CalendarPickerModal: React.FC<{
-  visible: boolean;
-  title: string;
-  currentDateStr: string;
-  onSelectDate: (dateStr: string) => void;
-  onClose: () => void;
-}> = ({ visible, title, currentDateStr, onSelectDate, onClose }) => {
-  const { width, height } = useWindowDimensions();
-  const isSmallScreen = width < 380;
-  const isTablet = width >= 768;
-  const isLandscape = width > height;
-
-  const [viewDate, setViewDate] = useState(new Date());
-
-  useEffect(() => {
-    if (visible) {
-      const parsed = parseDateObj(currentDateStr);
-      setViewDate(parsed || new Date());
-    }
-  }, [visible, currentDateStr]);
-
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth(); // 0 - 11
-
-  const prevMonth = () => {
-    setViewDate(new Date(year, month - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setViewDate(new Date(year, month + 1, 1));
-  };
-
-  const handleSelectDay = (day: number) => {
-    const formatted = `${String(day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}/${year}`;
-    onSelectDate(formatted);
-    onClose();
-  };
-
-  const handleSelectToday = () => {
-    const today = new Date();
-    const formatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-    onSelectDate(formatted);
-    onClose();
-  };
-
-  // Days calculations
-  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const currentSelectedDay = useMemo(() => {
-    const parsed = parseDateObj(currentDateStr);
-    if (parsed && parsed.getFullYear() === year && parsed.getMonth() === month) {
-      return parsed.getDate();
-    }
-    return null;
-  }, [currentDateStr, year, month]);
-
-  const todayDate = new Date();
-  const isCurrentMonthToday = todayDate.getFullYear() === year && todayDate.getMonth() === month;
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 bg-[rgba(0,_0,_0,_0.45)] justify-center items-center p-[20px]">
-        <View
-          style={
-
-          {
-            width: isTablet ? 460 : Math.min(width * 0.94, 400),
-            maxHeight: isLandscape ? height * 0.9 : undefined
-          }} className="w-[94%] bg-white rounded-[16px] p-[18px] shadow-lg">
-
-          
-          {/* Header */}
-          <View className="flex-row justify-between items-center pb-[12px] border-b border-b-slate-200">
-            <Text className="text-[16px] font-bold text-slate-900">{title}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={20} color="#64748B" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Month Navigator */}
-          <View className="flex-row justify-between items-center my-[12px]">
-            <TouchableOpacity onPress={prevMonth} className="p-[8px] rounded-[8px] bg-slate-100">
-              <Feather name="chevron-left" size={20} color="#1E293B" />
-            </TouchableOpacity>
-            <Text className="text-[15px] font-bold text-slate-800">
-              Tháng {month + 1}, {year}
-            </Text>
-            <TouchableOpacity onPress={nextMonth} className="p-[8px] rounded-[8px] bg-slate-100">
-              <Feather name="chevron-right" size={20} color="#1E293B" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Day of Week Headers */}
-          <View className="flex-row justify-around py-[8px] border-b border-b-slate-100">
-            {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d, i) =>
-            <Text key={i} style={i >= 5 && { color: '#EF4444' }} className="w-[36px] text-center text-[12px] font-bold text-slate-500">
-                {d}
-              </Text>
-            )}
-          </View>
-
-          {/* Days Grid */}
-          <View className="flex-row flex-wrap my-[8px]">
-            {/* Blank leading days */}
-            {Array.from({ length: firstDayIndex }).map((_, i) =>
-            <View key={`empty-${i}`} className="h-[40px] justify-center items-center my-[2px] rounded-[8px]" />
-            )}
-
-            {/* Actual Month Days */}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const dayNum = i + 1;
-              const isSelected = dayNum === currentSelectedDay;
-              const isToday = isCurrentMonthToday && todayDate.getDate() === dayNum;
-
-              return (
-                <TouchableOpacity
-                  key={`day-${dayNum}`}
-
-
-
-
-
-                  onPress={() => handleSelectDay(dayNum)}
-                  activeOpacity={0.7} className={["h-[40px] justify-center items-center my-[2px] rounded-[8px]", isSelected && "bg-blue-600", !isSelected && isToday && "bg-blue-50 border border-[#93C5FD]"].filter(Boolean).join(" ")}>
-                  
-                  <Text className={["text-[14px] font-medium text-slate-800",
-
-
-                  isSelected && "text-white font-bold",
-                  !isSelected && isToday && "text-blue-600 font-bold"].filter(Boolean).join(" ")}>
-
-                    
-                    {dayNum}
-                  </Text>
-                </TouchableOpacity>);
-
-            })}
-          </View>
-
-          {/* Footer actions */}
-          <View className="flex-row justify-between items-center mt-[12px] pt-[12px] border-t border-t-slate-200">
-            <TouchableOpacity onPress={handleSelectToday} className="py-[8px] px-[14px] rounded-[8px] bg-blue-50">
-              <Text className="text-[13px] font-semibold text-blue-600">Hôm nay</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onClose} className="py-[8px] px-[14px] rounded-[8px] bg-slate-100">
-              <Text className="text-[13px] font-semibold text-slate-500">Đóng</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>);
 
 };
 
@@ -1865,17 +1710,19 @@ export default function CreateOpportunityScreen() {
           </View>
         </View>
 
-      {/* Embedded Calendar Picker Modal */}
-      <CalendarPickerModal
+      {/* Shared Calendar Picker Modal */}
+      <DatePickerModal
         visible={activeDatePicker !== null}
         title={activeDatePicker === 'start' ? 'Chọn ngày dự kiến bắt đầu' : 'Chọn ngày dự kiến kết thúc'}
-        currentDateStr={activeDatePicker === 'start' ? startDate : endDate}
-        onSelectDate={(selectedStr) => {
+        initialDate={activeDatePicker === 'start' ? startDate : endDate}
+        onConfirm={(_, formattedYYYYMMDD) => {
+          const selectedStr = toDisplayDate(formattedYYYYMMDD);
           if (activeDatePicker === 'start') {
             setStartDate(selectedStr);
           } else {
             setEndDate(selectedStr);
           }
+          setActiveDatePicker(null);
         }}
         onClose={() => setActiveDatePicker(null)} />
       

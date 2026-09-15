@@ -70,7 +70,7 @@ export default function ProjectOverviewTab({
   const handleOpenAttachment = (url?: string) => {
     if (url) {
       Linking.openURL(url).catch((err) => {
-        console.warn('Cannot open attachment URL:', err);
+        console.log('Cannot open attachment URL:', err);
       });
     }
   };

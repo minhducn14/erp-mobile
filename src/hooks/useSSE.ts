@@ -83,17 +83,17 @@ export const useSSE = () => {
             console.log('🔔 [SSE Mobile] Notification received:', payload);
             sseEventBus.emit('notification', payload);
           } catch (err) {
-            console.error('❌ [SSE Mobile] Error parsing message payload:', err);
+            console.log('❌ [SSE Mobile] Error parsing message payload:', err);
           }
         });
 
         es.addEventListener('error', (event: any) => {
           if (event.type === 'error') {
-            console.warn('⚠️ [SSE Mobile] Connection error/disconnected. EventSource will retry...');
+            console.log('⚠️ [SSE Mobile] Connection error/disconnected. EventSource will retry...');
           }
         });
       } catch (error) {
-        console.error('💥 [SSE Mobile] Failed to initialize EventSource:', error);
+        console.log('💥 [SSE Mobile] Failed to initialize EventSource:', error);
       }
     };
 

@@ -217,7 +217,7 @@ export default function FinanceDashboardScreen() {
         });
       }
     } catch (err) {
-      console.error('Lỗi chọn tệp minh chứng:', err);
+      console.log('Lỗi chọn tệp minh chứng:', err);
       Alert.alert('Lỗi', 'Không thể chọn tệp minh chứng.');
     }
   };

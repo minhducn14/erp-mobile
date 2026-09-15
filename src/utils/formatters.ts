@@ -153,6 +153,26 @@ export const formatDateToDDMMYYYY = (
 };
 
 /**
+ * Định dạng ngày giờ ISO/API sang chuẩn hiển thị Việt Nam: DD/MM/YYYY HH:mm.
+ * Chuỗi có timezone (ví dụ hậu tố Z) được chuyển về múi giờ địa phương của thiết bị.
+ */
+export const formatDateTimeToDDMMYYYYHHMM = (
+  dateInput: Date | string | number | undefined | null,
+  fallback: string = ''
+): string => {
+  if (!dateInput) return fallback;
+
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(date.getTime())) return fallback;
+
+  const displayDate = formatDateToDDMMYYYY(date).replace(/-/g, '/');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${displayDate} ${hours}:${minutes}`;
+};
+
+/**
  * Chuyển ngày về định dạng API YYYY-MM-DD (Ví dụ: 2026-09-15)
  */
 export const formatDateToYYYYMMDD = (

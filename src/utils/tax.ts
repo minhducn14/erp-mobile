@@ -37,7 +37,7 @@ export const fetchTaxInfo = async (taxId: string): Promise<TaxInfoResult | null>
     }
     return null;
   } catch (error) {
-    console.error('Error fetching tax info:', error);
+    console.log('Error fetching tax info:', error);
     return null;
   }
 };

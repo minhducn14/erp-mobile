@@ -86,7 +86,7 @@ export default function EditCustomerModal({
             setTaxError('Không tra cứu được mã số thuế');
           }
         } catch (err) {
-          console.error('[Tax Lookup Edit] Lỗi khi tra cứu mã số thuế:', err);
+          console.log('[Tax Lookup Edit] Lỗi khi tra cứu mã số thuế:', err);
           setTaxError('Không tra cứu được mã số thuế');
         } finally {
           setIsFetchingTax(false);

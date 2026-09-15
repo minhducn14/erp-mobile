@@ -257,7 +257,7 @@ class ApiService {
 
       if (!response.ok) {
         if (__DEV__) {
-          console.warn(`❌ [API Error] [${method}] ${cleanEndpoint} (${response.status}) [${duration}ms]:`, data);
+          console.log(`❌ [API Error] [${method}] ${cleanEndpoint} (${response.status}) [${duration}ms]:`, data);
         }
 
         if (response.status === 401 && allowRefresh && this.shouldRefresh(cleanEndpoint)) {
@@ -284,7 +284,7 @@ class ApiService {
     } catch (err: any) {
       const duration = Date.now() - startTime;
       if (__DEV__) {
-        console.error(`💥 [API Network Error] [${method}] ${cleanEndpoint} [${duration}ms]:`, err?.message || err);
+        console.log(`💥 [API Network Error] [${method}] ${cleanEndpoint} [${duration}ms]:`, err?.message || err);
       }
       return {
         error: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối.',

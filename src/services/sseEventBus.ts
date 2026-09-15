@@ -35,7 +35,7 @@ class SSEEventBus {
         try {
           listener(payload);
         } catch (err) {
-          console.error(`[SSEEventBus] Error handling event '${event}':`, err);
+          console.log(`[SSEEventBus] Error handling event '${event}':`, err);
         }
       });
     }
@@ -47,7 +47,7 @@ class SSEEventBus {
         try {
           listener({ event, payload });
         } catch (err) {
-          console.error(`[SSEEventBus] Error handling global listener for event '${event}':`, err);
+          console.log(`[SSEEventBus] Error handling global listener for event '${event}':`, err);
         }
       });
     }

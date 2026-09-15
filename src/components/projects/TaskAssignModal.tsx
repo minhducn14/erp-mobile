@@ -25,6 +25,7 @@ import {
 import { uploadToCloudinary, PickedFile } from '@/services/cloudinaryService';
 import { BrandColors } from '@/constants/colors';
 import { isValidUrl, normalizeUrl } from '@/utils/validators';
+import { formatDateTimeToDDMMYYYYHHMM } from '@/utils/formatters';
 
 const ITEM_HEIGHT = 38;
 const VISIBLE_ITEMS = 3;
@@ -505,7 +506,8 @@ export default function TaskAssignModal({
       setIsTeamAssignment(false);
       setSelectedTeamId('');
       setSelectedVendorId('');
-      setDueDate(representativeTask.dueDate || (representativeTask as any).plannedEndDate || '');
+      const storedDueDate = representativeTask.dueDate || (representativeTask as any).plannedEndDate;
+      setDueDate(formatDateTimeToDDMMYYYYHHMM(storedDueDate, storedDueDate || ''));
       setDescription(representativeTask.description || '');
       setLinks(['']);
       setFiles([]);
