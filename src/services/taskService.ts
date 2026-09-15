@@ -240,9 +240,39 @@ class TaskService {
 
   async submitTaskResult(
     id: string,
-    payload: { link?: string; result?: any; projectId?: string }
+    payload: {
+      link?: string;
+      result?: any;
+      projectId?: string;
+      sheetNames?: string[];
+      whitelist?: string[];
+      checkFileUrl?: string;
+      checkFileName?: string;
+    }
   ): Promise<{ data?: any; error?: string }> {
     const res = await apiService.patch(`/tasks/${id}/submit-result`, payload);
+    return { data: res.data, error: res.error };
+  }
+
+  async submitTaskResultFile(
+    id: string,
+    file: { uri: string; name: string; mimeType?: string },
+    sheetNames?: string[],
+    whitelist?: string[]
+  ): Promise<{ data?: any; error?: string }> {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType || 'application/octet-stream',
+    } as any);
+    if (sheetNames && sheetNames.length > 0) {
+      formData.append('sheetNames', sheetNames.join(','));
+    }
+    if (whitelist && whitelist.length > 0) {
+      formData.append('whitelist', whitelist.join(','));
+    }
+    const res = await apiService.patchForm(`/tasks/${id}/submit-result-file`, formData);
     return { data: res.data, error: res.error };
   }
 

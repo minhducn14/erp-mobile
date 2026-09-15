@@ -150,7 +150,7 @@ export default function TaskReviewScreen() {
     : reviews;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F8FAFC]" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-[#F8FAFC]" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 py-3 bg-white border-b border-[#E2E8F0]">
         <TouchableOpacity className="w-9 h-9 rounded-lg bg-[#F1F5F9] items-center justify-center" onPress={() => router.back()}>
@@ -162,7 +162,7 @@ export default function TaskReviewScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerClassName="p-4" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1" contentContainerClassName="p-4" showsVerticalScrollIndicator={false}>
         {/* Result Card */}
         <View className="bg-white border border-[#E2E8F0] rounded-2xl p-4 mb-4">
           <View className="flex-row items-center gap-2 mb-3">
@@ -352,5 +352,3 @@ export default function TaskReviewScreen() {
     </SafeAreaView>
   );
 }
-
-
