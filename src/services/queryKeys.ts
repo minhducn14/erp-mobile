@@ -103,4 +103,10 @@ export const queryKeys = {
     all: ['notifications'] as const,
     unread: ['notifications', 'unread'] as const,
   },
+
+  // Finance / Tài chính & Công nợ
+  finance: {
+    all: ['finance'] as const,
+    contractDebts: () => [...queryKeys.finance.all, 'contract-debts'] as const,
+  },
 };
