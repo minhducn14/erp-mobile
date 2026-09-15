@@ -79,6 +79,25 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.acceptances.details(), id] as const,
   },
 
+  // Task Result Checks / Kiểm tra chính tả & QC
+  taskResultChecks: {
+    all: ['taskResultChecks'] as const,
+    detail: (taskId: string) => [...queryKeys.taskResultChecks.all, taskId] as const,
+  },
+
+  qc: {
+    all: ['qc'] as const,
+    productInfo: (projectId: string) => [...queryKeys.qc.all, 'product-info', projectId] as const,
+  },
+
+  spellingCheck: {
+    all: ['spellingCheck'] as const,
+    sheetsFromUrl: (fileUrl?: string, fileName?: string) =>
+      [...queryKeys.spellingCheck.all, 'sheets-from-url', fileUrl || '', fileName || ''] as const,
+    sheetsFromFile: (fileUri?: string, fileName?: string) =>
+      [...queryKeys.spellingCheck.all, 'sheets-from-file', fileUri || '', fileName || ''] as const,
+  },
+
   // Notifications
   notifications: {
     all: ['notifications'] as const,

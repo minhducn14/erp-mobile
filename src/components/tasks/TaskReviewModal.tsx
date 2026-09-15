@@ -18,6 +18,7 @@ import {
   useRejectTaskMutation,
   useTaskReviewsQuery,
 } from '@/hooks/queries/useTasks';
+import TaskResultChecksPanel from './TaskResultChecksPanel';
 
 interface TaskReviewModalProps {
   visible: boolean;
@@ -211,6 +212,12 @@ export default function TaskReviewModal({
                 </View>
               )}
             </View>
+
+            {task.result?.url && (
+              <View className="mb-4">
+                <TaskResultChecksPanel taskId={task.id} projectId={task.project?.id} />
+              </View>
+            )}
 
             {/* Criteria Evaluation Card */}
             <View className="bg-surface border border-border rounded-2xl p-4 mb-4">

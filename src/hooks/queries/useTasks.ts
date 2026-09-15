@@ -217,9 +217,46 @@ export function useSubmitTaskResultMutation() {
       payload,
     }: {
       id: string;
-      payload: { link?: string; result?: any; projectId?: string };
+      payload: {
+        link?: string;
+        result?: any;
+        projectId?: string;
+        sheetNames?: string[];
+        whitelist?: string[];
+        checkFileUrl?: string;
+        checkFileName?: string;
+      };
     }) => {
       const res = await taskService.submitTaskResult(id, payload);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}
+
+export function useSubmitTaskResultFileMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      file,
+      sheetNames,
+      whitelist,
+    }: {
+      id: string;
+      file: { uri: string; name: string; mimeType?: string };
+      sheetNames?: string[];
+      whitelist?: string[];
+    }) => {
+      const res = await taskService.submitTaskResultFile(id, file, sheetNames, whitelist);
       if (res.error) {
         throw new Error(res.error);
       }

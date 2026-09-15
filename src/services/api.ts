@@ -121,6 +121,10 @@ class ApiService {
     );
   }
 
+  getBaseUrl() {
+    return this.baseUrl;
+  }
+
   getCookieHeader() {
     return AUTH_COOKIE_NAMES.map((name) => {
       const value = this.currentCookies[name];
@@ -205,8 +209,10 @@ class ApiService {
       };
     }
 
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       Accept: 'application/json',
       ...(options.headers as Record<string, string>),
     };
@@ -327,6 +333,20 @@ class ApiService {
 
   async delete<T = any>(endpoint: string) {
     return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
+  async postForm<T = any>(endpoint: string, formData: FormData) {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: formData as any,
+    });
+  }
+
+  async patchForm<T = any>(endpoint: string, formData: FormData) {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: formData as any,
+    });
   }
 
   async login(payload: { username: string; password: string; rememberMe?: boolean }) {
