@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,35 @@ import {
   Alert,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptic from 'expo-haptics';
-import {
-  financeService,
-  ContractDebtGroup,
-  ContractDebtMilestone,
-} from '@/services/financeService';
+import * as DocumentPicker from 'expo-document-picker';
+import { ContractDebtGroup } from '@/services/financeService';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
+import DatePickerModal from '@/components/common/DatePickerModal';
 import { safeGoBack } from '@/utils/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { canAccessFinance } from '@/utils/rbac';
+import {
+  formatDateToDDMMYYYY,
+  formatDateToYYYYMMDD,
+  formatNumberInput,
+  parseNumberInput,
+} from '@/utils/formatters';
+import { useFinanceStore } from '@/stores/useFinanceStore';
+import {
+  useContractDebtsQuery,
+  useActivateDebtMutation,
+  useCreatePaymentMutation,
+  useDeletePaymentMutation,
+  useBulkSaveMilestonesMutation,
+} from '@/hooks/queries';
 
 const PRESET_OPTIONS: Array<{ key: 'this_month' | 'last_month' | 'this_quarter' | 'all'; label: string }> = [
   { key: 'this_month', label: 'Tháng này' },
@@ -38,82 +52,84 @@ const DEBT_STATUS_OPTIONS: Array<{ key: 'ALL' | 'HAS_DEBT' | 'NO_DEBT'; label: s
   { key: 'NO_DEBT', label: 'Đã hoàn thành thu' },
 ];
 
-interface EditableMilestone {
-  id?: string;
-  name: string;
-  percentage: number;
-  amount: number;
-  dueDate: string;
-}
-
 export default function FinanceDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const hasAccess = canAccessFinance(user?.role);
+  const roadmapScrollViewRef = useRef<ScrollView>(null);
+  const [proofSubmissionType, setProofSubmissionType] = useState<'file' | 'link'>('file');
 
-  // Match Web viewType: 'list' | 'schedule'
-  const [viewType, setViewType] = useState<'list' | 'schedule'>('list');
+  // TanStack Query Hooks for Network Data & Mutations
+  const {
+    data: contractGroups = [],
+    isLoading: loading,
+    refetch,
+    isRefetching: refreshing,
+  } = useContractDebtsQuery();
 
-  // Filter States (Đồng bộ 100% FinanceToolbar.jsx trên Web)
-  const [searchTerm, setSearchTerm] = useState('');
-  const [preset, setPreset] = useState<'this_month' | 'last_month' | 'this_quarter' | 'all'>('this_month');
-  const [debtStatusFilter, setDebtStatusFilter] = useState<'ALL' | 'HAS_DEBT' | 'NO_DEBT'>('ALL');
+  const activateDebtMutation = useActivateDebtMutation();
+  const createPaymentMutation = useCreatePaymentMutation();
+  const deletePaymentMutation = useDeletePaymentMutation();
+  const bulkSaveMilestonesMutation = useBulkSaveMilestonesMutation();
 
-  const [contractGroups, setContractGroups] = useState<ContractDebtGroup[]>([]);
-  const [expandedContracts, setExpandedContracts] = useState<Record<string, boolean>>({});
+  // Zustand Store Hooks for UI & Form Draft States
+  const {
+    viewType,
+    searchTerm,
+    preset,
+    debtStatusFilter,
+    expandedContracts,
+    // Payment Modal State
+    selectedMilestone,
+    showPaymentModal,
+    paymentAmount,
+    paymentDate,
+    paymentNote,
+    paymentProofFile,
+    paymentProofLink,
+    // Roadmap Modal State
+    selectedContractForRoadmap,
+    showRoadmapModal,
+    editableMilestones,
+    // Date Picker Modal State
+    showDatePickerModal,
+    datePickerTarget,
+    // Store Actions
+    setViewType,
+    setSearchTerm,
+    setPreset,
+    setDebtStatusFilter,
+    resetFilters,
+    toggleContractExpand,
+    setExpandedContracts,
+    openPaymentModal,
+    closePaymentModal,
+    setPaymentAmount,
+    setPaymentDate,
+    setPaymentNote,
+    setPaymentProofFile,
+    setPaymentProofLink,
+    openRoadmapModal,
+    closeRoadmapModal,
+    addRoadmapRow,
+    removeRoadmapRow,
+    updateRoadmapRow,
+    openDatePickerForMilestone,
+    openDatePickerForPayment,
+    closeDatePicker,
+    confirmDateSelection,
+  } = useFinanceStore();
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-
-  // Payment Recording Modal State
-  const [selectedMilestone, setSelectedMilestone] = useState<ContractDebtMilestone | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentNote, setPaymentNote] = useState('');
-  const [savingPayment, setSavingPayment] = useState(false);
-
-  // Milestone Manage / Edit Roadmap Modal State (Đồng bộ 100% MilestoneModal.jsx)
-  const [selectedContractForRoadmap, setSelectedContractForRoadmap] = useState<ContractDebtGroup | null>(null);
-  const [showRoadmapModal, setShowRoadmapModal] = useState(false);
-  const [editableMilestones, setEditableMilestones] = useState<EditableMilestone[]>([]);
-  const [savingRoadmap, setSavingRoadmap] = useState(false);
-
-  const fetchData = async () => {
-    try {
-      const contractDebtRes = await financeService.getContractDebtsAndMilestones();
-
-      if (contractDebtRes.data) {
-        setContractGroups(contractDebtRes.data);
-        if (contractDebtRes.data.length > 0) {
-          setExpandedContracts((prev) => ({
-            ...prev,
-            [contractDebtRes.data[0].id]: true,
-          }));
-        }
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
+  // Automatically expand first contract group on initial data load if none expanded
   useEffect(() => {
-    if (hasAccess) {
-      fetchData();
+    if (contractGroups.length > 0 && Object.keys(expandedContracts).length === 0) {
+      setExpandedContracts({ [contractGroups[0].id]: true });
     }
-  }, [hasAccess]);
+  }, [contractGroups, expandedContracts, setExpandedContracts]);
 
   const handleRefresh = () => {
-    setRefreshing(true);
-    fetchData();
-  };
-
-  const handleResetFilters = () => {
     Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Light);
-    setSearchTerm('');
-    setPreset('this_month');
-    setDebtStatusFilter('ALL');
+    refetch();
   };
 
   const formatVND = (amount?: number) => {
@@ -121,7 +137,7 @@ export default function FinanceDashboardScreen() {
     return amount.toLocaleString('vi-VN') + ' ₫';
   };
 
-  // Filtered Contract Groups (Logic lọc đồng bộ 100% FinancePage.jsx)
+  // Filtered Contract Groups
   const filteredContracts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
@@ -164,45 +180,52 @@ export default function FinanceDashboardScreen() {
     );
   }, [filteredContracts]);
 
-  const toggleContractExpand = (contractId: string) => {
-    Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Light);
-    setExpandedContracts((prev) => ({
-      ...prev,
-      [contractId]: !prev[contractId],
-    }));
-  };
-
-  const handleActivateDebt = async (milestoneId: string) => {
+  const onActivateDebt = async (milestoneId: string) => {
     try {
-      setActionLoadingId(milestoneId);
       Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Medium);
-      const res = await financeService.activateDebt(milestoneId);
-      if (res.success) {
-        Haptic.notificationAsync(Haptic.NotificationFeedbackType.Success);
-        Alert.alert('Đã kích hoạt', 'Đã kích hoạt công nợ cho đợt thanh toán này.');
-        fetchData();
-      } else {
-        Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
-        Alert.alert('Không thể kích hoạt', res.error || 'Vui lòng thử lại sau.');
-      }
+      await activateDebtMutation.mutateAsync(milestoneId);
+      Haptic.notificationAsync(Haptic.NotificationFeedbackType.Success);
+      Alert.alert('Đã kích hoạt', 'Đã kích hoạt công nợ cho đợt thanh toán này.');
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra.');
-    } finally {
-      setActionLoadingId(null);
+      Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
+      Alert.alert('Không thể kích hoạt', err?.message || 'Vui lòng thử lại sau.');
     }
   };
 
-  const openPaymentModal = (milestone: ContractDebtMilestone) => {
-    setSelectedMilestone(milestone);
-    setPaymentAmount(String(milestone.remaining || milestone.amount || 0));
-    setPaymentNote('');
-    setShowPaymentModal(true);
+  const handlePickProofFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/pdf',
+          'image/*',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          '*/*',
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setPaymentProofFile({
+          name: asset.name,
+          size: asset.size ?? undefined,
+          uri: asset.uri,
+          mimeType: asset.mimeType ?? undefined,
+        });
+      }
+    } catch (err) {
+      console.error('Lỗi chọn tệp minh chứng:', err);
+      Alert.alert('Lỗi', 'Không thể chọn tệp minh chứng.');
+    }
   };
 
-  const handleSavePayment = async () => {
+  const onSavePayment = async () => {
     if (!selectedMilestone) return;
     const debtId = selectedMilestone.debt?.id || selectedMilestone.id;
-    const amountNum = Number(paymentAmount);
+    const amountNum = parseNumberInput(paymentAmount);
 
     if (isNaN(amountNum) || amountNum <= 0) {
       Alert.alert('Lỗi nhập liệu', 'Vui lòng nhập số tiền thanh toán hợp lệ.');
@@ -210,107 +233,79 @@ export default function FinanceDashboardScreen() {
     }
 
     try {
-      setSavingPayment(true);
       Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Heavy);
-      const res = await financeService.createPayment({
+      await createPaymentMutation.mutateAsync({
         debtId: String(debtId),
         amount: amountNum,
+        paymentDate: formatDateToYYYYMMDD(paymentDate) || formatDateToYYYYMMDD(new Date()),
         note: paymentNote,
+        proofFile: paymentProofFile || undefined,
+        proofLink: paymentProofLink ? paymentProofLink.trim() : undefined,
       });
 
-      if (res.success) {
-        Haptic.notificationAsync(Haptic.NotificationFeedbackType.Success);
-        Alert.alert('Thành công', 'Đã ghi nhận giao dịch thanh toán.');
-        setShowPaymentModal(false);
-        fetchData();
-      } else {
-        Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
-        Alert.alert('Không thể ghi nhận', res.error || 'Vui lòng thử lại sau.');
-      }
+      Haptic.notificationAsync(Haptic.NotificationFeedbackType.Success);
+      Alert.alert('Thành công', 'Đã ghi nhận giao dịch thanh toán.');
+      closePaymentModal();
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra.');
-    } finally {
-      setSavingPayment(false);
+      Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
+      Alert.alert('Không thể ghi nhận', err?.message || 'Vui lòng thử lại sau.');
     }
   };
 
-  // --- Roadmap Edit/Management Modal Handlers ---
-  const openRoadmapModal = (contract: ContractDebtGroup) => {
-    setSelectedContractForRoadmap(contract);
-    const mapped: EditableMilestone[] = contract.milestones.map((m) => {
-      const percentage =
-        m.percentage !== undefined && m.percentage !== null
-          ? Number(m.percentage)
-          : contract.sellingPrice > 0
-          ? Math.round((m.amount / contract.sellingPrice) * 100)
-          : 0;
-      return {
-        id: m.id,
-        name: m.name || 'Đợt thanh toán',
-        percentage,
-        amount: m.amount || 0,
-        dueDate: m.dueDate || '',
-      };
-    });
-    setEditableMilestones(mapped);
-    setShowRoadmapModal(true);
+  const onDeletePayment = (paymentId: string) => {
+    Alert.alert(
+      'Xác nhận xóa',
+      'Bạn có chắc chắn muốn xóa lịch sử thanh toán này?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Medium);
+              await deletePaymentMutation.mutateAsync(paymentId);
+              Haptic.notificationAsync(Haptic.NotificationFeedbackType.Success);
+              Alert.alert('Thành công', 'Đã xóa ghi nhận thanh toán.');
+              closePaymentModal();
+            } catch (err: any) {
+              Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
+              Alert.alert('Lỗi', err?.message || 'Không thể xóa ghi nhận thanh toán.');
+            }
+          },
+        },
+      ]
+    );
   };
 
-  const handleAddRoadmapRow = () => {
-    if (!selectedContractForRoadmap) return;
-    const price = selectedContractForRoadmap.sellingPrice;
-    const currentPercent = editableMilestones.reduce((sum, m) => sum + Number(m.percentage || 0), 0);
-    const nextPercent = Math.max(0, 100 - currentPercent);
-    const nextAmount = Math.round((nextPercent / 100) * price);
-
-    setEditableMilestones((prev) => [
-      ...prev,
-      {
-        name: `Đợt ${prev.length + 1}`,
-        percentage: nextPercent,
-        amount: nextAmount,
-        dueDate: '',
-      },
-    ]);
+  const onAddRoadmapRow = () => {
+    Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Light);
+    addRoadmapRow();
+    setTimeout(() => {
+      roadmapScrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 150);
   };
 
-  const handleRemoveRoadmapRow = (index: number) => {
-    setEditableMilestones((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleRoadmapChange = (index: number, field: keyof EditableMilestone, value: string) => {
-    if (!selectedContractForRoadmap) return;
-    const price = selectedContractForRoadmap.sellingPrice;
-
-    setEditableMilestones((prev) => {
-      const next = [...prev];
-      const row = { ...next[index] };
-
-      if (field === 'percentage') {
-        const numPercent = Number(value) || 0;
-        row.percentage = numPercent;
-        row.amount = Math.round((numPercent / 100) * price);
-      } else if (field === 'amount') {
-        const numAmount = Number(value) || 0;
-        row.amount = numAmount;
-        row.percentage = price > 0 ? Math.round((numAmount / price) * 100) : 0;
-      } else if (field === 'name' || field === 'dueDate') {
-        row[field] = value;
-      }
-
-      next[index] = row;
-      return next;
-    });
-  };
-
-  const roadmapTotalPercent = editableMilestones.reduce((sum, m) => sum + Number(m.percentage || 0), 0);
-  const roadmapTotalAmount = editableMilestones.reduce((sum, m) => sum + Number(m.amount || 0), 0);
+  const roadmapTotalPercent = Math.round(
+    editableMilestones.reduce((sum, m) => sum + (Number(m.percentage) || 0), 0) * 100
+  ) / 100;
   const contractPrice = selectedContractForRoadmap?.sellingPrice || 0;
 
-  const handleSaveRoadmap = async () => {
+  const onSaveRoadmap = async () => {
     if (!selectedContractForRoadmap) return;
 
     if (editableMilestones.length > 0) {
+      for (let i = 0; i < editableMilestones.length; i++) {
+        const m = editableMilestones[i];
+        if (!m.dueDate || !String(m.dueDate).trim()) {
+          Alert.alert(
+            'Thiếu Hạn thanh toán',
+            `Vui lòng chọn hoặc nhập Hạn thanh toán cho Đợt #${i + 1} (${m.name || 'Đợt thanh toán'}).`
+          );
+          return;
+        }
+      }
+
       if (roadmapTotalPercent !== 100) {
         Alert.alert(
           'Lỗi tổng tỷ lệ',
@@ -321,32 +316,24 @@ export default function FinanceDashboardScreen() {
     }
 
     try {
-      setSavingRoadmap(true);
       Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Heavy);
-      const res = await financeService.bulkSaveMilestones(
-        selectedContractForRoadmap.id,
-        editableMilestones.map((m) => ({
+      await bulkSaveMilestonesMutation.mutateAsync({
+        contractId: selectedContractForRoadmap.id,
+        milestones: editableMilestones.map((m) => ({
           id: m.id,
           name: m.name,
-          percentage: m.percentage,
-          amount: m.amount,
-          dueDate: m.dueDate,
-        }))
-      );
+          percentage: Number(m.percentage) || 0,
+          amount: parseNumberInput(String(m.amount)),
+          dueDate: formatDateToYYYYMMDD(m.dueDate),
+        })),
+      });
 
-      if (res.success) {
-        Haptic.notificationAsync(Haptic.NotificationFeedbackType.Success);
-        Alert.alert('Thành công', 'Đã cập nhật lộ trình thanh toán cho hợp đồng.');
-        setShowRoadmapModal(false);
-        fetchData();
-      } else {
-        Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
-        Alert.alert('Không thể lưu lộ trình', res.error || 'Vui lòng thử lại sau.');
-      }
+      Haptic.notificationAsync(Haptic.NotificationFeedbackType.Success);
+      Alert.alert('Thành công', 'Đã cập nhật lộ trình thanh toán cho hợp đồng.');
+      closeRoadmapModal();
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.message || 'Có lỗi xảy ra.');
-    } finally {
-      setSavingRoadmap(false);
+      Haptic.notificationAsync(Haptic.NotificationFeedbackType.Error);
+      Alert.alert('Không thể lưu lộ trình', err?.message || 'Vui lòng thử lại sau.');
     }
   };
 
@@ -400,7 +387,10 @@ export default function FinanceDashboardScreen() {
         {/* Accordion Header */}
         <TouchableOpacity
           className="p-4 bg-white border-b border-slate-100 gap-2"
-          onPress={() => toggleContractExpand(contract.id)}
+          onPress={() => {
+            Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Light);
+            toggleContractExpand(contract.id);
+          }}
           activeOpacity={0.8}
         >
           {/* Row 1: Customer Name & Contract Code + Chevron */}
@@ -456,7 +446,7 @@ export default function FinanceDashboardScreen() {
             <Text className="text-[10px] font-bold text-emerald-700">{progressPercent}%</Text>
           </View>
 
-          {/* Nút Quản lý / Sửa lộ trình thanh toán (Đồng bộ 100% Web) */}
+          {/* Nút Quản lý / Sửa lộ trình thanh toán */}
           <TouchableOpacity
             className="flex-row items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shadow-xs"
             onPress={() => openRoadmapModal(contract)}
@@ -490,7 +480,7 @@ export default function FinanceDashboardScreen() {
               const isCompleted = m.status === 'COMPLETED';
               const isOverdue =
                 isActive && m.dueDate && new Date(m.dueDate) < new Date();
-              const isActivating = actionLoadingId === m.id;
+              const isActivating = activateDebtMutation.isPending && activateDebtMutation.variables === m.id;
 
               return (
                 <View
@@ -525,11 +515,17 @@ export default function FinanceDashboardScreen() {
                       </View>
 
                       <Text
-                        className="text-xs font-bold text-slate-800 flex-1"
+                        className="text-xs font-bold text-slate-800"
                         numberOfLines={1}
                       >
                         {m.name}
                       </Text>
+
+                      {m.percentage !== undefined && m.percentage !== null && (
+                        <View className="bg-slate-100 px-1.5 py-0.5 rounded">
+                          <Text className="text-[10px] font-bold text-slate-600">{m.percentage}%</Text>
+                        </View>
+                      )}
                     </View>
 
                     {/* Status Badge */}
@@ -566,52 +562,64 @@ export default function FinanceDashboardScreen() {
                     </View>
                   </View>
 
-                  {/* Amounts & Due Date */}
-                  <View className="flex-row items-center justify-between pt-1 border-t border-slate-100/60 mt-1">
-                    <View>
-                      <Text className="text-[10px] text-slate-400">
-                        {m.dueDate ? `Hạn: ${m.dueDate}` : 'Chưa có hạn'}
+                  {/* Amounts & Due Date & Actions */}
+                  <View className="flex-row items-center justify-between pt-2 border-t border-slate-100/60 mt-1">
+                    <View className="gap-0.5 flex-1 mr-2">
+                      <Text className="text-[10px] text-slate-400 font-semibold">
+                        {m.dueDate ? `Hạn: ${formatDateToDDMMYYYY(m.dueDate)}` : 'Chưa có hạn'}
                       </Text>
-                      <Text className="text-xs font-extrabold text-slate-900 mt-0.5">
-                        Giá trị: {formatVND(m.amount)}
-                      </Text>
+                      <View className="flex-row items-center gap-1.5 flex-wrap mt-0.5">
+                        <Text className="text-xs font-black text-slate-900">
+                          Giá trị: {formatVND(m.amount)}
+                        </Text>
+                        {m.paidAmount > 0 ? (
+                          <Text className="text-[11px] font-bold text-emerald-600">
+                            • Đã thu: {formatVND(m.paidAmount)}
+                          </Text>
+                        ) : null}
+                        {m.remaining > 0 && !isPlanned ? (
+                          <Text className="text-[11px] font-bold text-rose-500">
+                            • Cần thu: {formatVND(m.remaining)}
+                          </Text>
+                        ) : null}
+                      </View>
                     </View>
 
                     {/* Milestone Actions */}
-                    <View className="items-end gap-1">
+                    <View className="items-end shrink-0">
                       {isPlanned && (
                         <TouchableOpacity
-                          className="bg-indigo-600 px-3 py-1.5 rounded-lg min-h-[36px] justify-center items-center shadow-xs"
-                          onPress={() => handleActivateDebt(m.id)}
+                          className="bg-indigo-600 px-3 py-2 rounded-xl min-h-[38px] justify-center items-center shadow-xs flex-row items-center gap-1.5"
+                          onPress={() => onActivateDebt(m.id)}
                           disabled={isActivating}
                           activeOpacity={0.8}
                         >
                           {isActivating ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                           ) : (
-                            <Text className="text-xs font-bold text-white">
-                              Kích hoạt công nợ
-                            </Text>
+                            <>
+                              <Feather name="zap" size={13} color="#FFFFFF" />
+                              <Text className="text-xs font-bold text-white">
+                                Kích hoạt công nợ
+                              </Text>
+                            </>
                           )}
                         </TouchableOpacity>
                       )}
 
-                      {isActive && (
+                      {(isActive || isCompleted) && (
                         <TouchableOpacity
-                          className="bg-emerald-600 px-3 py-1.5 rounded-lg min-h-[36px] justify-center items-center shadow-xs"
+                          className={`px-3 py-2 rounded-xl min-h-[38px] justify-center items-center shadow-xs flex-row items-center gap-1.5 ${
+                            isCompleted ? 'bg-slate-100 border border-slate-200' : 'bg-emerald-600'
+                          }`}
                           onPress={() => openPaymentModal(m)}
                           activeOpacity={0.8}
                         >
-                          <Text className="text-xs font-bold text-white">
-                            Ghi nhận thanh toán
+                          <Feather name="credit-card" size={13} color={isCompleted ? '#475569' : '#FFFFFF'} />
+                          <Text className={`text-xs font-bold ${isCompleted ? 'text-slate-700' : 'text-white'}`}>
+                            {isCompleted ? 'Lịch sử thanh toán' : 'Ghi nhận thanh toán'}
                           </Text>
                         </TouchableOpacity>
-                      )}
-
-                      {isCompleted && (
-                        <Text className="text-[11px] font-bold text-emerald-600">
-                          Đã thu đủ ({formatVND(m.paidAmount)})
-                        </Text>
                       )}
                     </View>
                   </View>
@@ -626,7 +634,7 @@ export default function FinanceDashboardScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
-      {/* Header Area (Đồng bộ Header Web FinancePage.jsx) */}
+      {/* Header Area */}
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
         <TouchableOpacity
           className="w-10 h-10 rounded-xl bg-slate-100 items-center justify-center min-w-[44px] min-h-[44px]"
@@ -666,7 +674,7 @@ export default function FinanceDashboardScreen() {
             />
           }
         >
-          {/* TOOLBAR BỘ LỌC (Đồng bộ 100% FinanceToolbar.jsx trên Web) */}
+          {/* TOOLBAR BỘ LỌC */}
           <View className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-4 gap-3">
             {/* 1. Thanh Tìm kiếm Mã HĐ / Khách hàng */}
             <View className="flex-row items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
@@ -746,7 +754,10 @@ export default function FinanceDashboardScreen() {
 
               <TouchableOpacity
                 className="flex-row items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-md min-h-[28px]"
-                onPress={handleResetFilters}
+                onPress={() => {
+                  Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Light);
+                  resetFilters();
+                }}
               >
                 <Feather name="rotate-ccw" size={12} color="#64748B" />
                 <Text className="text-[11px] font-bold text-slate-600">Reset</Text>
@@ -754,7 +765,7 @@ export default function FinanceDashboardScreen() {
             </View>
           </View>
 
-          {/* Executive 4 Metric Cards (Đồng bộ Web FinancePage.jsx) */}
+          {/* Executive 4 Metric Cards */}
           <View className="gap-3 mb-4">
             <View className="flex-row gap-3">
               {/* Card 1: Dự kiến trong kỳ */}
@@ -806,7 +817,7 @@ export default function FinanceDashboardScreen() {
             </View>
           </View>
 
-          {/* Mode Switcher Tabs (Đồng bộ viewType: 'list' | 'schedule' bên Web) */}
+          {/* Mode Switcher Tabs */}
           <View className="flex-row bg-slate-200/60 p-1 rounded-2xl mb-4">
             <TouchableOpacity
               className={`flex-1 py-2.5 rounded-xl items-center justify-center min-h-[40px] flex-row gap-1.5 ${
@@ -855,7 +866,7 @@ export default function FinanceDashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* View 1: List View (Hợp đồng & Lộ trình công nợ) */}
+          {/* View 1: List View */}
           {viewType === 'list' && (
             <View>
               {filteredContracts.length === 0 ? (
@@ -871,7 +882,7 @@ export default function FinanceDashboardScreen() {
             </View>
           )}
 
-          {/* View 2: Schedule View (Lịch trình thanh toán theo mốc thời gian) */}
+          {/* View 2: Schedule View */}
           {viewType === 'schedule' && (
             <View className="gap-3">
               {allMilestones.length === 0 ? (
@@ -941,116 +952,351 @@ export default function FinanceDashboardScreen() {
         </ScrollView>
       )}
 
-      {/* 1. Modal Record Payment */}
+      {/* 1. Modal Record & Payment History */}
       <Modal
         visible={showPaymentModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowPaymentModal(false)}
+        onRequestClose={closePaymentModal}
       >
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-5 gap-4">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className="flex-1 bg-black/50 justify-end"
+        >
+          <View className="bg-white rounded-t-3xl p-5 h-[85%] max-h-[85%] flex-col gap-4">
+            {/* Modal Header */}
             <View className="flex-row items-center justify-between border-b border-slate-100 pb-3">
-              <Text className="text-base font-bold text-slate-900">
-                Ghi nhận thanh toán
-              </Text>
+              <View className="flex-1 mr-2">
+                <Text className="text-base font-bold text-slate-900" numberOfLines={1}>
+                  {selectedMilestone?.name || 'Chi tiết thanh toán'}
+                </Text>
+                <Text className="text-xs font-semibold text-slate-500">
+                  Số tiền đợt: {formatVND(selectedMilestone?.amount)}
+                </Text>
+              </View>
               <TouchableOpacity
                 className="w-8 h-8 rounded-full bg-slate-100 items-center justify-center"
-                onPress={() => setShowPaymentModal(false)}
+                onPress={closePaymentModal}
               >
                 <Feather name="x" size={18} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <Text className="text-xs font-bold text-slate-500">
-              Đợt: {selectedMilestone?.name}
-            </Text>
-
-            <View className="gap-1.5">
-              <Text className="text-xs font-bold text-slate-700 uppercase">
-                Số tiền thanh toán (₫) *
-              </Text>
-              <TextInput
-                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900 font-bold"
-                keyboardType="numeric"
-                value={paymentAmount}
-                onChangeText={setPaymentAmount}
-                placeholder="Nhập số tiền"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-
-            <View className="gap-1.5">
-              <Text className="text-xs font-bold text-slate-700 uppercase">
-                Ghi chú / Mã chứng từ
-              </Text>
-              <TextInput
-                className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900"
-                value={paymentNote}
-                onChangeText={setPaymentNote}
-                placeholder="VD: Chuyển khoản VCB - Báo có ngày 14/09"
-                placeholderTextColor="#94A3B8"
-              />
-            </View>
-
-            <TouchableOpacity
-              className="mt-2 bg-emerald-600 py-3.5 rounded-xl items-center justify-center min-h-[48px]"
-              onPress={handleSavePayment}
-              disabled={savingPayment}
-              activeOpacity={0.8}
-            >
-              {savingPayment ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text className="text-sm font-bold text-white">
-                  Xác nhận Ghi nhận Thanh toán
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+              {/* SECTION 1: GHI NHẬN THANH TOÁN MỚI */}
+              <View className="bg-slate-50 p-4 rounded-2xl border border-slate-200 gap-3">
+                <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                  GHI NHẬN THANH TOÁN MỚI
                 </Text>
-              )}
-            </TouchableOpacity>
+
+                <View className="gap-1">
+                  <Text className="text-xs font-bold text-slate-700 uppercase">SỐ TIỀN *</Text>
+                  <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
+                    <TextInput
+                      className="flex-1 text-sm text-slate-900 font-bold p-0"
+                      keyboardType="numeric"
+                      value={paymentAmount}
+                      onChangeText={(val) => setPaymentAmount(formatNumberInput(val))}
+                      placeholder="0"
+                      placeholderTextColor="#94A3B8"
+                    />
+                    <Text className="text-xs font-bold text-slate-500 ml-1">VNĐ</Text>
+                  </View>
+                </View>
+
+                <View className="gap-1">
+                  <Text className="text-xs font-bold text-slate-700 uppercase">
+                    NGÀY THANH TOÁN <Text className="text-rose-500">*</Text>
+                  </Text>
+                  <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
+                    <TouchableOpacity
+                      onPress={() => openDatePickerForPayment(paymentDate)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      className="mr-2.5"
+                    >
+                      <Feather name="calendar" size={16} color="#4F46E5" />
+                    </TouchableOpacity>
+                    <TextInput
+                      className="flex-1 text-sm text-slate-900 font-semibold p-0"
+                      value={paymentDate}
+                      onChangeText={setPaymentDate}
+                      placeholder="DD-MM-YYYY"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="numeric"
+                      maxLength={10}
+                    />
+                  </View>
+                </View>
+
+                <View className="gap-1">
+                  <Text className="text-xs font-bold text-slate-700 uppercase">GHI CHÚ</Text>
+                  <TextInput
+                    className="bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-900 min-h-[60px]"
+                    multiline
+                    textAlignVertical="top"
+                    value={paymentNote}
+                    onChangeText={setPaymentNote}
+                    placeholder="Nhập ghi chú..."
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+
+                {/* MINH CHỨNG (UNC / BILL CHUYỂN KHOẢN) */}
+                <View className="gap-2">
+                  <Text className="text-xs font-bold text-slate-700 uppercase">
+                    MINH CHỨNG (UNC / BILL CHUYỂN KHOẢN)
+                  </Text>
+
+                  {/* Segmented Tab Switcher */}
+                  <View className="flex-row p-1 bg-slate-100 rounded-xl gap-1">
+                    <TouchableOpacity
+                      className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-lg ${
+                        proofSubmissionType === 'file' ? 'bg-white shadow-xs' : ''
+                      }`}
+                      onPress={() => setProofSubmissionType('file')}
+                    >
+                      <Feather
+                        name="upload"
+                        size={14}
+                        color={proofSubmissionType === 'file' ? '#F38820' : '#64748B'}
+                      />
+                      <Text
+                        className={`text-xs ${
+                          proofSubmissionType === 'file' ? 'font-bold text-amber-600' : 'font-semibold text-slate-500'
+                        }`}
+                      >
+                        Tải file
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-lg ${
+                        proofSubmissionType === 'link' ? 'bg-white shadow-xs' : ''
+                      }`}
+                      onPress={() => setProofSubmissionType('link')}
+                    >
+                      <Feather
+                        name="link"
+                        size={14}
+                        color={proofSubmissionType === 'link' ? '#F38820' : '#64748B'}
+                      />
+                      <Text
+                        className={`text-xs ${
+                          proofSubmissionType === 'link' ? 'font-bold text-amber-600' : 'font-semibold text-slate-500'
+                        }`}
+                      >
+                        Gửi link
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Tab Content 1: Tải file */}
+                  {proofSubmissionType === 'file' && (
+                    <View className="gap-2 mt-1">
+                      <TouchableOpacity
+                        className="border-2 border-dashed border-slate-300 rounded-2xl p-6 items-center bg-slate-50/50 gap-2"
+                        onPress={handlePickProofFile}
+                        activeOpacity={0.7}
+                      >
+                        <View className="w-12 h-12 rounded-full bg-orange-100/70 items-center justify-center">
+                          <Feather name="upload-cloud" size={24} color="#F38820" />
+                        </View>
+                        <Text className="text-sm font-bold text-slate-900 text-center" numberOfLines={1}>
+                          {paymentProofFile ? paymentProofFile.name : 'Nhấn để chọn file minh chứng'}
+                        </Text>
+                        <Text className="text-xs text-slate-400 text-center">
+                          Chấp nhận file hình ảnh, PDF, Word, Excel...
+                        </Text>
+                      </TouchableOpacity>
+
+                      {paymentProofFile && (
+                        <TouchableOpacity
+                          className="flex-row items-center justify-center gap-1.5 py-1"
+                          onPress={() => setPaymentProofFile(null)}
+                        >
+                          <Feather name="trash-2" size={13} color="#EF4444" />
+                          <Text className="text-xs font-bold text-rose-500">Gỡ bỏ file đã chọn</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Tab Content 2: Gửi link */}
+                  {proofSubmissionType === 'link' && (
+                    <View className="gap-2 mt-1">
+                      <Text className="text-[10px] font-extrabold text-slate-500 tracking-wider">
+                        ĐƯỜNG DẪN MINH CHỨNG *
+                      </Text>
+                      <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
+                        <Feather name="link" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
+                        <TextInput
+                          className="flex-1 py-1 text-xs text-slate-900 font-medium p-0"
+                          placeholder="https://drive.google.com/..."
+                          placeholderTextColor="#94A3B8"
+                          value={paymentProofLink}
+                          onChangeText={setPaymentProofLink}
+                          autoCapitalize="none"
+                          keyboardType="url"
+                        />
+                        {paymentProofLink ? (
+                          <TouchableOpacity onPress={() => setPaymentProofLink('')}>
+                            <Feather name="x-circle" size={14} color="#94A3B8" />
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                      <Text className="text-[11px] text-slate-400 italic">
+                        * Vui lòng đảm bảo quyền truy cập link cho quản lý và kế toán.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  className="mt-1 bg-blue-600 py-3.5 rounded-xl items-center justify-center min-h-[48px]"
+                  onPress={onSavePayment}
+                  disabled={createPaymentMutation.isPending}
+                  activeOpacity={0.8}
+                >
+                  {createPaymentMutation.isPending ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text className="text-sm font-bold text-white">Xác nhận thanh toán</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* SECTION 2: LỊCH SỬ THANH TOÁN */}
+              <View className="gap-3">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                    LỊCH SỬ THANH TOÁN
+                  </Text>
+                  <View className="bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                    <Text className="text-[10px] font-bold text-indigo-700">
+                      {selectedMilestone?.payments?.length || 0} Đợt
+                    </Text>
+                  </View>
+                </View>
+
+                {selectedMilestone?.payments && selectedMilestone.payments.length > 0 ? (
+                  <View className="gap-2">
+                    {selectedMilestone.payments.map((p: any, idx: number) => (
+                      <View
+                        key={p.id || idx}
+                        className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex-row items-center justify-between gap-2"
+                      >
+                        <View className="flex-row items-center gap-3 flex-1">
+                          <View className="w-9 h-9 rounded-xl bg-emerald-50 justify-center items-center">
+                            <Feather name="credit-card" size={16} color="#059669" />
+                          </View>
+                          <View className="flex-1">
+                            <Text className="text-sm font-black text-slate-900">
+                              {formatVND(p.amount)}
+                            </Text>
+                            <Text className="text-xs text-slate-500 mt-0.5">
+                              {p.paymentDate ? formatDateToDDMMYYYY(p.paymentDate) : p.createdAt ? formatDateToDDMMYYYY(p.createdAt) : 'Vừa xong'}
+                              {p.note ? ` • ${p.note}` : ''}
+                            </Text>
+
+                            {(p.proofFile || p.proof_file || p.proofLink || p.proof_link) ? (
+                              <View className="flex-row items-center gap-2 mt-1">
+                                {(p.proofFile || p.proof_file) ? (
+                                  <View className="flex-row items-center bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 gap-1">
+                                    <Feather name="paperclip" size={10} color="#059669" />
+                                    <Text className="text-[10px] font-bold text-emerald-700" numberOfLines={1}>
+                                      {(p.proofFile?.name || p.proof_file?.name || 'File đính kèm')}
+                                    </Text>
+                                  </View>
+                                ) : null}
+                                {(p.proofLink || p.proof_link) ? (
+                                  <View className="flex-row items-center bg-blue-50 px-2 py-0.5 rounded border border-blue-200 gap-1">
+                                    <Feather name="link" size={10} color="#2563EB" />
+                                    <Text className="text-[10px] font-bold text-blue-700" numberOfLines={1}>
+                                      Link minh chứng
+                                    </Text>
+                                  </View>
+                                ) : null}
+                              </View>
+                            ) : null}
+                          </View>
+                        </View>
+
+                        <TouchableOpacity
+                          className="w-8 h-8 rounded-lg bg-rose-50 items-center justify-center border border-rose-100"
+                          onPress={() => onDeletePayment(p.id)}
+                          disabled={deletePaymentMutation.isPending}
+                        >
+                          {deletePaymentMutation.isPending && deletePaymentMutation.variables === p.id ? (
+                            <ActivityIndicator size="small" color="#EF4444" />
+                          ) : (
+                            <Feather name="trash-2" size={15} color="#EF4444" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+
+                    <View className="flex-row justify-between items-center border-t border-slate-200 pt-3 mt-1 px-1">
+                      <Text className="text-xs font-bold text-slate-500 uppercase">TỔNG ĐÃ NỘP</Text>
+                      <Text className="text-base font-black text-emerald-600">
+                        {formatVND(selectedMilestone.paidAmount)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View className="bg-slate-50 border border-slate-100 rounded-xl p-4 items-center">
+                    <Text className="text-xs text-slate-400 italic">Chưa có lịch sử ghi nhận thanh toán nào.</Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* 2. Modal Quản lý / Thêm / Sửa Lộ trình thanh toán (Đồng bộ 100% MilestoneModal.jsx) */}
+      {/* 2. Modal Quản lý kế hoạch thanh toán */}
       <Modal
         visible={showRoadmapModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowRoadmapModal(false)}
+        onRequestClose={closeRoadmapModal}
       >
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-5 max-h-[85%] gap-4">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className="flex-1 bg-black/50 justify-end"
+        >
+          <View className="bg-white rounded-t-3xl p-5 h-[85%] max-h-[85%] flex-col gap-3">
             {/* Modal Header */}
             <View className="flex-row items-center justify-between border-b border-slate-100 pb-3">
               <View className="flex-1 mr-2">
                 <Text className="text-base font-bold text-slate-900" numberOfLines={1}>
-                  Kế hoạch thanh toán hợp đồng
+                  Quản lý kế hoạch thanh toán
                 </Text>
                 <Text className="text-xs font-bold text-indigo-600">
                   {selectedContractForRoadmap?.contractCode} • {selectedContractForRoadmap?.customerName}
                 </Text>
               </View>
               <TouchableOpacity
-                className="w-8 h-8 rounded-full bg-slate-100 items-center justify-center"
-                onPress={() => setShowRoadmapModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 items-center justify-center min-h-[44px] min-w-[44px]"
+                onPress={closeRoadmapModal}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Feather name="x" size={18} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            {/* Validation Totals Header Bar */}
-            <View className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex-row justify-between items-center">
+            {/* Contract Banner */}
+            <View className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex-row justify-between items-center">
               <View>
-                <Text className="text-[10px] font-bold text-slate-400 uppercase">GIÁ TRỊ HỢP ĐỒNG</Text>
-                <Text className="text-sm font-black text-slate-900">
+                <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">GIÁ TRỊ HỢP ĐỒNG</Text>
+                <Text className="text-base font-black text-slate-900">
                   {formatVND(contractPrice)}
                 </Text>
               </View>
 
               <View className="items-end">
-                <Text className="text-[10px] font-bold text-slate-400 uppercase">TỔNG TỶ LỆ CÁC ĐỢT</Text>
+                <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TỔNG TỶ LỆ CÁC ĐỢT</Text>
                 <Text
-                  className={`text-sm font-black ${
+                  className={`text-base font-black ${
                     roadmapTotalPercent === 100 ? 'text-emerald-600' : 'text-rose-600'
                   }`}
                 >
@@ -1059,98 +1305,172 @@ export default function FinanceDashboardScreen() {
               </View>
             </View>
 
-            {/* Editable Milestones Rows */}
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
-              {editableMilestones.map((m, idx) => (
-                <View key={idx} className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 gap-2.5">
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-xs font-extrabold text-slate-800">
-                      Đợt #{idx + 1}
-                    </Text>
-
-                    <TouchableOpacity
-                      className="w-7 h-7 rounded-lg bg-rose-50 items-center justify-center border border-rose-100"
-                      onPress={() => handleRemoveRoadmapRow(idx)}
-                    >
-                      <Feather name="trash-2" size={14} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View className="gap-1">
-                    <Text className="text-[10px] font-bold text-slate-500 uppercase">Tên đợt thanh toán</Text>
-                    <TextInput
-                      className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold"
-                      value={m.name}
-                      onChangeText={(val) => handleRoadmapChange(idx, 'name', val)}
-                      placeholder="VD: Tạm ứng đợt 1 / Nghiệm thu"
-                    />
-                  </View>
-
-                  <View className="flex-row gap-2">
-                    <View className="flex-1 gap-1">
-                      <Text className="text-[10px] font-bold text-slate-500 uppercase">Tỷ lệ (%)</Text>
-                      <TextInput
-                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold"
-                        keyboardType="numeric"
-                        value={String(m.percentage)}
-                        onChangeText={(val) => handleRoadmapChange(idx, 'percentage', val)}
-                        placeholder="%"
-                      />
-                    </View>
-
-                    <View className="flex-1.5 gap-1">
-                      <Text className="text-[10px] font-bold text-slate-500 uppercase">Số tiền (₫)</Text>
-                      <TextInput
-                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold"
-                        keyboardType="numeric"
-                        value={String(m.amount)}
-                        onChangeText={(val) => handleRoadmapChange(idx, 'amount', val)}
-                        placeholder="Số tiền"
-                      />
-                    </View>
-                  </View>
-
-                  <View className="gap-1">
-                    <Text className="text-[10px] font-bold text-slate-500 uppercase">Hạn thanh toán (YYYY-MM-DD)</Text>
-                    <TextInput
-                      className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
-                      value={m.dueDate}
-                      onChangeText={(val) => handleRoadmapChange(idx, 'dueDate', val)}
-                      placeholder="2026-09-30"
-                    />
-                  </View>
-                </View>
-              ))}
+            {/* Section Header: LỘ TRÌNH THANH TOÁN + Thêm đợt */}
+            <View className="flex-row items-center justify-between pt-1">
+              <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                LỘ TRÌNH THANH TOÁN ({editableMilestones.length} đợt)
+              </Text>
 
               <TouchableOpacity
-                className="py-3 bg-indigo-50 border border-dashed border-indigo-200 rounded-2xl flex-row items-center justify-center gap-2"
-                onPress={handleAddRoadmapRow}
+                className="flex-row items-center gap-1.5 bg-indigo-50 px-3 py-2 rounded-xl border border-indigo-100 min-h-[44px]"
+                onPress={onAddRoadmapRow}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Feather name="plus-circle" size={16} color="#4F46E5" />
-                <Text className="text-xs font-bold text-indigo-600">Thêm đợt thanh toán</Text>
+                <Feather name="plus" size={16} color="#4F46E5" />
+                <Text className="text-xs font-extrabold text-indigo-600">Thêm đợt</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Editable Milestones Rows */}
+            <ScrollView
+              ref={roadmapScrollViewRef}
+              className="flex-1"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
+            >
+              {editableMilestones.length === 0 ? (
+                <View className="py-8 items-center justify-center gap-3">
+                  <View className="w-12 h-12 rounded-full bg-slate-100 items-center justify-center">
+                    <Feather name="calendar" size={24} color="#94A3B8" />
+                  </View>
+                  <Text className="text-sm font-bold text-slate-500 text-center">
+                    Chưa có đợt thanh toán nào
+                  </Text>
+                  <TouchableOpacity
+                    className="flex-row items-center gap-1.5 bg-indigo-600 px-4 py-2.5 rounded-xl min-h-[44px]"
+                    onPress={onAddRoadmapRow}
+                  >
+                    <Feather name="plus" size={16} color="#FFFFFF" />
+                    <Text className="text-xs font-bold text-white">Thêm đợt đầu tiên</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                editableMilestones.map((m, idx) => (
+                  <View key={`milestone-row-${idx}`} className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 gap-2.5">
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-xs font-extrabold text-slate-800">
+                        Đợt #{idx + 1}
+                      </Text>
+
+                      <TouchableOpacity
+                        className="w-8 h-8 rounded-xl bg-rose-50 items-center justify-center border border-rose-100 min-h-[32px]"
+                        onPress={() => {
+                          Haptic.impactAsync(Haptic.ImpactFeedbackStyle.Medium);
+                          removeRoadmapRow(idx);
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Feather name="trash-2" size={15} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View className="gap-1">
+                      <Text className="text-[10px] font-bold text-slate-500 uppercase">TÊN ĐỢT</Text>
+                      <TextInput
+                        className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold"
+                        value={String(m.name || '')}
+                        onChangeText={(val) => updateRoadmapRow(idx, 'name', val)}
+                        placeholder="VD: Thanh toán đợt 1 / Tạm ứng"
+                      />
+                    </View>
+
+                    <View className="flex-row gap-2">
+                      <View className="w-[96px] shrink-0 gap-1">
+                        <Text className="text-[10px] font-bold text-slate-500 uppercase">TỶ LỆ (%)</Text>
+                        <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-2.5 py-2.5 min-h-[44px]">
+                          <TextInput
+                            className="flex-1 text-xs text-slate-900 font-bold text-center p-0"
+                            keyboardType="numeric"
+                            value={String(m.percentage ?? '')}
+                            onChangeText={(val) => updateRoadmapRow(idx, 'percentage', val)}
+                            placeholder="0"
+                            placeholderTextColor="#94A3B8"
+                          />
+                          <Text className="text-xs font-bold text-slate-500 ml-0.5">%</Text>
+                        </View>
+                      </View>
+
+                      <View className="flex-1 gap-1">
+                        <Text className="text-[10px] font-bold text-slate-500 uppercase">SỐ TIỀN (VNĐ)</Text>
+                        <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
+                          <TextInput
+                            className="flex-1 text-xs text-slate-900 font-bold p-0"
+                            keyboardType="numeric"
+                            value={formatNumberInput(m.amount)}
+                            onChangeText={(val) => updateRoadmapRow(idx, 'amount', val)}
+                            placeholder="0"
+                            placeholderTextColor="#94A3B8"
+                          />
+                          <Text className="text-xs font-bold text-slate-500 ml-1">VNĐ</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View className="gap-1">
+                      <Text className="text-[10px] font-bold text-slate-500 uppercase">
+                        HẠN THANH TOÁN (DD-MM-YYYY) <Text className="text-rose-500">*</Text>
+                      </Text>
+                      <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
+                        <TouchableOpacity
+                          onPress={() => openDatePickerForMilestone(idx, String(m.dueDate || ''), m.name)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          className="mr-2.5"
+                        >
+                          <Feather name="calendar" size={16} color="#4F46E5" />
+                        </TouchableOpacity>
+                        <TextInput
+                          className="flex-1 text-xs text-slate-900 font-bold p-0"
+                          value={String(m.dueDate || '')}
+                          onChangeText={(val) => updateRoadmapRow(idx, 'dueDate', val)}
+                          placeholder="DD-MM-YYYY"
+                          placeholderTextColor="#94A3B8"
+                          keyboardType="numeric"
+                          maxLength={10}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ))
+              )}
             </ScrollView>
 
-            {/* Modal Actions */}
-            <TouchableOpacity
-              className={`py-3.5 rounded-xl items-center justify-center min-h-[48px] ${
-                roadmapTotalPercent === 100 ? 'bg-indigo-600' : 'bg-slate-300'
-              }`}
-              onPress={handleSaveRoadmap}
-              disabled={savingRoadmap}
-              activeOpacity={0.8}
-            >
-              {savingRoadmap ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text className="text-sm font-bold text-white">
-                  Lưu lộ trình thanh toán ({roadmapTotalPercent}%)
-                </Text>
-              )}
-            </TouchableOpacity>
+            {/* Modal Bottom Actions */}
+            <View className="flex-row gap-3 pt-3 border-t border-slate-100">
+              <TouchableOpacity
+                className="flex-1 py-3 bg-slate-100 rounded-xl items-center justify-center min-h-[44px]"
+                onPress={closeRoadmapModal}
+                activeOpacity={0.7}
+              >
+                <Text className="text-sm font-bold text-slate-600">Hủy</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className={`flex-1 py-3 rounded-xl items-center justify-center min-h-[44px] ${
+                  roadmapTotalPercent === 100 ? 'bg-blue-600' : 'bg-slate-300'
+                }`}
+                onPress={onSaveRoadmap}
+                disabled={bulkSaveMilestonesMutation.isPending}
+                activeOpacity={0.8}
+              >
+                {bulkSaveMilestonesMutation.isPending ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text className="text-sm font-bold text-white">Lưu kế hoạch</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
+
+      <DatePickerModal
+        visible={showDatePickerModal}
+        title={datePickerTarget?.title}
+        initialDate={datePickerTarget?.initialDate}
+        onConfirm={confirmDateSelection}
+        onClose={closeDatePicker}
+      />
 
       <BottomNavBar />
     </SafeAreaView>
