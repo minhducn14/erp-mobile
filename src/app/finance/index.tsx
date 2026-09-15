@@ -564,21 +564,21 @@ export default function FinanceDashboardScreen() {
 
                   {/* Amounts & Due Date & Actions */}
                   <View className="flex-row items-center justify-between pt-2 border-t border-slate-100/60 mt-1">
-                    <View className="gap-0.5 flex-1 mr-2">
+                    <View className="gap-1 flex-1 mr-2">
                       <Text className="text-[10px] text-slate-400 font-semibold">
                         {m.dueDate ? `Hạn: ${formatDateToDDMMYYYY(m.dueDate)}` : 'Chưa có hạn'}
                       </Text>
-                      <View className="flex-row items-center gap-1.5 flex-wrap mt-0.5">
-                        <Text className="text-xs font-black text-slate-900">
+                      <View className="gap-0.5">
+                        <Text className="text-xs font-black text-slate-900" numberOfLines={1}>
                           Giá trị: {formatVND(m.amount)}
                         </Text>
                         {m.paidAmount > 0 ? (
-                          <Text className="text-[11px] font-bold text-emerald-600">
+                          <Text className="text-[11px] font-bold text-emerald-600" numberOfLines={1}>
                             • Đã thu: {formatVND(m.paidAmount)}
                           </Text>
                         ) : null}
                         {m.remaining > 0 && !isPlanned ? (
-                          <Text className="text-[11px] font-bold text-rose-500">
+                          <Text className="text-[11px] font-bold text-rose-500" numberOfLines={1}>
                             • Cần thu: {formatVND(m.remaining)}
                           </Text>
                         ) : null}
@@ -1235,16 +1235,32 @@ export default function FinanceDashboardScreen() {
                       </View>
                     ))}
 
-                    <View className="flex-row justify-between items-center border-t border-slate-200 pt-3 mt-1 px-1">
-                      <Text className="text-xs font-bold text-slate-500 uppercase">TỔNG ĐÃ NỘP</Text>
-                      <Text className="text-base font-black text-emerald-600">
-                        {formatVND(selectedMilestone.paidAmount)}
-                      </Text>
+                    <View className="border-t border-slate-200 pt-3 mt-1 px-1 gap-2">
+                      <View className="flex-row justify-between items-center">
+                        <Text className="text-xs font-bold text-slate-500 uppercase">TỔNG ĐÃ NỘP</Text>
+                        <Text className="text-base font-black text-emerald-600">
+                          {formatVND(selectedMilestone.paidAmount)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between items-center">
+                        <Text className="text-xs font-bold text-slate-500 uppercase">CÒN LẠI CHƯA THU</Text>
+                        <Text className={`text-base font-black ${(selectedMilestone.remaining ?? Math.max(0, (selectedMilestone.amount || 0) - (selectedMilestone.paidAmount || 0))) > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
+                          {formatVND(selectedMilestone.remaining ?? Math.max(0, (selectedMilestone.amount || 0) - (selectedMilestone.paidAmount || 0)))}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 ) : (
-                  <View className="bg-slate-50 border border-slate-100 rounded-xl p-4 items-center">
+                  <View className="bg-slate-50 border border-slate-100 rounded-xl p-4 items-center gap-2">
                     <Text className="text-xs text-slate-400 italic">Chưa có lịch sử ghi nhận thanh toán nào.</Text>
+                    {selectedMilestone && (
+                      <View className="flex-row justify-between items-center w-full pt-2 border-t border-slate-200/60 mt-1">
+                        <Text className="text-xs font-bold text-slate-500 uppercase">CÒN LẠI CHƯA THU</Text>
+                        <Text className="text-sm font-black text-rose-500">
+                          {formatVND(selectedMilestone.remaining ?? selectedMilestone.amount)}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
               </View>
