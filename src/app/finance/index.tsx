@@ -378,6 +378,7 @@ export default function FinanceDashboardScreen() {
       contract.sellingPrice > 0
         ? Math.min(100, Math.round((contract.totalPaid / contract.sellingPrice) * 100))
         : 0;
+    const isContractFullyPaid = progressPercent >= 100 ;
 
     return (
       <View
@@ -446,15 +447,17 @@ export default function FinanceDashboardScreen() {
             <Text className="text-[10px] font-bold text-emerald-700">{progressPercent}%</Text>
           </View>
 
-          {/* Nút Quản lý / Sửa lộ trình thanh toán */}
-          <TouchableOpacity
-            className="flex-row items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shadow-xs"
-            onPress={() => openRoadmapModal(contract)}
-            activeOpacity={0.8}
-          >
-            <Feather name="edit-3" size={12} color="#4F46E5" />
-            <Text className="text-[11px] font-bold text-indigo-600">Sửa lộ trình</Text>
-          </TouchableOpacity>
+          {/* Nút Quản lý / Sửa lộ trình thanh toán (Ẩn nếu hợp đồng đã 100%) */}
+          {!isContractFullyPaid && (
+            <TouchableOpacity
+              className="flex-row items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shadow-xs"
+              onPress={() => openRoadmapModal(contract)}
+              activeOpacity={0.8}
+            >
+              <Feather name="edit-3" size={12} color="#4F46E5" />
+              <Text className="text-[11px] font-bold text-indigo-600">Sửa lộ trình</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Milestones Journey Timeline */}
@@ -465,13 +468,15 @@ export default function FinanceDashboardScreen() {
                 Lộ trình thanh toán ({contract.milestones.length} đợt)
               </Text>
 
-              <TouchableOpacity
-                className="flex-row items-center gap-1 text-indigo-600"
-                onPress={() => openRoadmapModal(contract)}
-              >
-                <Feather name="plus-circle" size={13} color="#4F46E5" />
-                <Text className="text-xs font-bold text-indigo-600">Thêm / Chỉnh sửa</Text>
-              </TouchableOpacity>
+              {!isContractFullyPaid && (
+                <TouchableOpacity
+                  className="flex-row items-center gap-1 text-indigo-600"
+                  onPress={() => openRoadmapModal(contract)}
+                >
+                  <Feather name="plus-circle" size={13} color="#4F46E5" />
+                  <Text className="text-xs font-bold text-indigo-600">Thêm / Chỉnh sửa</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {contract.milestones.map((m, idx) => {
@@ -983,187 +988,203 @@ export default function FinanceDashboardScreen() {
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
-              {/* SECTION 1: GHI NHẬN THANH TOÁN MỚI */}
-              <View className="bg-slate-50 p-4 rounded-2xl border border-slate-200 gap-3">
-                <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                  GHI NHẬN THANH TOÁN MỚI
-                </Text>
-
-                <View className="gap-1">
-                  <Text className="text-xs font-bold text-slate-700 uppercase">SỐ TIỀN *</Text>
-                  <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
-                    <TextInput
-                      className="flex-1 text-sm text-slate-900 font-bold p-0"
-                      keyboardType="numeric"
-                      value={paymentAmount}
-                      onChangeText={(val) => setPaymentAmount(formatNumberInput(val))}
-                      placeholder="0"
-                      placeholderTextColor="#94A3B8"
-                    />
-                    <Text className="text-xs font-bold text-slate-500 ml-1">VNĐ</Text>
+              {/* SECTION 1: GHI NHẬN THANH TOÁN MỚI (Ẩn nếu đã hoàn thành 100%) */}
+              {(selectedMilestone?.status === 'COMPLETED' || ((selectedMilestone?.paidAmount || 0) >= (selectedMilestone?.amount || 0) && (selectedMilestone?.amount || 0) > 0)) ? (
+                <View className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex-row items-center gap-3">
+                  <View className="w-10 h-10 rounded-full bg-emerald-100 justify-center items-center shrink-0">
+                    <Feather name="check-circle" size={20} color="#059669" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-bold text-emerald-900">
+                      Đợt thanh toán đã hoàn thành 100%
+                    </Text>
+                    <Text className="text-xs text-emerald-700 mt-0.5">
+                      Đã thu đủ {formatVND(selectedMilestone?.amount)}. Bạn không cần ghi nhận thêm thanh toán nào cho đợt này.
+                    </Text>
                   </View>
                 </View>
-
-                <View className="gap-1">
-                  <Text className="text-xs font-bold text-slate-700 uppercase">
-                    NGÀY THANH TOÁN <Text className="text-rose-500">*</Text>
-                  </Text>
-                  <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
-                    <TouchableOpacity
-                      onPress={() => openDatePickerForPayment(paymentDate)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      className="mr-2.5"
-                    >
-                      <Feather name="calendar" size={16} color="#4F46E5" />
-                    </TouchableOpacity>
-                    <TextInput
-                      className="flex-1 text-sm text-slate-900 font-semibold p-0"
-                      value={paymentDate}
-                      onChangeText={setPaymentDate}
-                      placeholder="DD-MM-YYYY"
-                      placeholderTextColor="#94A3B8"
-                      keyboardType="numeric"
-                      maxLength={10}
-                    />
-                  </View>
-                </View>
-
-                <View className="gap-1">
-                  <Text className="text-xs font-bold text-slate-700 uppercase">GHI CHÚ</Text>
-                  <TextInput
-                    className="bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-900 min-h-[60px]"
-                    multiline
-                    textAlignVertical="top"
-                    value={paymentNote}
-                    onChangeText={setPaymentNote}
-                    placeholder="Nhập ghi chú..."
-                    placeholderTextColor="#94A3B8"
-                  />
-                </View>
-
-                {/* MINH CHỨNG (UNC / BILL CHUYỂN KHOẢN) */}
-                <View className="gap-2">
-                  <Text className="text-xs font-bold text-slate-700 uppercase">
-                    MINH CHỨNG (UNC / BILL CHUYỂN KHOẢN)
+              ) : (
+                <View className="bg-slate-50 p-4 rounded-2xl border border-slate-200 gap-3">
+                  <Text className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                    GHI NHẬN THANH TOÁN MỚI
                   </Text>
 
-                  {/* Segmented Tab Switcher */}
-                  <View className="flex-row p-1 bg-slate-100 rounded-xl gap-1">
-                    <TouchableOpacity
-                      className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-lg ${
-                        proofSubmissionType === 'file' ? 'bg-white shadow-xs' : ''
-                      }`}
-                      onPress={() => setProofSubmissionType('file')}
-                    >
-                      <Feather
-                        name="upload"
-                        size={14}
-                        color={proofSubmissionType === 'file' ? '#F38820' : '#64748B'}
+                  <View className="gap-1">
+                    <Text className="text-xs font-bold text-slate-700 uppercase">SỐ TIỀN *</Text>
+                    <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
+                      <TextInput
+                        className="flex-1 text-sm text-slate-900 font-bold p-0"
+                        keyboardType="numeric"
+                        value={paymentAmount}
+                        onChangeText={(val) => setPaymentAmount(formatNumberInput(val))}
+                        placeholder="0"
+                        placeholderTextColor="#94A3B8"
                       />
-                      <Text
-                        className={`text-xs ${
-                          proofSubmissionType === 'file' ? 'font-bold text-amber-600' : 'font-semibold text-slate-500'
-                        }`}
-                      >
-                        Tải file
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-lg ${
-                        proofSubmissionType === 'link' ? 'bg-white shadow-xs' : ''
-                      }`}
-                      onPress={() => setProofSubmissionType('link')}
-                    >
-                      <Feather
-                        name="link"
-                        size={14}
-                        color={proofSubmissionType === 'link' ? '#F38820' : '#64748B'}
-                      />
-                      <Text
-                        className={`text-xs ${
-                          proofSubmissionType === 'link' ? 'font-bold text-amber-600' : 'font-semibold text-slate-500'
-                        }`}
-                      >
-                        Gửi link
-                      </Text>
-                    </TouchableOpacity>
+                      <Text className="text-xs font-bold text-slate-500 ml-1">VNĐ</Text>
+                    </View>
                   </View>
 
-                  {/* Tab Content 1: Tải file */}
-                  {proofSubmissionType === 'file' && (
-                    <View className="gap-2 mt-1">
+                  <View className="gap-1">
+                    <Text className="text-xs font-bold text-slate-700 uppercase">
+                      NGÀY THANH TOÁN <Text className="text-rose-500">*</Text>
+                    </Text>
+                    <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
                       <TouchableOpacity
-                        className="border-2 border-dashed border-slate-300 rounded-2xl p-6 items-center bg-slate-50/50 gap-2"
-                        onPress={handlePickProofFile}
-                        activeOpacity={0.7}
+                        onPress={() => openDatePickerForPayment(paymentDate)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        className="mr-2.5"
                       >
-                        <View className="w-12 h-12 rounded-full bg-orange-100/70 items-center justify-center">
-                          <Feather name="upload-cloud" size={24} color="#F38820" />
-                        </View>
-                        <Text className="text-sm font-bold text-slate-900 text-center" numberOfLines={1}>
-                          {paymentProofFile ? paymentProofFile.name : 'Nhấn để chọn file minh chứng'}
-                        </Text>
-                        <Text className="text-xs text-slate-400 text-center">
-                          Chấp nhận file hình ảnh, PDF, Word, Excel...
+                        <Feather name="calendar" size={16} color="#4F46E5" />
+                      </TouchableOpacity>
+                      <TextInput
+                        className="flex-1 text-sm text-slate-900 font-semibold p-0"
+                        value={paymentDate}
+                        onChangeText={setPaymentDate}
+                        placeholder="DD-MM-YYYY"
+                        placeholderTextColor="#94A3B8"
+                        keyboardType="numeric"
+                        maxLength={10}
+                      />
+                    </View>
+                  </View>
+
+                  <View className="gap-1">
+                    <Text className="text-xs font-bold text-slate-700 uppercase">GHI CHÚ</Text>
+                    <TextInput
+                      className="bg-white border border-slate-200 rounded-xl p-3 text-sm text-slate-900 min-h-[60px]"
+                      multiline
+                      textAlignVertical="top"
+                      value={paymentNote}
+                      onChangeText={setPaymentNote}
+                      placeholder="Nhập ghi chú..."
+                      placeholderTextColor="#94A3B8"
+                    />
+                  </View>
+
+                  {/* MINH CHỨNG (UNC / BILL CHUYỂN KHOẢN) */}
+                  <View className="gap-2">
+                    <Text className="text-xs font-bold text-slate-700 uppercase">
+                      MINH CHỨNG (UNC / BILL CHUYỂN KHOẢN)
+                    </Text>
+
+                    {/* Segmented Tab Switcher */}
+                    <View className="flex-row p-1 bg-slate-100 rounded-xl gap-1">
+                      <TouchableOpacity
+                        className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-lg ${
+                          proofSubmissionType === 'file' ? 'bg-white shadow-xs' : ''
+                        }`}
+                        onPress={() => setProofSubmissionType('file')}
+                      >
+                        <Feather
+                          name="upload"
+                          size={14}
+                          color={proofSubmissionType === 'file' ? '#F38820' : '#64748B'}
+                        />
+                        <Text
+                          className={`text-xs ${
+                            proofSubmissionType === 'file' ? 'font-bold text-amber-600' : 'font-semibold text-slate-500'
+                          }`}
+                        >
+                          Tải file
                         </Text>
                       </TouchableOpacity>
 
-                      {paymentProofFile && (
-                        <TouchableOpacity
-                          className="flex-row items-center justify-center gap-1.5 py-1"
-                          onPress={() => setPaymentProofFile(null)}
-                        >
-                          <Feather name="trash-2" size={13} color="#EF4444" />
-                          <Text className="text-xs font-bold text-rose-500">Gỡ bỏ file đã chọn</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
-
-                  {/* Tab Content 2: Gửi link */}
-                  {proofSubmissionType === 'link' && (
-                    <View className="gap-2 mt-1">
-                      <Text className="text-[10px] font-extrabold text-slate-500 tracking-wider">
-                        ĐƯỜNG DẪN MINH CHỨNG *
-                      </Text>
-                      <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
-                        <Feather name="link" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
-                        <TextInput
-                          className="flex-1 py-1 text-xs text-slate-900 font-medium p-0"
-                          placeholder="https://drive.google.com/..."
-                          placeholderTextColor="#94A3B8"
-                          value={paymentProofLink}
-                          onChangeText={setPaymentProofLink}
-                          autoCapitalize="none"
-                          keyboardType="url"
+                      <TouchableOpacity
+                        className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-lg ${
+                          proofSubmissionType === 'link' ? 'bg-white shadow-xs' : ''
+                        }`}
+                        onPress={() => setProofSubmissionType('link')}
+                      >
+                        <Feather
+                          name="link"
+                          size={14}
+                          color={proofSubmissionType === 'link' ? '#F38820' : '#64748B'}
                         />
-                        {paymentProofLink ? (
-                          <TouchableOpacity onPress={() => setPaymentProofLink('')}>
-                            <Feather name="x-circle" size={14} color="#94A3B8" />
-                          </TouchableOpacity>
-                        ) : null}
-                      </View>
-                      <Text className="text-[11px] text-slate-400 italic">
-                        * Vui lòng đảm bảo quyền truy cập link cho quản lý và kế toán.
-                      </Text>
+                        <Text
+                          className={`text-xs ${
+                            proofSubmissionType === 'link' ? 'font-bold text-amber-600' : 'font-semibold text-slate-500'
+                          }`}
+                        >
+                          Gửi link
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                  )}
-                </View>
 
-                <TouchableOpacity
-                  className="mt-1 bg-blue-600 py-3.5 rounded-xl items-center justify-center min-h-[48px]"
-                  onPress={onSavePayment}
-                  disabled={createPaymentMutation.isPending}
-                  activeOpacity={0.8}
-                >
-                  {createPaymentMutation.isPending ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <Text className="text-sm font-bold text-white">Xác nhận thanh toán</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+                    {/* Tab Content 1: Tải file */}
+                    {proofSubmissionType === 'file' && (
+                      <View className="gap-2 mt-1">
+                        <TouchableOpacity
+                          className="border-2 border-dashed border-slate-300 rounded-2xl p-6 items-center bg-slate-50/50 gap-2"
+                          onPress={handlePickProofFile}
+                          activeOpacity={0.7}
+                        >
+                          <View className="w-12 h-12 rounded-full bg-orange-100/70 items-center justify-center">
+                            <Feather name="upload-cloud" size={24} color="#F38820" />
+                          </View>
+                          <Text className="text-sm font-bold text-slate-900 text-center" numberOfLines={1}>
+                            {paymentProofFile ? paymentProofFile.name : 'Nhấn để chọn file minh chứng'}
+                          </Text>
+                          <Text className="text-xs text-slate-400 text-center">
+                            Chấp nhận file hình ảnh, PDF, Word, Excel...
+                          </Text>
+                        </TouchableOpacity>
+
+                        {paymentProofFile && (
+                          <TouchableOpacity
+                            className="flex-row items-center justify-center gap-1.5 py-1"
+                            onPress={() => setPaymentProofFile(null)}
+                          >
+                            <Feather name="trash-2" size={13} color="#EF4444" />
+                            <Text className="text-xs font-bold text-rose-500">Gỡ bỏ file đã chọn</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Tab Content 2: Gửi link */}
+                    {proofSubmissionType === 'link' && (
+                      <View className="gap-2 mt-1">
+                        <Text className="text-[10px] font-extrabold text-slate-500 tracking-wider">
+                          ĐƯỜNG DẪN MINH CHỨNG *
+                        </Text>
+                        <View className="flex-row items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 min-h-[44px]">
+                          <Feather name="link" size={16} color="#94A3B8" style={{ marginRight: 8 }} />
+                          <TextInput
+                            className="flex-1 py-1 text-xs text-slate-900 font-medium p-0"
+                            placeholder="https://drive.google.com/..."
+                            placeholderTextColor="#94A3B8"
+                            value={paymentProofLink}
+                            onChangeText={setPaymentProofLink}
+                            autoCapitalize="none"
+                            keyboardType="url"
+                          />
+                          {paymentProofLink ? (
+                            <TouchableOpacity onPress={() => setPaymentProofLink('')}>
+                              <Feather name="x-circle" size={14} color="#94A3B8" />
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                        <Text className="text-[11px] text-slate-400 italic">
+                          * Vui lòng đảm bảo quyền truy cập link cho quản lý và kế toán.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    className="mt-1 bg-blue-600 py-3.5 rounded-xl items-center justify-center min-h-[48px]"
+                    onPress={onSavePayment}
+                    disabled={createPaymentMutation.isPending}
+                    activeOpacity={0.8}
+                  >
+                    {createPaymentMutation.isPending ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text className="text-sm font-bold text-white">Xác nhận thanh toán</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* SECTION 2: LỊCH SỬ THANH TOÁN */}
               <View className="gap-3">
