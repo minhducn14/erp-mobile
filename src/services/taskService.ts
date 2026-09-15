@@ -8,12 +8,16 @@ export const TASK_STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Đã hủy',
   AWAITING_PRICING: 'Chờ định giá',
   REJECTED: 'Yêu cầu làm lại',
-  AWAITING_ACCEPTANCE: 'Chờ nghiệm thu',
-  AWAITING_REVIEW: 'Chờ duyệt',
+  AWAITING_ACCEPTANCE: 'Đang chờ nghiệm thu',
+  AWAITING_REVIEW: 'Đang chờ duyệt',
   OVERDUE: 'Quá hạn',
+  AWAITING_SUPPORT: 'Đã nhờ hỗ trợ',
+  SUPPORT_PENDING: 'Chờ xác nhận hỗ trợ',
   COMPLETED: 'Hoàn thành',
   REWORKING: 'Đang làm lại',
+  INTERNAL_COMPLETED: 'Hoàn thành nội bộ',
   ACCEPTED: 'Đã nghiệm thu',
+  SUPPORT_AWAITING_RETURN: 'Chờ xác nhận hoàn thành',
 };
 
 export const TASK_STATUS_CONFIG: Record<
@@ -29,9 +33,13 @@ export const TASK_STATUS_CONFIG: Record<
   AWAITING_ACCEPTANCE: { text: 'Chờ nghiệm thu', color: '#D97706', bg: '#FFFBEB' },
   AWAITING_REVIEW: { text: 'Chờ duyệt', color: '#D97706', bg: '#FFFBEB' },
   OVERDUE: { text: 'Quá hạn', color: '#DC2626', bg: '#FEF2F2' },
+  AWAITING_SUPPORT: { text: 'Đã nhờ hỗ trợ', color: '#E11D48', bg: '#FFF1F2' },
+  SUPPORT_PENDING: { text: 'Chờ xác nhận hỗ trợ', color: '#EA580C', bg: '#FFF7ED' },
   COMPLETED: { text: 'Hoàn thành', color: '#059669', bg: '#ECFDF5' },
   REWORKING: { text: 'Đang làm lại', color: '#D97706', bg: '#FFFBEB' },
+  INTERNAL_COMPLETED: { text: 'HT nội bộ', color: '#7C3AED', bg: '#F3E8FF' },
   ACCEPTED: { text: 'Đã nghiệm thu', color: '#059669', bg: '#ECFDF5' },
+  SUPPORT_AWAITING_RETURN: { text: 'Chờ xác nhận hoàn thành', color: '#2563EB', bg: '#EFF6FF' },
 };
 
 export interface TaskDetail extends TaskItem {
@@ -121,15 +129,18 @@ export interface TaskDetail extends TaskItem {
 }
 
 class TaskService {
-  async getTasks(filters?: Record<string, any>): Promise<{ data?: TaskItem[]; error?: string }> {
-    const res = await apiService.get<any>('/tasks', filters);
+  async getTasks(filters?: Record<string, any>): Promise<{ data?: TaskItem[]; total?: number; error?: string }> {
+    const params = { page: 1, limit: 20, ...filters };
+    const res = await apiService.get<any>('/tasks', params);
     const raw = res.data;
     const items = Array.isArray(raw)
       ? raw
       : raw?.data && Array.isArray(raw.data)
       ? raw.data
       : [];
-    return { data: items, error: res.error };
+    const total = raw?.total ?? raw?.pagination?.total ?? raw?.meta?.total ?? items.length;
+    
+    return { data: items, total, error: res.error };
   }
 
   async getTasksByProject(projectId: string): Promise<{ data?: TaskDetail[]; error?: string }> {

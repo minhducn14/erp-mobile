@@ -24,7 +24,10 @@ export function useTasksQuery(filters: TaskListFilters = {}) {
       if (res.error) {
         throw new Error(res.error);
       }
-      return res.data || [];
+      return {
+        data: res.data || [],
+        total: res.total ?? (res.data?.length || 0),
+      };
     },
   });
 }

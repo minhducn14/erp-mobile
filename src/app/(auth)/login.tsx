@@ -183,10 +183,10 @@ export default function LoginScreen() {
                 >
                   <View
                     className={`h-[18px] w-[18px] items-center justify-center rounded-[5px] border bg-white ${
-                      rememberMe ? 'border-primary bg-primary' : 'border-slate-300'
+                      rememberMe ? 'border-primary' : 'border-slate-300'
                     }`}
                   >
-                    {rememberMe && <Feather name="check" size={12} color="#FFFFFF" />}
+                    {rememberMe && <Feather name="check" size={12} color="#0F172A" />}
                   </View>
                   <Text className="text-sm text-slate-700">Ghi nhớ đăng nhập</Text>
                 </TouchableOpacity>

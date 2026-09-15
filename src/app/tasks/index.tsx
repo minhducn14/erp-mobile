@@ -12,43 +12,104 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TaskItem } from '@/services/dashboardService';
+import { TASK_STATUS_CONFIG } from '@/services/taskService';
 import { BrandColors } from '@/constants/colors';
 import BottomNavBar from '@/components/BottomNavBar';
 import { safeGoBack } from '@/utils/navigation';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
 import { useTasksQuery } from '@/hooks/queries/useTasks';
+import { useAuth } from '@/context/AuthContext';
+import { isManagementRole, isProjectManagerRole, isSalesRole } from '@/utils/rbac';
 
-type StatusFilter = 'ALL' | 'TODO' | 'IN_PROGRESS' | 'AWAITING_REVIEW' | 'ACCEPTED';
+type StatusFilter =
+  | 'ALL'
+  | 'PENDING'
+  | 'DOING'
+  | 'AWAITING_REVIEW'
+  | 'AWAITING_ACCEPTANCE'
+  | 'ACCEPTED'
+  | 'INTERNAL_COMPLETED'
+  | 'COMPLETED'
+  | 'REWORKING'
+  | 'REJECTED'
+  | 'CANCELLED';
+
+type ScopeFilter = 'MINE' | 'ALL';
 
 const STATUS_TABS: Array<{ id: StatusFilter; label: string }> = [
   { id: 'ALL', label: 'Tất cả' },
-  { id: 'TODO', label: 'Cần làm' },
-  { id: 'IN_PROGRESS', label: 'Đang làm' },
+  { id: 'DOING', label: 'Đang thực hiện' },
+  { id: 'PENDING', label: 'Chờ phân công' },
   { id: 'AWAITING_REVIEW', label: 'Chờ duyệt' },
-  { id: 'ACCEPTED', label: 'Đã xong' },
+  { id: 'AWAITING_ACCEPTANCE', label: 'Chờ nghiệm thu' },
+  { id: 'REWORKING', label: 'Đang làm lại' },
+  { id: 'REJECTED', label: 'Yêu cầu làm lại' },
+  { id: 'INTERNAL_COMPLETED', label: 'HT nội bộ' },
+  { id: 'ACCEPTED', label: 'Đã nghiệm thu' },
+  { id: 'COMPLETED', label: 'Hoàn thành' },
+  { id: 'CANCELLED', label: 'Đã hủy' },
 ];
 
 export default function TasksScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<StatusFilter>('ALL');
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('MINE');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_LIMIT = 50;
+
+  const currentUserId = user?.id;
+  const userRole = user?.role;
+  const canViewAllTasks = isManagementRole(userRole) || isProjectManagerRole(userRole) || isSalesRole(userRole);
 
   const { data: tasksRes, isLoading, isFetching, refetch } = useTasksQuery({
     status: activeTab !== 'ALL' ? activeTab : undefined,
+    assigneeId: scopeFilter === 'MINE' || !canViewAllTasks ? currentUserId : undefined,
+    page: 1,
+    limit: PAGE_LIMIT * page,
   });
 
   const tasks: TaskItem[] = useMemo(() => {
     if (!tasksRes) return [];
-    return Array.isArray(tasksRes) ? tasksRes : [];
+    if (Array.isArray(tasksRes)) return tasksRes;
+    return tasksRes.data || [];
   }, [tasksRes]);
+
+  const totalTasksCount = useMemo(() => {
+    if (!tasksRes) return 0;
+    if (Array.isArray(tasksRes)) return tasksRes.length;
+    return tasksRes.total ?? tasks.length;
+  }, [tasksRes, tasks.length]);
 
   useSSERefresh('invalidate_Tasks', refetch);
 
   const handleRefresh = () => {
+    setPage(1);
     refetch();
   };
 
+  const handleStatusTabChange = (status: StatusFilter) => {
+    setActiveTab(status);
+    setPage(1);
+  };
+
+  const handleScopeFilterChange = (scope: ScopeFilter) => {
+    setScopeFilter(scope);
+    setPage(1);
+  };
+
   const filteredTasks = tasks.filter((t) => {
+    // Nếu chọn xem "Của tôi", chỉ giữ lại các task mà mình làm chính hoặc hỗ trợ
+    if (scopeFilter === 'MINE' && currentUserId) {
+      const isAssignee = (t as any).assigneeId === currentUserId || t.assignee?.id === currentUserId;
+      const isHelper = (t as any).helperId === currentUserId || (t as any).helper?.id === currentUserId;
+      const isSupportLead = (t as any).supportLeadId === currentUserId;
+      if (!isAssignee && !isHelper && !isSupportLead) {
+        return false;
+      }
+    }
+
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -60,17 +121,11 @@ export default function TasksScreen() {
   });
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'ACCEPTED':
-      case 'DONE':
-        return { bg: '#ECFDF5', text: '#059669', label: 'Hoàn thành' };
-      case 'IN_PROGRESS':
-        return { bg: '#EFF6FF', text: '#2563EB', label: 'Đang làm' };
-      case 'AWAITING_REVIEW':
-        return { bg: '#FFFBEB', text: '#D97706', label: 'Chờ duyệt' };
-      default:
-        return { bg: '#F1F5F9', text: '#64748B', label: 'Cần làm' };
+    const config = TASK_STATUS_CONFIG[status];
+    if (config) {
+      return { bg: config.bg, text: config.color, label: config.text };
     }
+    return { bg: '#F1F5F9', text: '#64748B', label: status || 'Chờ xử lý' };
   };
 
   const renderTaskCard = ({ item }: { item: TaskItem }) => {
@@ -153,6 +208,69 @@ export default function TasksScreen() {
         </View>
       </View>
 
+      {/* Scope Filter Switcher (Chỉ hiển thị cho Quản lý / PM / Sales) */}
+      {canViewAllTasks && (
+        <View className="bg-white px-4 pb-2">
+          <View className="flex-row items-center bg-slate-100 p-1 rounded-xl">
+            <TouchableOpacity
+              className={`flex-1 flex-row items-center justify-center gap-1.5 py-1.5 rounded-lg ${
+                scopeFilter === 'MINE' ? 'bg-white shadow-xs' : ''
+              }`}
+              onPress={() => handleScopeFilterChange('MINE')}
+              activeOpacity={0.8}
+            >
+              <Feather
+                name="user"
+                size={13}
+                color={scopeFilter === 'MINE' ? BrandColors.primary : '#64748B'}
+              />
+              <Text
+                className={`text-xs ${
+                  scopeFilter === 'MINE' ? 'font-bold text-slate-900' : 'font-medium text-slate-500'
+                }`}
+              >
+                Nhiệm vụ của tôi
+              </Text>
+              {scopeFilter === 'MINE' && (
+                <View className="bg-orange-100 px-1.5 py-0.5 rounded-full">
+                  <Text className="text-[10px] font-black text-orange-700">
+                    {searchQuery ? filteredTasks.length : totalTasksCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className={`flex-1 flex-row items-center justify-center gap-1.5 py-1.5 rounded-lg ${
+                scopeFilter === 'ALL' ? 'bg-white shadow-xs' : ''
+              }`}
+              onPress={() => handleScopeFilterChange('ALL')}
+              activeOpacity={0.8}
+            >
+              <Feather
+                name="globe"
+                size={13}
+                color={scopeFilter === 'ALL' ? BrandColors.primary : '#64748B'}
+              />
+              <Text
+                className={`text-xs ${
+                  scopeFilter === 'ALL' ? 'font-bold text-slate-900' : 'font-medium text-slate-500'
+                }`}
+              >
+                Tất cả nhiệm vụ
+              </Text>
+              {scopeFilter === 'ALL' && (
+                <View className="bg-orange-100 px-1.5 py-0.5 rounded-full">
+                  <Text className="text-[10px] font-black text-orange-700">
+                    {searchQuery ? filteredTasks.length : totalTasksCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Filter Tabs */}
       <View className="border-b border-slate-200 bg-white pb-2">
         <FlatList
@@ -166,7 +284,7 @@ export default function TasksScreen() {
             return (
               <TouchableOpacity
                 className={`rounded-full px-3.5 py-1.5 ${isActive ? 'bg-primary' : 'bg-slate-100'}`}
-                onPress={() => setActiveTab(item.id)}
+                onPress={() => handleStatusTabChange(item.id)}
                 activeOpacity={0.75}
               >
                 <Text className={`text-[13px] font-semibold ${isActive ? 'text-white' : 'text-slate-500'}`}>
@@ -177,6 +295,19 @@ export default function TasksScreen() {
           }}
         />
       </View>
+
+      {/* Total Count Bar */}
+      {totalTasksCount > 0 && (
+        <View className="bg-slate-50 px-4 pt-2.5 pb-0.5 flex-row items-center justify-between">
+          <Text className="text-[12px] font-medium text-slate-500">
+            {searchQuery
+              ? `Tìm thấy ${filteredTasks.length} / ${totalTasksCount} nhiệm vụ`
+              : `Tổng số: ${totalTasksCount} nhiệm vụ${
+                  filteredTasks.length < totalTasksCount ? ` (Đã tải ${filteredTasks.length})` : ''
+                }`}
+          </Text>
+        </View>
+      )}
 
       {/* Task List */}
       {isLoading && !isFetching ? (
@@ -191,13 +322,27 @@ export default function TasksScreen() {
           renderItem={renderTaskCard}
           contentContainerClassName="gap-3 p-4 pb-6"
           showsVerticalScrollIndicator={false}
+          onEndReachedThreshold={0.4}
+          onEndReached={() => {
+            if (!isFetching && filteredTasks.length >= PAGE_LIMIT * page) {
+              setPage((prev) => prev + 1);
+            }
+          }}
           refreshControl={
             <RefreshControl
-              refreshing={isFetching}
+              refreshing={isFetching && page === 1}
               onRefresh={handleRefresh}
               colors={[BrandColors.primary]}
               tintColor={BrandColors.primary}
             />
+          }
+          ListFooterComponent={
+            isFetching && page > 1 ? (
+              <View className="py-4 items-center justify-center flex-row gap-2">
+                <ActivityIndicator size="small" color={BrandColors.primary} />
+                <Text className="text-xs text-slate-400 font-medium">Đang tải thêm công việc...</Text>
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             <View className="items-center justify-center gap-2.5 py-[60px]">
