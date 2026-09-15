@@ -27,6 +27,8 @@ interface ProjectOverviewTabProps {
   onRemoveMember?: (memberId: string) => void;
   onEditMemberRole?: (member: any) => void;
   canManageTeam?: boolean;
+  onOpenCreateMonthlyWork?: () => void;
+  canCreateMonthlyWork?: boolean;
 }
 
 export default function ProjectOverviewTab({
@@ -43,6 +45,8 @@ export default function ProjectOverviewTab({
   onRemoveMember,
   onEditMemberRole,
   canManageTeam = false,
+  onOpenCreateMonthlyWork,
+  canCreateMonthlyWork = false,
 }: ProjectOverviewTabProps) {
   const router = useRouter();
   const effectiveMembers = (teamMembers && teamMembers.length > 0) ? teamMembers : (project.team?.members || []);
@@ -73,6 +77,28 @@ export default function ProjectOverviewTab({
 
   return (
     <View className="p-4 gap-3.5">
+      {/* 0. Create Monthly Work CTA Card */}
+      {canCreateMonthlyWork && (
+        <TouchableOpacity
+          className="flex-row items-center justify-between bg-purple-700 p-4 rounded-2xl shadow-sm border border-purple-800"
+          onPress={onOpenCreateMonthlyWork}
+          activeOpacity={0.85}
+        >
+          <View className="flex-row items-center gap-3 flex-1">
+            <View className="w-10 h-10 rounded-xl bg-white/20 items-center justify-center">
+              <Feather name="calendar" size={20} color="#FFFFFF" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-bold text-white">Tạo công việc tháng mới</Text>
+              <Text className="text-xs text-purple-100 mt-0.5">
+                Tự động khởi tạo phụ lục & công việc mẫu theo tháng
+              </Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
+
       {/* 1. Missing PM Banner */}
       {!pm && (
         <View className="bg-amber-100 border border-amber-300 rounded-2xl p-4 gap-3">

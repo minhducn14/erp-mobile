@@ -236,8 +236,18 @@ class FinanceService {
     amount: number;
     paymentDate?: string;
     note?: string;
+    proofLink?: string;
+    proofFile?: { name: string; size?: number; uri: string; mimeType?: string };
   }): Promise<{ success: boolean; error?: string }> {
     const res = await apiService.post<{ message: string }>('/debts/payments', data);
+    return { success: !res.error, error: res.error };
+  }
+
+  /**
+   * Xóa lịch sử ghi nhận thanh toán (Chuẩn Web API: DELETE /debts/payments/:id)
+   */
+  async deletePayment(paymentId: string): Promise<{ success: boolean; error?: string }> {
+    const res = await apiService.delete<{ message: string }>(`/debts/payments/${paymentId}`);
     return { success: !res.error, error: res.error };
   }
 

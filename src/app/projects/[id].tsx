@@ -32,6 +32,7 @@ import AcceptanceReviewModal from '@/components/projects/AcceptanceReviewModal';
 import AddTeamMemberModal from '@/components/projects/AddTeamMemberModal';
 import EditTeamMemberRoleModal from '@/components/projects/EditTeamMemberRoleModal';
 import TaskAssignModal from '@/components/projects/TaskAssignModal';
+import CreateMonthlyWorkModal from '@/components/projects/CreateMonthlyWorkModal';
 import { useSSERefresh } from '@/hooks/useSSERefresh';
 import { safeGoBack } from '@/utils/navigation';
 import {
@@ -88,6 +89,7 @@ export default function ProjectDetailScreen() {
   const [showAddTeamMember, setShowAddTeamMember] = useState(false);
   const [editingMember, setEditingMember] = useState<any>(null);
   const [showEditMemberRole, setShowEditMemberRole] = useState(false);
+  const [showCreateMonthlyWork, setShowCreateMonthlyWork] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
   // Multi-select task state
@@ -115,6 +117,14 @@ export default function ProjectDetailScreen() {
   const canConfirmProject =
     (isAdmin || isCurrentTeamLead) && project?.status === 'PENDING_CONFIRMATION';
   const isPmOrAdmin = isAdminOrBod || isAssignedPm;
+
+  // Can create monthly work if Lead, PM, Admin/BOD, or contract creator
+  const canCreateMonthlyWork =
+    isCurrentTeamLead ||
+    isAssignedPm ||
+    isAdminOrBod ||
+    project?.contract?.createdById === user?.id ||
+    (project as any)?.createdById === user?.id;
 
   // Can manage team members if Admin/BOD/PM/Lead, AND project has a PM assigned
   const canManageTeam =
@@ -358,6 +368,8 @@ export default function ProjectDetailScreen() {
               setShowEditMemberRole(true);
             }}
             canManageTeam={canManageTeam}
+            onOpenCreateMonthlyWork={() => setShowCreateMonthlyWork(true)}
+            canCreateMonthlyWork={canCreateMonthlyWork}
           />
         )}
 
@@ -562,6 +574,16 @@ export default function ProjectDetailScreen() {
             onSuccess={() => {
               loadAcceptances();
               loadProjectDetail();
+            }}
+          />
+
+          <CreateMonthlyWorkModal
+            visible={showCreateMonthlyWork}
+            onClose={() => setShowCreateMonthlyWork(false)}
+            projectId={id}
+            onSuccess={() => {
+              loadProjectDetail();
+              loadTasks();
             }}
           />
         </>
