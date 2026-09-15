@@ -433,3 +433,47 @@ export function useRemoveTeamMemberMutation() {
     },
   });
 }
+
+// ==========================================
+// MONTHLY WORK ADDENDUMS (CÔNG VIỆC THÁNG MỚI)
+// ==========================================
+
+export function useMonthlyWorkTemplateQuery(projectId: string, month: string, enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.projects.detail(projectId), 'monthly-work-template', month],
+    queryFn: async () => {
+      const res = await projectService.getMonthlyWorkTemplate(projectId, month);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    enabled: Boolean(projectId) && Boolean(month) && enabled,
+  });
+}
+
+export function useCreateMonthlyWorkAddendumMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      projectId,
+      payload,
+    }: {
+      projectId: string;
+      payload: { monthKey: string; name?: string; description?: string; items: any[] };
+    }) => {
+      const res = await projectService.createMonthlyWorkAddendum(projectId, payload);
+      if (res.error) {
+        throw new Error(res.error);
+      }
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(variables.projectId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
+    },
+  });
+}
+

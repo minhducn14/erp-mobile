@@ -73,6 +73,7 @@ export interface ProjectItem {
     name?: string;
     description?: string;
     sellingPrice?: number;
+    createdById?: string;
     attachments?: Array<{
       name: string;
       url: string;
@@ -185,6 +186,32 @@ class ProjectService {
   async confirmProject(id: string): Promise<{ data?: any; error?: string }> {
     const res = await apiService.post(`/projects/${id}/confirm`, {});
     return { data: res.data, error: res.error };
+  }
+
+  async getMonthlyWorkTemplate(projectId: string, month: string): Promise<{ data?: any; error?: string }> {
+    const res = await apiService.get<any>(`/projects/${projectId}/monthly-work-template`, { month });
+    const item = res.data?.data && typeof res.data.data === 'object' ? res.data.data : res.data;
+    return { data: item, error: res.error };
+  }
+
+  async createMonthlyWorkAddendum(
+    projectId: string,
+    payload: { monthKey: string; name?: string; description?: string; items: any[] }
+  ): Promise<{ data?: any; error?: string }> {
+    const res = await apiService.post<any>(`/projects/${projectId}/monthly-work-addendums`, payload);
+    return { data: res.data, error: res.error };
+  }
+
+  async getServices(): Promise<{ data?: any[]; error?: string }> {
+    const res = await apiService.get<any>('/services');
+    const items = Array.isArray(res.data) ? res.data : res.data?.data && Array.isArray(res.data.data) ? res.data.data : [];
+    return { data: items, error: res.error };
+  }
+
+  async getServicePackages(): Promise<{ data?: any[]; error?: string }> {
+    const res = await apiService.get<any>('/service-packages');
+    const items = Array.isArray(res.data) ? res.data : res.data?.data && Array.isArray(res.data.data) ? res.data.data : [];
+    return { data: items, error: res.error };
   }
 
   async getPmUsers(): Promise<{ data?: UserPMItem[]; error?: string }> {
