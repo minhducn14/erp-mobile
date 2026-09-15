@@ -69,7 +69,8 @@ export const formatNumberInput = (value: string | number | undefined | null): st
   if (value === null || value === undefined || value === '') return '';
   const digitsOnly = String(value).replace(/\D/g, '');
   if (!digitsOnly) return '';
-  return digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const cleanDigits = digitsOnly.replace(/^0+(?=\d)/, '');
+  return cleanDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 };
 
 /**
@@ -102,4 +103,120 @@ export const formatPercent = (val: number | string | undefined | null): string =
   const num = Number(val);
   if (isNaN(num)) return '0%';
   return `${num}%`;
+};
+
+/**
+ * Định dạng ngày hiển thị theo chuẩn hệ thống: DD-MM-YYYY (Ví dụ: 15-09-2026)
+ */
+export const formatDateToDDMMYYYY = (
+  dateInput: Date | string | number | undefined | null,
+  fallback: string = ''
+): string => {
+  if (!dateInput) return fallback;
+
+  let d: Date;
+  if (dateInput instanceof Date) {
+    d = dateInput;
+  } else if (typeof dateInput === 'number') {
+    d = new Date(dateInput);
+  } else {
+    const str = String(dateInput).trim();
+    if (!str) return fallback;
+
+    // Handle DD-MM-YYYY or DD/MM/YYYY
+    const ddmmyyyyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (ddmmyyyyMatch) {
+      const day = String(ddmmyyyyMatch[1]).padStart(2, '0');
+      const month = String(ddmmyyyyMatch[2]).padStart(2, '0');
+      const year = ddmmyyyyMatch[3];
+      return `${day}-${month}-${year}`;
+    }
+
+    // Handle YYYY-MM-DD
+    const yyyymmddMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (yyyymmddMatch) {
+      const year = yyyymmddMatch[1];
+      const month = String(yyyymmddMatch[2]).padStart(2, '0');
+      const day = String(yyyymmddMatch[3]).padStart(2, '0');
+      return `${day}-${month}-${year}`;
+    }
+
+    d = new Date(str);
+  }
+
+  if (isNaN(d.getTime())) return fallback;
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+/**
+ * Chuyển ngày về định dạng API YYYY-MM-DD (Ví dụ: 2026-09-15)
+ */
+export const formatDateToYYYYMMDD = (
+  dateInput: Date | string | number | undefined | null,
+  fallback: string = ''
+): string => {
+  if (!dateInput) return fallback;
+
+  let d: Date;
+  if (dateInput instanceof Date) {
+    d = dateInput;
+  } else if (typeof dateInput === 'number') {
+    d = new Date(dateInput);
+  } else {
+    const str = String(dateInput).trim();
+    if (!str) return fallback;
+
+    // Handle DD-MM-YYYY or DD/MM/YYYY
+    const ddmmyyyyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (ddmmyyyyMatch) {
+      const day = parseInt(ddmmyyyyMatch[1], 10);
+      const month = parseInt(ddmmyyyyMatch[2], 10) - 1;
+      const year = parseInt(ddmmyyyyMatch[3], 10);
+      d = new Date(year, month, day);
+    } else {
+      d = new Date(str);
+    }
+  }
+
+  if (isNaN(d.getTime())) return fallback;
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Parse chuỗi ngày bất kỳ (DD-MM-YYYY, YYYY-MM-DD, ISO) thành Date object
+ */
+export const parseDateInput = (str?: string | null): Date => {
+  if (!str) return new Date();
+  const cleanStr = String(str).trim();
+
+  // Try DD-MM-YYYY or DD/MM/YYYY
+  const ddmmyyyyMatch = cleanStr.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (ddmmyyyyMatch) {
+    const day = parseInt(ddmmyyyyMatch[1], 10);
+    const month = parseInt(ddmmyyyyMatch[2], 10) - 1;
+    const year = parseInt(ddmmyyyyMatch[3], 10);
+    const res = new Date(year, month, day);
+    if (!isNaN(res.getTime())) return res;
+  }
+
+  // Try YYYY-MM-DD
+  const yyyymmddMatch = cleanStr.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (yyyymmddMatch) {
+    const year = parseInt(yyyymmddMatch[1], 10);
+    const month = parseInt(yyyymmddMatch[2], 10) - 1;
+    const day = parseInt(yyyymmddMatch[3], 10);
+    const res = new Date(year, month, day);
+    if (!isNaN(res.getTime())) return res;
+  }
+
+  const d = new Date(cleanStr);
+  return isNaN(d.getTime()) ? new Date() : d;
 };
